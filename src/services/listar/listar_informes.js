@@ -11,11 +11,11 @@ export async function getListaInformes({
     try {
         const params = { id, idrend, user, ruc };
 
-        console.log("========================================");
+     /*    console.log("========================================");
         console.log("📄 GET LISTA INFORMES");
         console.log(`📍 URL: ${API.defaults.baseURL}${endpoint}`);
         console.log("📦 Params:", params);
-        console.log("========================================");
+        console.log("========================================"); */
 
         const response = await API.get(endpoint, {
             params,
@@ -32,11 +32,11 @@ export async function getListaInformes({
         }
 
         if (data.length === 0) {
-            console.warn("⚠️ Lista vacía");
+            /* console.warn("⚠️ Lista vacía"); */
             return [];
         }
 
-        console.log("🧾 CAMPOS:", Object.keys(data[0]));
+        /* console.log("🧾 CAMPOS:", Object.keys(data[0])); */
 
         return data;
 

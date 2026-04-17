@@ -16,9 +16,9 @@ export async function getApiRuc({ ruc }) {
 
         const url = `/api/ruc/${ruc}`;
 
-        console.log("📡 Realizando petición HTTP GET...");
+       /*  console.log("📡 Realizando petición HTTP GET...");
         console.log("🌍 URL final:", `${baseUrlApi}${url}`);
-
+ */
         // 🚀 Petición GET
         const response = await API.get(url, {
             headers: {
@@ -29,12 +29,12 @@ export async function getApiRuc({ ruc }) {
                 "Cache-Control": "no-cache",
             },
         });
-
+/* 
         console.log("📊 Status:", response.status);
-        console.log("📦 Headers:", response.headers);
+        console.log("📦 Headers:", response.headers); */
 
         if (response.status === 200) {
-            console.log("✅ Status 200 - Procesando JSON...");
+            /* console.log("✅ Status 200 - Procesando JSON..."); */
 
             const jsonData = response.data;
 
@@ -47,9 +47,9 @@ export async function getApiRuc({ ruc }) {
                 const raw = JSON.stringify(jsonData);
                 const preview =
                     raw.length > 2000 ? raw.substring(0, 2000) + "... [truncated]" : raw;
-                console.log("📄 Preview:", preview);
+                /* console.log("📄 Preview:", preview); */
             } catch (e) {
-                console.log("⚠️ No se pudo imprimir preview:", e);
+                /* console.log("⚠️ No se pudo imprimir preview:", e); */
             }
 
             // validar estructura

@@ -25,7 +25,7 @@ export default function TarjetaCredito() {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        console.log("📦 Datos enviados:", formData);
+        /* console.log("📦 Datos enviados:", formData); */
     };
 
     return (
@@ -160,7 +160,7 @@ export default function TarjetaCredito() {
                 <button
                     type="button"
                     className="bg-red-500 hover:bg-red-700 text-white px-4 py-2 rounded"
-                    onClick={() => console.log("Cancelar")}
+                /* onClick={() => console.log("Cancelar")} */
                 >
                     Cancelar
                 </button>

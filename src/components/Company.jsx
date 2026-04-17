@@ -45,45 +45,75 @@ export default function Company() {
         }
 
         // ✅ guardar empresa correcta
+        const currentUserArea = String(
+            empresa?.currentUserArea ??
+            empresa?.area ??
+            empresa?.gerencia ??
+            empresa?.useare ??
+            empresa?.idArea ??
+            empresa?.idarea ??
+            ""
+        );
+
         localStorage.setItem(
             "company",
             JSON.stringify({
+                ...empresa,
                 id: empresa.id,
                 ruc: empresa.ruc,
                 nombre: empresa.empresa,
+                currentUserArea,
+                area: empresa?.area ?? "",
+                gerencia: empresa?.gerencia ?? "",
             })
         );
 
-        console.log("🏢 EMPRESA GUARDADA:", empresa);
+        /* console.log("🏢 EMPRESA GUARDADA:", empresa); */
 
         navigate("/dashboard");
     };
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100">
-            <div className="w-full max-w-md bg-white p-6 rounded-xl shadow">
-                <h2 className="text-xl font-bold mb-4 text-center">
-                    Selecciona Empresa
-                </h2>
+        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-100 px-4">
+            <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-slate-100 via-blue-50 to-indigo-100" />
+            <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-blue-300/30 blur-3xl" />
 
-                {error && <p className="text-red-500 text-center">{error}</p>}
+            <div className="relative z-10 w-full max-w-lg rounded-3xl border border-blue-200/70 bg-white/95 p-6 shadow-xl backdrop-blur sm:p-8">
+                <div className="mb-6 text-center">
+                    <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">Selecciona Empresa</h2>
+                    <p className="mt-1 text-sm text-slate-500">Elige tu entorno para continuar con la gestión.</p>
+                </div>
 
-                <select
-                    value={empresaSeleccionada}
-                    onChange={(e) => setEmpresaSeleccionada(e.target.value)}
-                    className="w-full p-2 border rounded-lg mb-4"
-                >
-                    <option value="">-- Selecciona --</option>
-                    {empresas.map((empresa) => (
-                        <option key={empresa.id} value={empresa.id}>
-                            {empresa.empresa}
+                {error && (
+                    <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-center text-sm text-red-600">
+                        {error}
+                    </p>
+                )}
+
+                <div className="mb-5">
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Empresa
+                    </label>
+
+                    <select
+                        value={empresaSeleccionada}
+                        onChange={(e) => setEmpresaSeleccionada(e.target.value)}
+                        className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    >
+                        <option value="" disabled>
+                            Selecciona una empresa
                         </option>
-                    ))}
-                </select>
+                        {empresas.map((empresa) => (
+                            <option key={empresa.id} value={empresa.id}>
+                                {empresa.empresa}
+                            </option>
+                        ))}
+                    </select>
+                </div>
 
                 <button
                     onClick={handleContinue}
                     disabled={!empresaSeleccionada}
-                    className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full rounded-xl bg-blue-900 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     Continuar
                 </button>

@@ -7,8 +7,8 @@ export const loginCredencial = async ({
     contrasena,
     app = 12,
 }) => {
-    console.log("🚀 Iniciando autenticación...");
-    console.log("👤 Usuario:", usuario);
+   /*  console.log("🚀 Iniciando autenticación...");
+    console.log("👤 Usuario:", usuario); */
 
     try {
         const response = await API.get("/login/credencial", {

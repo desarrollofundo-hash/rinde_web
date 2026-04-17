@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { getDropdownOptionsPolitica } from "../../../services/politica";
 import GastoGeneral from "../FormGasto/GastoGeneral";
 import GastoMovilidad from "../FormGasto/GastoMovilidad";
-import TarjetaCredito from "../FormGasto/TarjetaCredito";
 
 export default function NuevoGastoModal({ onClose, politicaSeleccionada }) {
     const [politicas, setPoliticas] = useState([]);
@@ -46,7 +45,7 @@ export default function NuevoGastoModal({ onClose, politicaSeleccionada }) {
 
     const handlePoliticaChange = (e) => {
         const politicaId = e.target.value;
-        const politica = politicas.find((p) => p.id === politicaId) || null;
+        const politica = politicas.find((p) => String(p.id) === String(politicaId)) || null;
         setSelectedPolitica(politica);
     };
 
@@ -55,6 +54,9 @@ export default function NuevoGastoModal({ onClose, politicaSeleccionada }) {
             onClose();
         }
     };
+
+    const politicaNombre = String(selectedPolitica?.name ?? "").toLowerCase();
+    const esPoliticaMovilidad = politicaNombre.includes("movilidad");
 
     return (
         <div className="fixed inset-0 z-40">
@@ -104,16 +106,18 @@ export default function NuevoGastoModal({ onClose, politicaSeleccionada }) {
                         </select>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+                    <div className="rounded-2xl border border-slate-200 bg-white">
                         {selectedPolitica && (
                             <>
                                 <h2 className="mb-3 text-lg font-bold text-slate-800">
                                     Politica: {selectedPolitica.name}
                                 </h2>
 
-                                {selectedPolitica.name.toLowerCase().includes("general") && <GastoGeneral />}
-                                {selectedPolitica.name.toLowerCase().includes("movilidad") && <GastoMovilidad />}
-                                {selectedPolitica.name.toLowerCase().includes("tarjeta") && <TarjetaCredito />}
+                                {esPoliticaMovilidad ? (
+                                    <GastoMovilidad selectedPolitica={selectedPolitica} />
+                                ) : (
+                                    <GastoGeneral selectedPolitica={selectedPolitica} />
+                                )}
                             </>
                         )}
 

@@ -12,6 +12,7 @@ import { getDropdownOptionsTipoMovilidad } from './tipo_movilidad';
 import { getApiRuc } from './ruc/api_ruc';
 import { saveRendicionGasto } from './save/saveGasto';
 import { saveDetalleGasto } from './save_detalle/saveGastoDetalle';
+import { saveEvidenciaGasto } from './evidencia';
 
 class NuevoGastoModal {
     constructor(options = {}) {
@@ -641,7 +642,7 @@ class NuevoGastoModal {
                 consumidor: consumidorText,
                 placa: String(this.controllers.placa || ''),
                 estadoActual: 'BORRADOR',
-                glosa: String(this.controllers.nota || 'CREAR GASTO'),
+                glosa: String(this.controllers.Glosa || ''),
                 motivoViaje: String(this.controllers.motivoViaje || ''),
                 lugarOrigen: String(this.controllers.origen || ''),
                 lugarDestino: String(this.controllers.destino || ''),
@@ -672,12 +673,12 @@ class NuevoGastoModal {
             await saveDetalleGasto(payloadDetalle);
 
             if (this.state.selectedFile) {
-                await this.saveEvidencia(idRend, this.state.selectedFile);
+                await this.saveEvidencia(idRend, this.state.selectedFile, gastoData);
             }
 
             if (!idRend) {
-                console.warn('No se obtuvo el ID del rendimiento guardado');
-            }
+/*                 console.warn('No se obtuvo el ID del rendimiento guardado');
+ */            }
 
             this.closeLoadingDialog();
             this.showNotification('Factura guardada exitosamente', 'success');
@@ -842,8 +843,8 @@ class NuevoGastoModal {
      * Mostrar notificación
      */
     showNotification(message, type = 'info') {
-        console.log(`[${type.toUpperCase()}]`, message);
-
+/*         console.log(`[${type.toUpperCase()}]`, message);
+ */
         // Implementar según el framework
         const notification = this.createNotificationElement(message, type);
         document.body.appendChild(notification);
@@ -997,17 +998,8 @@ class NuevoGastoModal {
         });
     }
 
-    async saveEvidencia(idRend, file) {
-        const base64 = await this.fileToBase64(file);
-        const payload = [{ idRend: String(idRend), evidencia: base64 }];
-
-        await API.post('/saveupdate/saverendiciongastoevidencia', payload, {
-            headers: {
-                'Content-Type': 'application/json',
-                Accept: 'application/json'
-            },
-            timeout: 60000
-        });
+    async saveEvidencia(idRend, file, gastoData = {}) {
+        return saveEvidenciaGasto({ idRend, file, gastoData });
     }
 
     /**

@@ -6,9 +6,9 @@ export const GetRolUsuario = async ({
     iduser,
     idapp
 }) => {
-    console.log("🚀 Iniciando autenticación...");
+    /* console.log("🚀 Iniciando autenticación...");
     console.log("👤 IdUser:", iduser);
-    console.log("📱 IdApp:", idapp);
+    console.log("📱 IdApp:", idapp); */
 
     try {
         const response = await API.get("login/rol_usuario_app", {
@@ -17,25 +17,19 @@ export const GetRolUsuario = async ({
                 idapp
             },
         });
-
+/* 
         console.log("📡 Respuesta recibida");
-        console.log("📊 Status:", response.status);
+        console.log("📊 Status:", response.status); */
 
         if (response.status === 200) {
             const data = response.data;
 
-            if (!data || data.length === 0) {
+            if (!data || (Array.isArray(data) && data.length === 0)) {
                 throw new Error("usuario o rol no encontrada");
             }
 
-            const userData = data[0];
-
-            if (userData.estado === "S") {
-                console.log("✅ Usuario autenticado");
-                return userData;
-            } else {
-                throw new Error("Usuario inactivo");
-            }
+            /* console.log("✅ Rol de usuario obtenido"); */
+            return Array.isArray(data) ? data : [data];
         } else {
             throw new Error(`Error del servidor: ${response.status}`);
         }

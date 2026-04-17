@@ -1,21 +1,21 @@
 import API from "../api";
 export const saveDetalleGasto = async (informeDetalleData) => {
-    console.log("========================================");
+  /*   console.log("========================================");
     console.log("🚀 API SERVICE - saveupdateRendicionGasto");
     console.log("📍 URL: /saveupdate/updaterendiciongasto");
     console.log("📦 idRend:", informeDetalleData.idRend);
     console.log("📦 consumidor en payload:", informeDetalleData.consumidor);
-    console.log("========================================");
+    console.log("========================================"); */
 
     try {
         // 🔍 BODY igual que Flutter (ARRAY)
         const bodyToSend = [informeDetalleData];
 
-        console.log("========================================");
+       /*  console.log("========================================");
         console.log("📡 BODY JSON ENVIADO AL SERVIDOR:");
         console.log(JSON.stringify(bodyToSend, null, 2));
         console.log("========================================");
-
+ */
         const response = await API.post(
             "/saveupdate/updaterendiciongasto",
             bodyToSend,
@@ -28,11 +28,11 @@ export const saveDetalleGasto = async (informeDetalleData) => {
             }
         );
 
-        console.log("========================================");
+ /*        console.log("========================================");
         console.log("📊 RESPUESTA - updaterendiciongasto");
         console.log("   Status:", response.status);
         console.log("   Body:", response.data);
-        console.log("========================================");
+        console.log("========================================"); */
 
         // ✅ Validación de éxito
         if (response.status === 200 || response.status === 201) {
@@ -43,7 +43,7 @@ export const saveDetalleGasto = async (informeDetalleData) => {
                 throw new Error("Error del servidor: " + body);
             }
 
-            console.log("✅ Detalle de rendición guardado exitosamente");
+            /* console.log("✅ Detalle de rendición guardado exitosamente"); */
             return true;
         } else {
             console.error("❌ Error del servidor:", response.status);
