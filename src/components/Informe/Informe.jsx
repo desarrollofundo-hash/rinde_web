@@ -103,7 +103,7 @@ export default function Informe() {
             /* console.log("📥 INFORMES:", normalizedData); */
             setInformes(normalizedData);
         } catch (error) {
-            console.error("❌ Error:", error.message);
+            /* console.error("❌ Error:", error.message); */
         } finally {
             setLoading(false);
         }
@@ -411,12 +411,12 @@ export default function Informe() {
             for (const det of detallesParaEnviar) {
                 const detallePayload = {
                     idAd: Number(idAd),
-                    idInf: Number(det?.idinf ?? det?.idInf ?? infoActual.idInf),
-                    idInfDet: Number(det?.id ?? 0),
+                    idInf: Number(det?.idinf ?? det?.idInf),
+                    idInfDet: Number(det?.id),
                     idRend: Number(det?.idrend ?? det?.idRend ?? 0),
                     idUser: Number(det?.iduser ?? det?.idUser ?? effectiveIdUser),
                     dni: resolveUserDoc(userData),
-                    ruc: String(det?.ruc ?? effectiveRuc),
+                    ruc: String(effectiveRuc),
                     obs: String(det?.obs ?? infoActual.glosa ?? ""),
                     estadoActual: "EN AUDITORIA",
                     estado: "S",
@@ -594,8 +594,8 @@ export default function Informe() {
                     });
                 }
 
-/*                 console.log("📥 Gastos cargados del endpoint:", gastosData.length, "gastos");
- */
+                /*                 console.log("📥 Gastos cargados del endpoint:", gastosData.length, "gastos");
+                 */
                 // 2️⃣ CARGAR DETALLES DEL INFORME DESDE LA BD (fuente de verdad)
                 let detalleData = [];
                 try {
@@ -613,8 +613,8 @@ export default function Informe() {
                         });
                     }
 
-/*                     console.log("📋 Detalles del informe desde BD:", detalleData.length, "registros");
- */
+                    /*                     console.log("📋 Detalles del informe desde BD:", detalleData.length, "registros");
+                     */
                     const idsGastosDisponibles = new Set(
                         (Array.isArray(gastosData) ? gastosData : [])
                             .map((g) => String(g?.idrend ?? g?.idRend ?? g?.id ?? ""))

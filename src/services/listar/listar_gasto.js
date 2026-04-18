@@ -82,8 +82,7 @@ export async function getListaGastos({
         }
 
         // 🧪 DEBUG preview
-        const preview = JSON.stringify(data).slice(0, 500);
-        /* console.log("📄 Preview:", preview); */
+        /* console.log("📄 Preview:", JSON.stringify(data).slice(0, 500)); */
 
         // ⚠️ VALIDAR ARRAY
         if (!Array.isArray(data)) {
@@ -120,6 +119,13 @@ export async function getListaGastos({
                 console.log("Moneda:", data[0].moneda);
                 console.log("Tipo Gasto:", data[0].tipogasto);
                 console.log("Placa:", data[0].placa);
+                console.log("Motivo Viaje:", firstDefined(
+                    data[0].motivoViaje,
+                    data[0].MotivoViaje,
+                    data[0].motivo_viaje,
+                    data[0].viajeMotivo,
+                    data[0].motivoviaje,
+                ));
                 console.log("Tipo Movilidad:", data[0].tipoMovilidad);
                 console.log("=======================================");
             }
@@ -215,15 +221,31 @@ export async function getListaGastos({
                     item.tipoComprobante,
                     item.tipocomprobante,
                     item.tipoCombrobante,
+                    item.tipocombrobante,
                     item.tipo_comprobante,
                     item.comprobante,
                     item.tipo,
                     item.nomTipoComprobante,
                     item.nomtipocomprobante,
+                    item.nomComprobante,
+                    item.nomcomprobante,
+                    item.idTipoComprobante,
+                    item.idtipocomprobante,
+                    item.id_tipo_comprobante,
+                    item.tipcom,
                 ),
                 glosa: resolveGlosa(item),
                 moneda: item.moneda,
                 tipogasto: String(tipoGastoValue || ""),
+                motivoViaje: firstDefined(
+                    item.motivoViaje,
+                    item.motivo_viaje,
+                    item.viajeMotivo,
+                    item.motivo,
+                    item.MotivoViaje,
+                    item.motivoviaje,
+                    item.MOTIVOVIAJE,
+                ),
                 evidenciaPath: String(evidenciaPath || ""),
                 evidenciaFileName: String(evidenciaFileName || ""),
 

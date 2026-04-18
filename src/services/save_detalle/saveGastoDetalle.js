@@ -46,7 +46,7 @@ export const saveDetalleGasto = async (informeDetalleData) => {
             /* console.log("✅ Detalle de rendición guardado exitosamente"); */
             return true;
         } else {
-            console.error("❌ Error del servidor:", response.status);
+            /* console.error("❌ Error del servidor:", response.status); */
             throw new Error(
                 `Error del servidor: ${response.status} - ${JSON.stringify(response.data)}`
             );
@@ -63,13 +63,13 @@ export const saveDetalleGasto = async (informeDetalleData) => {
         }
 
         if (error.response) {
-            console.error("❌ Error backend:", error.response.data);
+            /* console.error("❌ Error backend:", error.response.data); */
             throw new Error(
                 `Error ${error.response.status}: ${JSON.stringify(error.response.data)}`
             );
         }
 
-        console.error("💥 Error no manejado:", error);
+        /* console.error("💥 Error no manejado:", error); */
         throw new Error("Error inesperado al guardar detalle: " + error.message);
     }
 };

@@ -23,7 +23,7 @@ export default function NewInforme({ isOpen, onClose, onSave }) {
             const politicasData = await getDropdownOptionsPolitica();
             setPoliticas(politicasData);
         } catch (err) {
-            console.error("Error cargando políticas:", err);
+            /* console.error("Error cargando políticas:", err); */
             setError("No se pudieron cargar las políticas");
         } finally {
             setLoading(false);

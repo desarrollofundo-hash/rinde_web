@@ -42,7 +42,7 @@ export async function saveRendicionRevisionDetalle(revisionDetalleData) {
             try {
                 data = JSON.parse(data);
             } catch (e) {
-                console.error("❌ Error parseando JSON:", e);
+                /* console.error("❌ Error parseando JSON:", e) */;
                 throw new Error("Respuesta inválida del servidor");
             }
         }
@@ -55,7 +55,7 @@ export async function saveRendicionRevisionDetalle(revisionDetalleData) {
             throw new Error(data?.message || "Error al guardar detalle de revisión");
         }
     } catch (error) {
-        console.error("❌ ERROR en saveRendicionRevisionDetalle:", error.message);
-        throw error;
+        /* console.error("❌ ERROR en saveRendicionRevisionDetalle:", error.message);
+        throw error; */
     }
 }

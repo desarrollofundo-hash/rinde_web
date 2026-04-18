@@ -134,8 +134,8 @@ class NuevoGastoModal {
             this.loadDraft();
             return this;
         } catch (error) {
-            console.error('Error inicializando modal:', error);
-            throw error;
+        /*     console.error('Error inicializando modal:', error);
+            throw error; */
         }
     }
 
@@ -771,7 +771,7 @@ class NuevoGastoModal {
 
             localStorage.setItem('gasto_draft', JSON.stringify(draft));
         } catch (error) {
-            console.error('Error guardando borrador:', error);
+            /* console.error('Error guardando borrador:', error); */
         }
     }
 
@@ -809,7 +809,7 @@ class NuevoGastoModal {
             this.notifyChange();
             this.showNotification('📝 Datos recuperados del borrador', 'info');
         } catch (error) {
-            console.error('Error cargando borrador:', error);
+            /* console.error('Error cargando borrador:', error); */
         }
     }
 
@@ -820,7 +820,7 @@ class NuevoGastoModal {
         try {
             localStorage.removeItem('gasto_draft');
         } catch (error) {
-            console.error('Error limpiando borrador:', error);
+            /* console.error('Error limpiando borrador:', error); */
         }
     }
 

@@ -80,7 +80,7 @@ export default function QrScannerModal({ isOpen, onClose, onDetected }) {
 
                 setIsRunning(true);
             } catch (error) {
-                console.error("Error iniciando escaner QR:", error);
+                /* console.error("Error iniciando escaner QR:", error); */
                 setErrorMessage("No se pudo iniciar la camara. Verifica permisos del navegador.");
                 await stopScanner();
             }
@@ -113,7 +113,7 @@ export default function QrScannerModal({ isOpen, onClose, onDetected }) {
                 setSelectedCameraId(defaultCameraId);
                 await startScanner(defaultCameraId);
             } catch (error) {
-                console.error("Error listando camaras:", error);
+                /* console.error("Error listando camaras:", error); */
                 if (!isMounted) return;
                 setErrorMessage("No se pudo acceder a la camara. Permite el acceso en tu navegador.");
             }

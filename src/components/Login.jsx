@@ -7,6 +7,8 @@ import {
     savePermissionsToStorage,
 } from "../services/permissions";
 import { useNavigate } from "react-router-dom";
+import { Button as MovingBorderButton } from "./ui/moving-border";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 export default function Login() {
     const [form, setForm] = useState({
@@ -16,6 +18,7 @@ export default function Login() {
 
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const navigate = useNavigate();
 
@@ -89,7 +92,7 @@ export default function Login() {
 
                     const permissions = extractPermissionsFromRolePayload(rolePayload);
                     savePermissionsToStorage(permissions);
-                } catch (roleError) {
+                } catch {
                     /* console.warn("⚠️ No se pudo cargar rol de usuario. Se usarán permisos por defecto.", roleError); */
                     savePermissionsToStorage(DEFAULT_PERMISSIONS);
                 }
@@ -115,9 +118,16 @@ export default function Login() {
 
             <section className="relative hidden md:flex items-center justify-center border-r border-blue-200/60 bg-linear-to-br from-blue-950 to-slate-900 p-10 text-white">
                 <div className="max-w-md space-y-5">
-                    <span className="inline-flex rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">
+                    <MovingBorderButton
+                        as="div"
+                        borderRadius="9999px"
+                        duration={3000}
+                        containerClassName="inline-flex h-auto w-auto p-px text-xs"
+                        borderClassName="h-12 w-12 bg-[radial-gradient(#e0f2fe_30%,#7dd3fc_60%,transparent_72%)] opacity-90"
+                        className="inline-flex border border-white/25 bg-white/10 px-3 py-1 font-semibold uppercase tracking-[0.14em] text-blue-100"
+                    >
                         Plataforma de Gestión de Gastos
-                    </span>
+                    </MovingBorderButton>
                     <h1 className="text-4xl font-extrabold leading-tight">Rindegasto ASA </h1>
                     <p className="text-base leading-7 text-blue-100/90">
                         Controla, organiza y gestiona tus facturas de manera centralizada con una experiencia moderna y segura.
@@ -140,25 +150,42 @@ export default function Login() {
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Usuario o DNI</label>
+                            <label htmlFor="usuario" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Usuario o DNI</label>
                             <input
+                                id="usuario"
                                 type="text"
                                 name="usuario"
                                 placeholder="Ej. 12345678"
                                 onChange={handleChange}
+                                disabled={loading}
+                                autoComplete="username"
                                 className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                             />
                         </div>
 
                         <div>
-                            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Contraseña</label>
-                            <input
-                                type="password"
-                                name="contrasena"
-                                placeholder="••••••••"
-                                onChange={handleChange}
-                                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                            />
+                            <label htmlFor="contrasena" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Contraseña</label>
+                            <div className="relative">
+                                <input
+                                    id="contrasena"
+                                    type={showPassword ? "text" : "password"}
+                                    name="contrasena"
+                                    placeholder="••••••••"
+                                    onChange={handleChange}
+                                    disabled={loading}
+                                    autoComplete="current-password"
+                                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 pr-11 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-slate-100"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword((prev) => !prev)}
+                                    disabled={loading}
+                                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                    className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 transition hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
                         </div>
 
                         {error && (
@@ -171,8 +198,9 @@ export default function Login() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full rounded-xl bg-blue-900 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-900 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-200"
                         >
+                            {loading && <Loader2 size={16} className="animate-spin" />}
                             {loading ? "Ingresando..." : "Entrar"}
                         </button>
                     </form>

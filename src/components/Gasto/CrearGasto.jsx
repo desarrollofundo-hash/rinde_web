@@ -9,6 +9,7 @@ import EditarGastoModal from "./EditarGastoModal";
 import BaseModal from "./BaseModal";
 import EvidenciaImagen from "./EvidenciaImagen";
 import PaginationControls from "./PaginationControls";
+import AnimatedList from "./AnimatedList";
 import { IconBroom } from "../../Icons/broom";
 import {
     ExportGastosToolbar,
@@ -74,6 +75,22 @@ export default function CrearGasto() {
         gasto?.observacion,
         gasto?.observaciones,
         gasto?.obs,
+    ), [firstDefined]);
+
+    const getTipoComprobante = useCallback((gasto) => firstDefined(
+        gasto?.tipoCombrobante,
+        gasto?.tipocombrobante,
+        gasto?.tipoComprobante,
+        gasto?.tipocomprobante,
+        gasto?.nomTipoComprobante,
+        gasto?.nomtipocomprobante,
+        gasto?.nomComprobante,
+        gasto?.nomcomprobante,
+        gasto?.idTipoComprobante,
+        gasto?.idtipocomprobante,
+        gasto?.id_tipo_comprobante,
+        gasto?.tipcom,
+        gasto?.comprobante,
     ), [firstDefined]);
 
     const getGastoIdRend = useCallback((gasto) =>
@@ -614,7 +631,7 @@ export default function CrearGasto() {
 
     return (
         <div className="mx-auto w-full space-y-1 px-2 sm:px-4 lg:px-6">
-            <div className="relative overflow-hidden rounded-2xl border border-blue-200/70 bg-linear-to-br from-white via-slate-50 to-blue-50 p-2  shadow-sm">
+            <div className="relative overflow-hidden rounded-2xl border border-blue-200/70 bg-white p-2 shadow-sm">
 
                 {/* DECORACIÓN SUTIL */}
                 <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-blue-200/30 blur-2xl"></div>
@@ -830,76 +847,83 @@ export default function CrearGasto() {
                         </div>
 
 
-                        <div className="grid grid-cols-1 gap-1.5 2xl:hidden">
-                            {gastosPaginados.map((gasto, index) => (
-                                <article key={gasto.id || index} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
-                                    <div className="border-b border-slate-100 bg-linear-to-r from-slate-50 to-blue-50/60 px-2.5 py-0.5 sm:px-4">
-                                        <div className="flex items-start justify-between gap-2">
-                                            <div className="min-w-0">
-                                                {/*CHECAR EL PROVEDOR*/}
-                                                <p className="text-[11px] font-semibold uppercase tracking-wide text-black" title={gasto.proveedor || gasto.ruc}>{gasto.proveedor || gasto.rucEmisor || gasto.rucemisor || gasto.ruc}</p>
-                                                <div className="mt-0.5 flex items-center gap-0.5">
-                                                    <IconEtiqueta className="h-3.5 w-3.5 shrink-0" />
-                                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-700" title={gasto.categoria || "-"}>
-                                                        {gasto.categoria || "-"}
+                        <div className="2xl:hidden">
+                            <AnimatedList
+                                items={gastosPaginados}
+                                onItemSelect={(gasto) => handlePreview(gasto)}
+                                showGradients
+                                enableArrowNavigation
+                                displayScrollbar={false}
+                                className="w-full"
+                                getItemKey={(gasto, index) => String(gasto?.id || gasto?.idrend || index)}
+                                renderItem={(gasto) => (
+                                    <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+                                        <div className="border-b border-slate-100 bg-white px-2.5 py-1 sm:px-4">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="min-w-0">
+                                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-black" title={gasto.proveedor || gasto.ruc}>
+                                                        {gasto.proveedor || gasto.rucEmisor || gasto.rucemisor || gasto.ruc}
                                                     </p>
+                                                    <div className="mt-0.5 flex items-center gap-0.5">
+                                                        <IconEtiqueta className="h-3.5 w-3.5 shrink-0" />
+                                                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-700" title={gasto.categoria || "-"}>
+                                                            {gasto.categoria || "-"}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
+                                                    {isExportMode && (
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedGastoIds.includes(getGastoSelectionId(gasto))}
+                                                            onChange={() => toggleGastoSelection(gasto)}
+                                                            title="Seleccionar gasto"
+                                                            className="h-4 w-4 cursor-pointer accent-emerald-600"
+                                                        />
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handlePreview(gasto)}
+                                                        title="Vista previa"
+                                                        aria-label="Vista previa"
+                                                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100 cursor-pointer"
+                                                    >
+                                                        <IconEye className="h-3.5 w-3.5" />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleEdit(gasto)}
+                                                        title="Editar"
+                                                        aria-label="Editar"
+                                                        disabled={!isGastoEditable(gasto)}
+                                                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+                                                    >
+                                                        <IconEdit className="h-3.5 w-3.5" />
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-1">
-                                                {isExportMode && (
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedGastoIds.includes(getGastoSelectionId(gasto))}
-                                                        onChange={() => toggleGastoSelection(gasto)}
-                                                        title="Seleccionar gasto"
-                                                        className="h-4 w-4 cursor-pointer accent-emerald-600"
-                                                    />
-                                                )}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handlePreview(gasto)}
-                                                    title="Vista previa"
-                                                    aria-label="Vista previa"
-                                                    className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100 cursor-pointer"
-                                                >
-                                                    <IconEye className="h-3.5 w-3.5" />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleEdit(gasto)}
-                                                    title="Editar"
-                                                    aria-label="Editar"
-                                                    disabled={!isGastoEditable(gasto)}
-                                                    className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
-                                                >
-                                                    <IconEdit className="h-3.5 w-3.5" />
-                                                </button>
+
+                                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                                <span className="inline-flex rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                                                    {gasto.fecha?.split("T")[0] || "-"}
+                                                </span>
+                                                <span className="inline-flex rounded-full border border-red-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-red-600">
+                                                    <p className="text-red-800">{getDiasTranscurridos(gasto)} Días</p>
+                                                </span>
+
+                                                <span className="inline-flex rounded-full border border-blue-400 bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-800">
+                                                    {gasto.total ?? "-"} {gasto.moneda || "-"}
+                                                </span>
+
+                                                <span className={`ml-auto inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${getEstadoStyle(gasto.estado)}`}>
+                                                    {normalizeEstadoLabel(gasto.estado || "Sin estado")}
+                                                </span>
                                             </div>
                                         </div>
-
-                                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-
-                                            <span className="inline-flex rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-                                                {gasto.fecha?.split("T")[0] || "-"}
-                                            </span>
-                                            <span className="inline-flex rounded-full border border-red-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-red-600">
-                                                <p className=" text-red-800">{getDiasTranscurridos(gasto)} Días</p>
-                                            </span>
-
-                                            {/*TOTAL Y MONEDA */}
-                                            <span className="inline-flex rounded-full border border-blue-400 bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-800">
-                                                {gasto.total ?? "-"} {gasto.moneda || "-"}
-                                            </span>
-
-                                            {/*ESTADO HACIA LA DERECHA */}
-                                            <span className={`ml-auto inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${getEstadoStyle(gasto.estado)}`}>
-                                                {normalizeEstadoLabel(gasto.estado || "Sin estado")}
-                                            </span>
-
-                                        </div>
-                                    </div>
-                                </article>
-                            ))}
+                                    </article>
+                                )}
+                            />
                         </div>
 
                         <PaginationControls
@@ -929,103 +953,128 @@ export default function CrearGasto() {
                 <BaseModal
                     isOpen={Boolean(previewGasto)}
                     onClose={closePreview}
-                    title="VISTA PREVIA"
                     maxWidthClass="max-w-2xl"
-                    viewportClass="items-end p-2 sm:items-center sm:p-5"
+                    viewportClass="items-center p-8 sm:p-8"
                     panelClass="p-3 sm:p-6"
                 >
-                    <div className="space-y-3 sm:space-y-4">
-                        <div className="rounded-2xl border border-blue-200/70 bg-linear-to-r from-blue-50 to-slate-50 p-3 sm:p-4">
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div className="min-w-0">
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div className="flex items-start justify-between border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-4 py-3 sm:px-5 sm:py-4">
+                            <div className="min-w-0">
+                                {/* <p className="text-xs font-medium text-slate-400">Gasto</p> */}
+                                <h3 className="text-sm font-bold text-slate-800 sm:text-base">
+                                    Vista previa del Gasto <span className="text-cyan-600">#{getGastoIdRend(previewGasto) || "-"}</span>
 
-                                    <p className="mt-1 truncate text-sm font-bold text-slate-800 sm:text-base" title={previewGasto.ruc || "-"} > {previewGasto.proveedor || previewGasto.ruc || previewGasto.ruccliente || "-"}
-                                    </p>
-                                </div>
-                                <div className="flex items-center justify-end gap-2 text-right">
-                                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                                        Total
-                                    </p>
-
-                                    <p className="text-base font-extrabold text-blue-900 sm:text-lg">
-                                        {previewGasto.total ?? "-"}
-                                    </p>
-
-                                    <span className="text-base font-extrabold text-blue-900 sm:text-lg">
-                                        {previewGasto.moneda || "-"}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="mt-3 flex flex-wrap items-center gap-2">
-                                <span className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                                    ID Rendición: {getGastoIdRend(previewGasto) || "-"}
-                                </span>
-                                 <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${getEstadoStyle(previewGasto.estado)}`}>
+                                </h3>
+                                <span className={`ml-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoStyle(previewGasto.estado)}`}>
                                     {normalizeEstadoLabel(previewGasto.estado || "Sin estado")}
                                 </span>
-                                <span className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">
-                                    {previewGasto.fecha?.split("T")[0] || "-"}
-                                </span>
+                                {/*   <p className="mt-0.5 text-xs text-slate-500">
+                                    <span className="font-semibold text-slate-600">Fecha:</span> {previewGasto.fecha?.split("T")[0] || "-"}
+                                </p> */}
                             </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-1 text-sm sm:grid-cols-4 sm:gap-2.5">
-                            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Política</p>
-                                <p className="mt-1 truncate font-semibold text-slate-700" title={previewGasto.politica || "-"}>{previewGasto.politica || "-"}</p>
-                            </div>
-                            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Categoría</p>
-                                <p className="mt-1 truncate font-semibold text-slate-700" title={previewGasto.categoria || "-"}>{previewGasto.categoria || "-"}</p>
-                            </div>
-                            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">IGV</p>
-                                <p className="mt-1 font-semibold text-slate-700">{previewGasto.igv ?? "-"}</p>
-                            </div>
-                         {/*    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">ID Rendición</p>
-                                <p className="mt-1 truncate font-semibold text-slate-700" title={String(previewGasto?.idRend ?? previewGasto?.idrend ?? previewGasto?.id ?? "-")}>
-                                    {previewGasto?.idRend ?? previewGasto?.idrend ?? previewGasto?.id ?? "-"}
+                            <div className="shrink-0 text-right">
+                                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Total</p>
+                                <p className="text-sm font-bold text-cyan-700 sm:text-base">
+                                    {previewGasto.total ?? "-"} {previewGasto.moneda || ""}
                                 </p>
-                            </div> */}
+                            </div>
                         </div>
 
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Glosa</p>
-                            <p className="text-sm leading-relaxed text-slate-700">{getGlosaOrNota(previewGasto) || "-"}</p>
-                        </div>
+                        <div className="max-h-[65vh] space-y-5 overflow-y-auto p-4 sm:p-5">
+                            <div>
+                                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Evidencia</p>
+                                <EvidenciaImagen
+                                    key={`${previewGasto?.id || previewGasto?.idrend || previewGasto?.evidenciaPath || previewGasto?.evidenciaFileName || "preview"}`}
+                                    gasto={previewGasto}
+                                    alt="Evidencia del gasto"
+                                    className="w-full cursor-zoom-in rounded-xl border border-slate-200 object-contain shadow-sm transition hover:opacity-90"
+                                    style={{ maxHeight: "220px" }}
+                                    onClick={(e) => setZoomSrc(e.currentTarget.src)}
+                                    fallback={
+                                        <div className="flex h-28 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50">
+                                            <p className="text-xs text-slate-400">Sin evidencia adjunta</p>
+                                        </div>
+                                    }
+                                />
+                            </div>
 
-                        {isMovilidadGasto(previewGasto) && (
-                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Datos de movilidad</p>
-                                <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-                                    {[
+                            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Datos Generales del Gasto</h2>
+                                {[
+                                    ["Política", firstDefined(previewGasto?.politica, previewGasto?.pol, previewGasto?.nomPolitica, "-")],
+                                    ["Centro de Costo", firstDefined(previewGasto?.consumidor, previewGasto?.centroCosto, previewGasto?.centrocosto, previewGasto?.nomCentroCosto, "-")],
+                                    ["Tipo de Gasto", firstDefined(previewGasto?.tipoGasto, previewGasto?.tipogasto, previewGasto?.nomTipoGasto, "-")],
+                                    ["Categoría", firstDefined(previewGasto?.categoria, previewGasto?.cat, "-")],
+                                    ["RUC Emisor", firstDefined(previewGasto?.rucEmisor, previewGasto?.rucemisor, previewGasto?.ruc, "-")],
+                                    ["Razón Social", firstDefined(previewGasto?.proveedor, previewGasto?.empresa, previewGasto?.razonSocial, previewGasto?.razonsocial, previewGasto?.ruccliente, "-")],
+                                    ["RUC Cliente", firstDefined(previewGasto?.rucCliente, previewGasto?.ruccliente, previewGasto?.rucCli, "-")],
+                                    ["Placa", firstDefined(previewGasto?.placa, previewGasto?.placaVehiculo, previewGasto?.vehiculoPlaca, previewGasto?.nroPlaca, "-")],
+                                ].map(([label, value]) => (
+                                    <div key={label} className="col-span-1">
+                                        <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
+                                        <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
+                                    </div>
+                                ))}
+                            </dl>
+
+                            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Monto del Gasto</h2>
+                                {[
+                                    ["Total", firstDefined(previewGasto?.total, previewGasto?.monto, previewGasto?.importe, previewGasto?.valor, "-")],
+                                    ["IGV", firstDefined(previewGasto?.igv, previewGasto?.tax, previewGasto?.impuesto, "-")],
+                                ].map(([label, value]) => (
+                                    <div key={label} className="col-span-1">
+                                        <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
+                                        <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
+                                    </div>
+                                ))}
+                            </dl>
+
+                            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Datos de la Factura</h2>
+                                {(isMovilidadGasto(previewGasto)
+                                    ? [
+                                        ["Tipo Comprobante", getTipoComprobante(previewGasto) || "-"],
+                                        ["Fecha Emisión", previewGasto.fecha?.split("T")[0] || "-"],
+                                        ["Serie", firstDefined(previewGasto?.serie, previewGasto?.serieComprobante, previewGasto?.nroserie, "-")],
+                                        ["Número", firstDefined(previewGasto?.numero, previewGasto?.nroComprobante, previewGasto?.nro, previewGasto?.num, previewGasto?.nrodoc, "-")],
                                         ["LUGAR ORIGEN", firstDefined(previewGasto?.lugarOrigen, previewGasto?.lugarorigen, previewGasto?.origen, previewGasto?.puntoOrigen, previewGasto?.desde, "-")],
                                         ["LUGAR DESTINO", firstDefined(previewGasto?.lugarDestino, previewGasto?.lugardestino, previewGasto?.destino, previewGasto?.puntoDestino, previewGasto?.hasta, "-")],
                                         ["TIPO MOVILIDAD", firstDefined(previewGasto?.tipoMovilidad, previewGasto?.tipomovilidad, previewGasto?.tipo_movilidad, previewGasto?.movilidad, previewGasto?.transporte, previewGasto?.medioTransporte, previewGasto?.medio_transporte, "-")],
-                                        ["MOTIVO VIAJE", firstDefined(previewGasto?.motivoViaje, previewGasto?.motivo_viaje, previewGasto?.motivo, previewGasto?.glosa, "-")],
-                                        ["PLACA", firstDefined(previewGasto?.placa, previewGasto?.vehiculoPlaca, previewGasto?.placaVehiculo, previewGasto?.nroPlaca, "-")],
-                                    ].map(([label, value]) => (
-                                        <div key={label} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-                                            <p className="mt-1 font-semibold text-slate-700">{value || "-"}</p>
+                                        ["Motivo Viaje", firstDefined(previewGasto?.motivoViaje, previewGasto?.motivo_viaje, previewGasto?.viajeMotivo, previewGasto?.motivo, "-")],
+                                    ]
+                                    : [
+                                        ["Tipo Comprobante", getTipoComprobante(previewGasto) || "-"],
+                                        ["Fecha Emisión", previewGasto.fecha?.split("T")[0] || "-"],
+                                        ["Serie", firstDefined(previewGasto?.serie, previewGasto?.serieComprobante, "-")],
+                                        ["Número", firstDefined(previewGasto?.numero, previewGasto?.nroComprobante, previewGasto?.nro, "-")],
+                                        ["Total", firstDefined(previewGasto?.total, previewGasto?.monto, previewGasto?.importe, previewGasto?.valor, "-")],
+                                    ])
+                                    .map(([label, value]) => (
+                                        <div key={label} className="col-span-1">
+                                            <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
+                                            <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
                                         </div>
                                     ))}
-                                </div>
-                            </div>
-                        )}
+                            </dl>
 
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Evidencia</p>
-                            <EvidenciaImagen
-                                key={`${previewGasto?.id || previewGasto?.idrend || previewGasto?.evidenciaPath || previewGasto?.evidenciaFileName || "preview"}`}
-                                gasto={previewGasto}
-                                alt="Evidencia del gasto"
-                                className="max-h-[56vh] w-full cursor-zoom-in rounded-lg border border-slate-200 object-contain bg-white transition hover:opacity-90"
-                                onClick={(e) => setZoomSrc(e.currentTarget.src)}
-                                fallback={<p className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-3 text-sm text-slate-500">No hay evidencia.</p>}
-                            />
+                            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Observación</h2>
+                                <div className="col-span-2">
+                                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Nota:</dt>
+                                    <dd className="mt-0.5 font-medium text-slate-700">{getGlosaOrNota(previewGasto) || "-"}</dd>
+                                </div>
+                            </dl>
+
+                            <div className="flex justify-end border-t border-slate-100 pt-3">
+                                <button
+                                    type="button"
+                                    onClick={closePreview}
+                                    className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                                >
+                                    Cerrar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </BaseModal>

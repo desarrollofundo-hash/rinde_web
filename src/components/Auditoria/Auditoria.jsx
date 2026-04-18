@@ -110,7 +110,7 @@ export default function Auditoria() {
 
             return resolved;
         } catch (e) {
-          /*   console.warn("⚠️ No se pudo resolver area desde lista de empresas:", e?.message); */
+            /*   console.warn("⚠️ No se pudo resolver area desde lista de empresas:", e?.message); */
             return "0";
         }
     };
@@ -340,8 +340,8 @@ export default function Auditoria() {
             const detallesApi = Array.isArray(detallesData) ? detallesData : [];
 
             if (detallesApi.length > 0) {
-               /*  console.log("🔍 CAMPOS DEL DETALLE AUDITORIA:", Object.keys(detallesApi[0]));
-                console.log("🔍 PRIMER DETALLE:", detallesApi[0]); */
+                /*  console.log("🔍 CAMPOS DEL DETALLE AUDITORIA:", Object.keys(detallesApi[0]));
+                 console.log("🔍 PRIMER DETALLE:", detallesApi[0]); */
             }
 
             const enrichedDetalles = detallesApi.map((detalle) => {
@@ -471,7 +471,7 @@ export default function Auditoria() {
                 idRev: 0,
                 idAd,
                 idInf,
-                idUser,
+                idUser: (selectedAuditoria?.idUser),
                 dni: String(selectedAuditoria?.dni ?? userData?.dni ?? userData?.usedoc ?? ""),
                 ruc,
                 obs: String(selectedAuditoria?.obs ?? "Enviado desde auditoría"),
@@ -506,7 +506,7 @@ export default function Auditoria() {
                     idRend: Number(det?.idrend ?? det?.idRend ?? 0),
                     idUser: Number(det?.iduser ?? det?.idUser ?? idUser),
                     dni: String(selectedAuditoria?.dni ?? userData?.dni ?? userData?.usedoc ?? ""),
-                    ruc: String(det?.ruc ?? ruc),
+                    ruc: String(ruc),
                     obs: "",
                     estadoActual: "EN REVISION",
                     estado: "S",
@@ -722,7 +722,7 @@ export default function Auditoria() {
                             <div className="flex items-center justify-between rounded-t-3xl border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-5 py-4 sm:rounded-t-2xl">
                                 <div>
                                     <h3 className="text-base font-bold text-slate-800">
-                                        Detalle del Gasto || <span className="text-cyan-600">#{getDetalleRendId(detalleModal.detalle) || '-'}</span>
+                                        Detalle del Gasto  <span className="text-cyan-600">#{getDetalleRendId(detalleModal.detalle) || '-'}</span>
                                     </h3>
                                     <h3 className="text-base font-bold text-slate-800">
                                         Fecha:<span className="text-cyan-600">{getDetalleFecha(detalleModal.detalle) || "-"}</span>
@@ -746,7 +746,7 @@ export default function Auditoria() {
                             <div className="max-h-[60vh] overflow-y-auto p-5">
                                 {/* Evidencia */}
                                 <div className="mb-5">
-                                    
+
                                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Evidencia</p>
                                     <EvidenciaImagen
                                         gasto={detalleModal.detalle}
@@ -801,7 +801,6 @@ export default function Auditoria() {
                                             ["Fecha Emisión", getDetalleFecha(detalleModal.detalle)],
                                             ["Serie", firstDefined(detalleModal.detalle?.serie, detalleModal.detalle?.serieComprobante, detalleModal.detalle?.nroserie, "-")],
                                             ["Número", firstDefined(detalleModal.detalle?.numero, detalleModal.detalle?.nroComprobante, detalleModal.detalle?.nro, detalleModal.detalle?.num, detalleModal.detalle?.nrodoc, "-")],
-                                            ["Total", `S/ ${getDetalleMonto(detalleModal.detalle).toFixed(2)}`],
                                             ["LUGAR ORIGEN", firstDefined(detalleModal.detalle?.lugarOrigen, detalleModal.detalle?.lugarorigen, detalleModal.detalle?.origen, detalleModal.detalle?.puntoOrigen, detalleModal.detalle?.desde) || "-"],
                                             ["LUGAR DESTINO", firstDefined(detalleModal.detalle?.lugarDestino, detalleModal.detalle?.lugardestino, detalleModal.detalle?.destino, detalleModal.detalle?.puntoDestino, detalleModal.detalle?.hasta) || "-"],
                                             ["TIPO MOVILIDAD", firstDefined(detalleModal.detalle?.tipoMovilidad, detalleModal.detalle?.tipomovilidad, detalleModal.detalle?.tipo_movilidad, detalleModal.detalle?.movilidad, detalleModal.detalle?.transporte, detalleModal.detalle?.medioTransporte, detalleModal.detalle?.medio_transporte) || "-"],
@@ -924,15 +923,20 @@ export default function Auditoria() {
                 {selectedAuditoria && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
                         <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto border border-slate-200">
-                            <div className="sticky top-0 bg-linear-to-r from-slate-100 to-cyan-50 border-b border-slate-200 px-6 py-4 flex justify-between items-center">
-                                <h2 className="text-lg font-bold text-slate-800">Detalles de Auditoría</h2>
-                                
-                                <button
-                                    onClick={handleCerrarDetalles}
-                                    className="text-slate-500 hover:text-slate-700 transition text-2xl font-bold"
-                                >
-                                    ✕
-                                </button>
+                            <div className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 px-6 py-4">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <h2 className="text-lg font-bold text-slate-800">Detalles de Auditoría</h2>
+                                        <p className="text-sm text-slate-600">Rendidor: {firstDefined(selectedAuditoria?.usuario, "-")}</p>
+                                    </div>
+
+                                    <button
+                                        onClick={handleCerrarDetalles}
+                                        className="text-2xl font-bold text-slate-500 transition hover:text-slate-700"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Resumen de auditoría */}
@@ -940,18 +944,30 @@ export default function Auditoria() {
                                 <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                                     <h1 className="col-span-2 text-base font-bold text-slate-800">Resumen:</h1>
                                     {[
-                                        ["Título", firstDefined(selectedAuditoria?.obs, selectedAuditoria?.titulo, selectedAuditoria?.title, "-")],
-                                        ["Total", `S/ ${detalles.reduce((acc, d) => acc + getDetalleMonto(d), 0).toFixed(2)}`],
-                                        ["Fecha", formatDate(selectedAuditoria?.fecCre ?? selectedAuditoria?.fecha ?? "")],
-                                        ["ID Auditoría", getAuditoriaId(selectedAuditoria) || "-"],
-                                        ["Estado", getEstadoLabel(selectedAuditoria)],
-                                        ["Política", firstDefined(selectedAuditoria?.politica, selectedAuditoria?.pol, "-")],
-                                        ["Cant. Gastos", String(detalles?.length ?? 0)],
-                                        ["Descripción", firstDefined(selectedAuditoria?.descripcion, selectedAuditoria?.desc, selectedAuditoria?.obs, "-")],
-                                    ].map(([label, value]) => (
+                                        { label: "Título", value: firstDefined(selectedAuditoria?.obs, selectedAuditoria?.titulo, selectedAuditoria?.title, "-") },
+                                        { label: "Total", value: `S/ ${detalles.reduce((acc, d) => acc + getDetalleMonto(d), 0).toFixed(2)}` },
+                                        { label: "Fecha", value: formatDate(selectedAuditoria?.fecCre ?? selectedAuditoria?.fecha ?? "") },
+                                        { label: "ID Auditoría", value: getAuditoriaId(selectedAuditoria) || "-" },
+                                        {
+                                            label: "Estado",
+                                            value: getEstadoLabel(selectedAuditoria),
+                                            badgeClass: getEstadoBadgeClass(selectedAuditoria),
+                                        },
+                                        { label: "Política", value: firstDefined(selectedAuditoria?.politica, selectedAuditoria?.pol, "-") },
+                                        { label: "Cant. Gastos", value: String(detalles?.length ?? 0) },
+                                        { label: "Descripción", value: firstDefined(selectedAuditoria?.descripcion, selectedAuditoria?.desc, selectedAuditoria?.obs, "-") },
+                                    ].map(({ label, value, badgeClass }) => (
                                         <div key={label} className="col-span-1">
                                             <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
-                                            <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
+                                            <dd className="mt-0.5 font-medium text-slate-700">
+                                                {badgeClass ? (
+                                                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${badgeClass}`}>
+                                                        {value ?? "-"}
+                                                    </span>
+                                                ) : (
+                                                    value ?? "-"
+                                                )}
+                                            </dd>
                                         </div>
                                     ))}
                                 </dl>

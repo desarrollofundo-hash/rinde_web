@@ -6,7 +6,7 @@ export const getDropdownOptionsCategoria = async ({ politica = "todos" } = {}) =
         const response = await API.get(url);
 
         if (!response.data || !Array.isArray(response.data)) {
-            console.error("La respuesta de la API de categorías no es un array:", response.data);
+            /* console.error("La respuesta de la API de categorías no es un array:", response.data); */
             return [];
         }
 
@@ -21,7 +21,7 @@ export const getDropdownOptionsCategoria = async ({ politica = "todos" } = {}) =
         return transformedData;
 
     } catch (error) {
-        console.error("Error fetching categoria dropdown options:", error);
+        /* console.error("Error fetching categoria dropdown options:", error); */
         throw new Error("No se pudieron cargar las categorías");
     }
 };

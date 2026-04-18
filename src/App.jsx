@@ -1,14 +1,16 @@
 
+import { Suspense, lazy } from "react";
 import './App.css'
-import Login from './components/Login'
-import Company from './components/Company'
-import Dashboard from './components/Dashboard';
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import {
     getFirstAllowedDashboardPath,
     isDashboardPathAllowed,
     readPermissionsFromStorage,
 } from "./services/permissions";
+
+const Login = lazy(() => import("./components/Login"));
+const Company = lazy(() => import("./components/Company"));
+const Dashboard = lazy(() => import("./components/Dashboard"));
 
 function readSession() {
     try {
@@ -69,17 +71,19 @@ function DashboardRoute({ requiredPath }) {
 function App() {
     return (
         <HashRouter>
-            <Routes>
-                <Route path="/" element={<RootRoute />} />
-                <Route path="/login" element={<LoginRoute />} />
-                <Route path="/company" element={<CompanyRoute />} />
-                <Route path="/dashboard" element={<RootRoute />} />
-                <Route path="/dashboard/gastos" element={<DashboardRoute requiredPath="/dashboard/gastos" />} />
-                <Route path="/dashboard/informe" element={<DashboardRoute requiredPath="/dashboard/informe" />} />
-                <Route path="/dashboard/auditoria" element={<DashboardRoute requiredPath="/dashboard/auditoria" />} />
-                <Route path="/dashboard/revision" element={<DashboardRoute requiredPath="/dashboard/revision" />} />
-                <Route path="*" element={<Navigate to="/login" replace />} />
-            </Routes>
+            <Suspense fallback={null}>
+                <Routes>
+                    <Route path="/" element={<RootRoute />} />
+                    <Route path="/login" element={<LoginRoute />} />
+                    <Route path="/company" element={<CompanyRoute />} />
+                    <Route path="/dashboard" element={<RootRoute />} />
+                    <Route path="/dashboard/gastos" element={<DashboardRoute requiredPath="/dashboard/gastos" />} />
+                    <Route path="/dashboard/informe" element={<DashboardRoute requiredPath="/dashboard/informe" />} />
+                    <Route path="/dashboard/auditoria" element={<DashboardRoute requiredPath="/dashboard/auditoria" />} />
+                    <Route path="/dashboard/revision" element={<DashboardRoute requiredPath="/dashboard/revision" />} />
+                    <Route path="*" element={<Navigate to="/login" replace />} />
+                </Routes>
+            </Suspense>
         </HashRouter>
     );
 }

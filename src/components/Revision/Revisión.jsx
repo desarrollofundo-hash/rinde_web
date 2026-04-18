@@ -241,8 +241,8 @@ export default function Revision() {
             const userData = userRaw ? JSON.parse(userRaw) : null;
             const companyData = companyRaw ? JSON.parse(companyRaw) : null;
 
-      /*       console.log("👤 USER:", userData);
-            console.log("🏢 COMPANY:", companyData); */
+            /*       console.log("👤 USER:", userData);
+                  console.log("🏢 COMPANY:", companyData); */
 
             if (!userData) {
                 throw new Error("No hay usuario logueado");
@@ -266,9 +266,9 @@ export default function Revision() {
                 gerencia,
                 ruc: companyRuc,
             });
-/* 
-            console.log("� PARAMS enviados a getListaRevision:", { id: "1", idrev: "1", gerencia, ruc: companyRuc });
-            console.log("�📥 REVISIONES (RAW):", data); */
+            /* 
+                        console.log("� PARAMS enviados a getListaRevision:", { id: "1", idrev: "1", gerencia, ruc: companyRuc });
+                        console.log("�📥 REVISIONES (RAW):", data); */
             const rawDataApi = Array.isArray(data) ? data : [];
 
             const dataApi = rawDataApi;
@@ -289,7 +289,7 @@ export default function Revision() {
             );
     */         setRevisiones(dataApi);
         } catch (error) {
-            console.error("❌ Error:", error.message);
+            /* console.error("❌ Error:", error.message); */
             setRevisiones([]);
         } finally {
             setLoading(false);
@@ -366,7 +366,7 @@ export default function Revision() {
             /* console.log("✅ Detalles obtenidos:", enrichedDetalles); */
             setDetalles(enrichedDetalles);
         } catch (error) {
-            console.error("❌ Error al obtener detalles:", error.message);
+            /* console.error("❌ Error al obtener detalles:", error.message); */
             setDetalles([]);
         } finally {
             setLoadingDetalles(false);
@@ -397,8 +397,8 @@ export default function Revision() {
 
         try {
             setSendingDecision(true);
-/*             console.log("🚀 Iniciando envío de revisión...");
- */
+            /*             console.log("🚀 Iniciando envío de revisión...");
+             */
             const userRaw = localStorage.getItem("user");
             const companyRaw = localStorage.getItem("company");
             const userData = userRaw ? JSON.parse(userRaw) : null;
@@ -433,22 +433,22 @@ export default function Revision() {
                     useEdit: userCode,
                     useElim: 0,
                 };
-/* 
-                console.log(`📤 Enviando detalle (idRev: ${detallePayload.idRev}):`, detallePayload); */
+                /* 
+                                console.log(`📤 Enviando detalle (idRev: ${detallePayload.idRev}):`, detallePayload); */
 
                 const guardado = await saveRendicionRevisionDetalle(detallePayload);
                 if (!guardado) {
                     throw new Error(`Error al guardar el detalle revisión para idRev ${detallePayload.idRev}`);
                 }
-/* 
-                console.log(`✅ Detalle idRev ${detallePayload.idRev} guardado correctamente`); */
+                /* 
+                                console.log(`✅ Detalle idRev ${detallePayload.idRev} guardado correctamente`); */
             }
 
             const message = decision === "APROBADO" ? "INFORME APROBADO" : "INFORME RECHAZADO";
             showToast(message, "success");
             handleCerrarDetalles();
         } catch (error) {
-            console.error("❌ Error actualizando revisión:", error);
+            /* console.error("❌ Error actualizando revisión:", error); */
             showToast(`Error al actualizar revisión: ${error?.message || "Inténtalo nuevamente"}`, "error");
         } finally {
             setSendingDecision(false);
@@ -558,6 +558,7 @@ export default function Revision() {
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3 text-slate-700">{formatDate(revision?.fecCre)}</td>
+
                                                 <td className="px-4 py-3">
                                                     <button
                                                         type="button"
@@ -587,6 +588,7 @@ export default function Revision() {
                                             <p><span className="font-semibold text-slate-700">#:</span> {index + 1}</p>
                                             <p><span className="font-semibold text-slate-700">Fecha:</span> {formatDate(revision?.fecCre)}</p>
                                             <p><span className="font-semibold text-slate-700">ID:</span> {revision?.idRev ?? "-"}</p>
+                                            <p><span className="font-semibold text-slate-700">Gerencia:</span> {revision?.gerencia}</p>
                                         </div>
                                         <button
                                             type="button"
@@ -617,15 +619,15 @@ export default function Revision() {
                                     <p className="text-xs font-medium text-slate-400">Gasto</p>
                                     <h3 className="text-base font-bold text-slate-800">
                                         Detalle del Gasto <span className="text-cyan-600">#{getDetalleRendId(detalleRevision) || "-"}</span>
-                                         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoBadgeClass(detalleRevision)}`}>
+                                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoBadgeClass(detalleRevision)}`}>
                                             {getEstadoLabel(detalleRevision)}
                                         </span>
                                     </h3>
                                     <p className="text-xs text-slate-500 mt-0.5">
                                         <span className="font-semibold text-slate-600">Fecha:</span> {getDetalleFecha(detalleRevision)}
                                     </p>
-                                    
-                              {/*       <div className="mt-1.5">
+
+                                    {/*       <div className="mt-1.5">
                                         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoBadgeClass(detalleRevision)}`}>
                                             {getEstadoLabel(detalleRevision)}
                                         </span>
@@ -716,11 +718,11 @@ export default function Revision() {
                                             ["Total", `S/ ${getDetalleMonto(detalleRevision).toFixed(2)}`],
                                         ])
                                         .map(([label, value]) => (
-                                        <div key={label} className="col-span-1">
-                                            <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
-                                            <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
-                                        </div>
-                                    ))}
+                                            <div key={label} className="col-span-1">
+                                                <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
+                                                <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
+                                            </div>
+                                        ))}
                                 </dl>
 
                                 {/* Observación */}
@@ -871,11 +873,11 @@ export default function Revision() {
                                         <h2 className="text-base font-bold text-slate-800 sm:text-lg">
                                             Detalle de Revisión
                                             <span className="ml-2 text-cyan-600">#{getRevisionId(selectedRevision) || "-"}</span>
-                                             <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoBadgeClass(selectedRevision)}`}>
+                                            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoBadgeClass(selectedRevision)}`}>
                                                 {getEstadoLabel(selectedRevision)}
                                             </span>
                                         </h2>
-                                
+
                                     </div>
                                     <button
                                         onClick={handleCerrarDetalles}
@@ -889,11 +891,15 @@ export default function Revision() {
                                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 px-4 pb-4 sm:grid-cols-4 sm:px-6">
                                     <div>
                                         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Rendidor</p>
-                                        <p className="mt-0.5 text-xs font-medium text-slate-700 truncate">{getRendidorName(selectedRevision)}</p>
+                                        <p className="mt-0.5 text-xs font-medium text-slate-700 truncate">{selectedRevision?.usuario}</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Auditor</p>
-                                        <p className="mt-0.5 text-xs font-medium text-slate-700 truncate">{getAuditorName(selectedRevision)}</p>
+                                        <p className="mt-0.5 text-xs font-medium text-slate-700 truncate">{selectedRevision?.usuarioAuditor}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Gerencia</p>
+                                        <p className="mt-0.5 text-xs font-medium text-slate-700 truncate">{selectedRevision?.gerencia}</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Fecha</p>

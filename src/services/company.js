@@ -26,7 +26,7 @@ export const GetCompany = async (userIdentifier) => {
         return data;
 
     } catch (error) {
-        console.error("❌ Error al obtener empresas:", error);
+        /* console.error("❌ Error al obtener empresas:", error); */
 
         if (!error.response) {
             throw new Error("Sin conexión al servidor");

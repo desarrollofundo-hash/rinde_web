@@ -311,7 +311,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                 setTiposComprobante(FALLBACK_TIPOS_COMPROBANTE);
             }
         } catch (error) {
-            console.error("Error cargando tipos de comprobante:", error);
+            /* console.error("Error cargando tipos de comprobante:", error); */
             setTiposComprobante(FALLBACK_TIPOS_COMPROBANTE);
         }
     }, []);
@@ -416,7 +416,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
             setEvidenciaPreviewUrl(newPreview);
             setIsCropMode(false);
         } catch (error) {
-            console.error("❌ Error recortando imagen:", error);
+            /* console.error("❌ Error recortando imagen:", error); */
             showToast("No se pudo recortar la imagen", "error");
         }
     };
@@ -462,7 +462,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                     }));
                 }
             } catch (error) {
-                console.error("No se pudo autocompletar razon social por RUC:", error);
+                /* console.error("No se pudo autocompletar razon social por RUC:", error); */
             }
         }
 
@@ -492,7 +492,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                 }));
             }
         } catch (error) {
-            console.error("❌ Error validando RUC emisor:", error.message);
+            /* console.error("❌ Error validando RUC emisor:", error.message); */
         }
     };
 
@@ -523,7 +523,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
         try {
             await loadCategorias(politicaNombre);
         } catch (error) {
-            console.error("Error cargando categorias por politica:", error);
+            /* console.error("Error cargando categorias por politica:", error); */
             setCategorias([]);
         }
     };
@@ -553,7 +553,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
         });
 
         Promise.resolve().then(() => loadCategorias(politicaNombre)).catch((error) => {
-            console.error("Error cargando categorias por politica seleccionada:", error);
+            /* console.error("Error cargando categorias por politica seleccionada:", error); */
             setCategorias([]);
         });
     }, [loadCategorias, politicas, selectedPoliticaProp]);
@@ -603,7 +603,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
 
         const rawUser = localStorage.getItem("user");
         if (!rawUser) {
-            console.error("❌ No se ha encontrado el usuario en el localStorage.");
+            /* console.error("❌ No se ha encontrado el usuario en el localStorage."); */
             showToast("Error de autenticación. Por favor, inicie sesión de nuevo.", "error");
             return;
         }
@@ -804,7 +804,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
             imageCropRef.current = null;
 
         } catch (error) {
-            console.error("❌ Error:", error);
+            /* console.error("❌ Error:", error); */
             showToast("Error al guardar", "error");
         }
     };
@@ -836,7 +836,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                 await loadTiposGasto();
                 await loadTiposComprobante();
             } catch (error) {
-                console.error("Error cargando dropdowns:", error);
+                /* console.error("Error cargando dropdowns:", error); */
             }
         };
 
