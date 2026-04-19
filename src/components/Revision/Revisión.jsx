@@ -15,9 +15,23 @@ import { IconEye } from "../../Icons/preview";
 import EvidenciaImagen from "../Gasto/EvidenciaImagen";
 import { IconDown } from "../../Icons/down";
 import { IconUp } from "../../Icons/up";
+import PaginationControls from "../Gasto/PaginationControls";
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_STORAGE_KEY = "revision.pageSize";
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100];
+
 export default function Revision() {
     const [revisiones, setRevisiones] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(() => {
+        const stored = Number(localStorage.getItem(PAGE_SIZE_STORAGE_KEY));
+        return PAGE_SIZE_OPTIONS.includes(stored) ? stored : DEFAULT_PAGE_SIZE;
+    });
+
+    useEffect(() => {
+        localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(pageSize));
+    }, [pageSize]);
     const [selectedRevision, setSelectedRevision] = useState(null);
     const [detalles, setDetalles] = useState([]);
     const [loadingDetalles, setLoadingDetalles] = useState(false);
@@ -520,87 +534,101 @@ export default function Revision() {
                     </div>
                 )}
 
-                {!loading && revisiones.length > 0 && (
-                    <section className="space-y-4">
-                        {/*   <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <h2 className="text-lg font-bold text-slate-800">Listado de Revisiones</h2>
-                                <span className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">
-                                    {revisiones.length} registro(s)
-                                </span>
-                            </div>
-                        </div> */}
+                {!loading && revisiones.length > 0 && (() => {
+                    const totalPages = Math.max(1, Math.ceil(revisiones.length / pageSize));
+                    const safePage = Math.min(currentPage, totalPages);
+                    const startIdx = (safePage - 1) * pageSize;
+                    const endIdx = startIdx + pageSize;
+                    const paginatedRevisiones = revisiones.slice(startIdx, endIdx);
+                    const currentFrom = startIdx + 1;
+                    const currentTo = Math.min(endIdx, revisiones.length);
 
-                        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                            <div className="hidden overflow-x-auto md:block">
-                                <table className="w-full min-w-225 text-sm">
-                                    <thead className="bg-slate-100 text-slate-700">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left font-semibold">#</th>
-                                            <th className="px-4 py-3 text-left font-semibold">ID</th>
-                                            <th className="px-4 py-3 text-left font-semibold">Título</th>
-                                            {/* <th className="px-4 py-3 text-left font-semibold">Descripción</th> */}
-                                            <th className="px-4 py-3 text-left font-semibold">Estado</th>
-                                            <th className="px-4 py-3 text-left font-semibold">Fecha</th>
-                                            <th className="px-4 py-3 text-left font-semibold">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {revisiones.map((revision, index) => (
-                                            <tr key={index} className="border-t border-slate-100 hover:bg-slate-50/70">
-                                                <td className="px-4 py-3 text-slate-700">{index + 1}</td>
-                                                <td className="px-4 py-3 text-slate-700">{revision?.idRev ?? "-"}</td>
-                                                <td className="px-4 py-3 font-medium text-slate-800">{revision?.titulo ?? revision?.title ?? "-"}</td>
-                                                {/* <td className="px-4 py-3 text-slate-700">{revision?.descripcion ?? revision?.desc ?? "-"}</td> */}
-                                                <td className="px-4 py-3">
-                                                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoBadgeClass(revision)}`}>
+                    return (
+                        <section className="space-y-4">
+
+                            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                                <div className="hidden md:block max-h-[65vh] overflow-auto [scrollbar-width:thin]">
+                                    <table className="w-full min-w-225 text-sm">
+                                        <thead className="bg-slate-100 text-slate-700 sticky top-0 z-10 shadow-[0_1px_0_0_rgb(226,232,240)]">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left font-semibold">#</th>
+                                                <th className="px-4 py-3 text-left font-semibold">ID</th>
+                                                <th className="px-4 py-3 text-left font-semibold">Título</th>
+                                                {/* <th className="px-4 py-3 text-left font-semibold">Descripción</th> */}
+                                                <th className="px-4 py-3 text-left font-semibold">Estado</th>
+                                                <th className="px-4 py-3 text-left font-semibold">Fecha</th>
+                                                <th className="px-4 py-3 text-left font-semibold">Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {paginatedRevisiones.map((revision, index) => (
+                                                <tr key={index} className="border-t border-slate-100 hover:bg-slate-50/70">
+                                                    <td className="px-4 py-3 text-slate-700">{startIdx + index + 1}</td>
+                                                    <td className="px-4 py-3 text-slate-700">{revision?.idRev ?? "-"}</td>
+                                                    <td className="px-4 py-3 font-medium text-slate-800">{revision?.titulo ?? revision?.title ?? "-"}</td>
+                                                    {/* <td className="px-4 py-3 text-slate-700">{revision?.descripcion ?? revision?.desc ?? "-"}</td> */}
+                                                    <td className="px-4 py-3">
+                                                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoBadgeClass(revision)}`}>
+                                                            {getEstadoLabel(revision)}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-slate-700">{formatDate(revision?.fecCre)}</td>
+
+                                                    <td className="px-4 py-3">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleVerDetalles(revision)}
+                                                            className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-cyan-700 cursor-pointer"
+                                                        >
+                                                            <IconEye className="h-3.5 w-3.5 shrink-0" />
+                                                            Ver Detalles
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div className="space-y-2 p-2 md:hidden">
+                                    {paginatedRevisiones.map((revision, index) => (
+                                        <article key={index} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5">
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[11px] font-semibold text-slate-400">#{revision?.idRev ?? "-"}</span>
+                                                    <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${getEstadoBadgeClass(revision)}`}>
                                                         {getEstadoLabel(revision)}
                                                     </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-slate-700">{formatDate(revision?.fecCre)}</td>
-
-                                                <td className="px-4 py-3">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleVerDetalles(revision)}
-                                                        className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-cyan-700 cursor-pointer"
-                                                    >
-                                                        <IconEye className="h-3.5 w-3.5 shrink-0" />
-                                                        Ver Detalles
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div className="space-y-2 p-2 md:hidden">
-                                {revisiones.map((revision, index) => (
-                                    <article key={index} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5">
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[11px] font-semibold text-slate-400">#{revision?.idRev ?? "-"}</span>
-                                                <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${getEstadoBadgeClass(revision)}`}>
-                                                    {getEstadoLabel(revision)}
-                                                </span>
+                                                </div>
+                                                <h3 className="truncate text-sm font-bold text-slate-800">{revision?.titulo ?? revision?.title ?? "Sin título"}</h3>
+                                                <p className="truncate text-[11px] text-slate-500">{revision?.gerencia || "-"} · {formatDate(revision?.fecCre)}</p>
                                             </div>
-                                            <h3 className="truncate text-sm font-bold text-slate-800">{revision?.titulo ?? revision?.title ?? "Sin título"}</h3>
-                                            <p className="truncate text-[11px] text-slate-500">{revision?.gerencia || "-"} · {formatDate(revision?.fecCre)}</p>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleVerDetalles(revision)}
-                                            className="shrink-0 rounded-lg bg-cyan-600 p-2 text-white transition hover:bg-cyan-700 cursor-pointer"
-                                        >
-                                            <IconEye className="h-4 w-4" />
-                                        </button>
-                                    </article>
-                                ))}
+                                            <button
+                                                type="button"
+                                                onClick={() => handleVerDetalles(revision)}
+                                                className="shrink-0 rounded-lg bg-cyan-600 p-2 text-white transition hover:bg-cyan-700 cursor-pointer"
+                                            >
+                                                <IconEye className="h-4 w-4" />
+                                            </button>
+                                        </article>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    </section>
-                )}
+
+                            <PaginationControls
+                                currentPage={safePage}
+                                totalPages={totalPages}
+                                onPageChange={setCurrentPage}
+                                totalItems={revisiones.length}
+                                currentFrom={currentFrom}
+                                currentTo={currentTo}
+                                pageSize={pageSize}
+                                onPageSizeChange={(newSize) => { setPageSize(newSize); setCurrentPage(1); }}
+                                pageSizeOptions={PAGE_SIZE_OPTIONS}
+                            />
+                        </section>
+                    );
+                })()}
 
                 {/* MODAL DETALLE DE GASTO INDIVIDUAL */}
                 {detalleRevision && (

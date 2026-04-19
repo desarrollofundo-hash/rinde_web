@@ -6,6 +6,7 @@ export default function Company() {
     const [empresas, setEmpresas] = useState([]);
     const [empresaSeleccionada, setEmpresaSeleccionada] = useState("");
     const [error, setError] = useState("");
+    const [loaded, setLoaded] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -23,6 +24,8 @@ export default function Company() {
             } catch (err) {
                 setError(err.message);
                 console.error(err);
+            } finally {
+                setLoaded(true);
             }
         };
 
@@ -79,8 +82,8 @@ export default function Company() {
 
             <div className="relative z-10 w-full max-w-lg rounded-3xl border border-blue-200/70 bg-white/95 p-6 shadow-xl backdrop-blur sm:p-8">
                 <div className="mb-6 text-center">
-                    <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">Selecciona Empresa</h2>
-                    <p className="mt-1 text-sm text-slate-500">Elige tu entorno para continuar con la gestión.</p>
+                    <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">Seleccione la  Empresa</h2>
+                    <p className="mt-1 text-sm text-slate-500">Elige tu empresa para continuar </p>
                 </div>
 
                 {error && (
@@ -89,34 +92,59 @@ export default function Company() {
                     </p>
                 )}
 
-                <div className="mb-5">
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Empresa
-                    </label>
+                {loaded && empresas.length === 0 ? (
+                    <div className="flex flex-col items-center gap-4 py-6 text-center">
+                        <div className="rounded-full bg-amber-50 p-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p className="text-sm font-semibold text-slate-700">No se encontraron empresas asociadas</p>
+                            <p className="mt-1 text-sm text-slate-500">Contáctese con el administrador para que le asigne una empresa.</p>
+                        </div>
+                        <button
+                            onClick={() => {
+                                localStorage.removeItem("user");
+                                navigate("/");
+                            }}
+                            className="mt-2 rounded-xl bg-blue-900 px-6 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-blue-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        >
+                            Volver al inicio de sesión
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        <div className="mb-5">
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Empresa:
+                            </label>
 
-                    <select
-                        value={empresaSeleccionada}
-                        onChange={(e) => setEmpresaSeleccionada(e.target.value)}
-                        className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    >
-                        <option value="" disabled>
-                            Selecciona una empresa
-                        </option>
-                        {empresas.map((empresa) => (
-                            <option key={empresa.id} value={empresa.id}>
-                                {empresa.empresa}
-                            </option>
-                        ))}
-                    </select>
-                </div>
+                            <select
+                                value={empresaSeleccionada}
+                                onChange={(e) => setEmpresaSeleccionada(e.target.value)}
+                                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                            >
+                                <option value="" disabled>
+                                    Selecciona una empresa
+                                </option>
+                                {empresas.map((empresa) => (
+                                    <option key={empresa.id} value={empresa.id}>
+                                        {empresa.empresa}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
 
-                <button
-                    onClick={handleContinue}
-                    disabled={!empresaSeleccionada}
-                    className="w-full rounded-xl bg-blue-900 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    Continuar
-                </button>
+                        <button
+                            onClick={handleContinue}
+                            disabled={!empresaSeleccionada}
+                            className="w-full rounded-xl bg-blue-900 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        >
+                            Continuar
+                        </button>
+                    </>
+                )}
             </div>
         </div>
     );

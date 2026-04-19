@@ -9,6 +9,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { Button as MovingBorderButton } from "./ui/moving-border";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { IconSignIn } from "@/Icons/signIn.jsx";
 
 export default function Login() {
     const [form, setForm] = useState({
@@ -150,7 +151,7 @@ export default function Login() {
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label htmlFor="usuario" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Usuario o DNI</label>
+                            <label htmlFor="usuario" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Usuario:</label>
                             <input
                                 id="usuario"
                                 type="text"
@@ -164,7 +165,7 @@ export default function Login() {
                         </div>
 
                         <div>
-                            <label htmlFor="contrasena" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Contraseña</label>
+                            <label htmlFor="contrasena" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Contraseña:</label>
                             <div className="relative">
                                 <input
                                     id="contrasena"
@@ -198,9 +199,15 @@ export default function Login() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-900 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            className="group flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-blue-900 to-blue-800 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-900/25 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-900/30 hover:from-blue-800 hover:to-blue-700 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2"
                         >
-                            {loading && <Loader2 size={16} className="animate-spin" />}
+                            {loading ? (
+                                <Loader2 size={18} className="animate-spin" />
+                            ) : (
+                                <span className="inline-flex transition-transform duration-300 group-hover:translate-x-0.5">
+                                    <IconSignIn size={18} className="drop-shadow-sm" />
+                                </span>
+                            )}
                             {loading ? "Ingresando..." : "Entrar"}
                         </button>
                     </form>
