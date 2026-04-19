@@ -6,8 +6,8 @@ import { getListaGastos } from "../../services/listar/listar_gasto";
 import { IconEye } from "../../Icons/preview";
 import { IconEdit } from "../../Icons/edit";
 import EditarGastoModal from "./EditarGastoModal";
-import BaseModal from "./BaseModal";
 import EvidenciaImagen from "./EvidenciaImagen";
+import ImageZoomLightbox from "./ImageZoomLightbox";
 import PaginationControls from "./PaginationControls";
 import AnimatedList from "./AnimatedList";
 import { IconBroom } from "../../Icons/broom";
@@ -49,12 +49,10 @@ export default function CrearGasto() {
     useEffect(() => {
         localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(pageSize));
     }, [pageSize]);
+
     const [previewGasto, setPreviewGasto] = useState(null);
     const [editGasto, setEditGasto] = useState(null);
     const [zoomSrc, setZoomSrc] = useState(null);
-    const [zoomScale, setZoomScale] = useState(1);
-    const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
-    const zoomDragRef = { isDragging: false, startX: 0, startY: 0, originX: 0, originY: 0 };
     const isFetchingRef = useRef(false);
     const pendingForceRefreshRef = useRef(false);
     const lastFetchAtRef = useRef(0);
@@ -377,6 +375,19 @@ export default function CrearGasto() {
         setSelectedPolitica(null);
     };
 
+    useEffect(() => {
+        const isAnyOpen = Boolean(previewGasto) || showModal;
+        if (!isAnyOpen) return undefined;
+        const onKeyDown = (e) => {
+            if (e.key === "Escape") {
+                if (previewGasto) setPreviewGasto(null);
+                else if (showModal) { setShowModal(false); setSelectedPolitica(null); }
+            }
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [previewGasto, showModal]);
+
     const handlePoliticaChange = (e) => {
         const politicaId = e.target.value;
         const politica = politicas.find((p) => String(p.id) === String(politicaId)) || null;
@@ -650,7 +661,7 @@ export default function CrearGasto() {
                         type="button"
                         onClick={openCreateModal}
                         disabled={loading}
-                        className="inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-blue-900 px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-blue-800 active:scale-95 disabled:opacity-60 cursor-po"
+                        className="inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-blue-900 px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-blue-800 active:scale-95 disabled:opacity-60 cursor-pointer"
                     >
                         {loading ? (
                             <>
@@ -950,228 +961,145 @@ export default function CrearGasto() {
             </div>
 
             {previewGasto && (
-                <BaseModal
-                    isOpen={Boolean(previewGasto)}
-                    onClose={closePreview}
-                    maxWidthClass="max-w-2xl"
-                    viewportClass="items-center p-8 sm:p-8"
-                    panelClass="p-3 sm:p-6"
-                >
-                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                        <div className="flex items-start justify-between border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-4 py-3 sm:px-5 sm:py-4">
-                            <div className="min-w-0">
-                                {/* <p className="text-xs font-medium text-slate-400">Gasto</p> */}
-                                <h3 className="text-sm font-bold text-slate-800 sm:text-base">
-                                    Vista previa del Gasto <span className="text-cyan-600">#{getGastoIdRend(previewGasto) || "-"}</span>
-
-                                </h3>
-                                <span className={`ml-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoStyle(previewGasto.estado)}`}>
-                                    {normalizeEstadoLabel(previewGasto.estado || "Sin estado")}
-                                </span>
-                                {/*   <p className="mt-0.5 text-xs text-slate-500">
-                                    <span className="font-semibold text-slate-600">Fecha:</span> {previewGasto.fecha?.split("T")[0] || "-"}
-                                </p> */}
-                            </div>
-                            <div className="shrink-0 text-right">
-                                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Total</p>
-                                <p className="text-sm font-bold text-cyan-700 sm:text-base">
-                                    {previewGasto.total ?? "-"} {previewGasto.moneda || ""}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="max-h-[65vh] space-y-5 overflow-y-auto p-4 sm:p-5">
-                            <div>
-                                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Evidencia</p>
-                                <EvidenciaImagen
-                                    key={`${previewGasto?.id || previewGasto?.idrend || previewGasto?.evidenciaPath || previewGasto?.evidenciaFileName || "preview"}`}
-                                    gasto={previewGasto}
-                                    alt="Evidencia del gasto"
-                                    className="w-full cursor-zoom-in rounded-xl border border-slate-200 object-contain shadow-sm transition hover:opacity-90"
-                                    style={{ maxHeight: "220px" }}
-                                    onClick={(e) => setZoomSrc(e.currentTarget.src)}
-                                    fallback={
-                                        <div className="flex h-28 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50">
-                                            <p className="text-xs text-slate-400">Sin evidencia adjunta</p>
-                                        </div>
-                                    }
-                                />
-                            </div>
-
-                            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                                <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Datos Generales del Gasto</h2>
-                                {[
-                                    ["Política", firstDefined(previewGasto?.politica, previewGasto?.pol, previewGasto?.nomPolitica, "-")],
-                                    ["Centro de Costo", firstDefined(previewGasto?.consumidor, previewGasto?.centroCosto, previewGasto?.centrocosto, previewGasto?.nomCentroCosto, "-")],
-                                    ["Tipo de Gasto", firstDefined(previewGasto?.tipoGasto, previewGasto?.tipogasto, previewGasto?.nomTipoGasto, "-")],
-                                    ["Categoría", firstDefined(previewGasto?.categoria, previewGasto?.cat, "-")],
-                                    ["RUC Emisor", firstDefined(previewGasto?.rucEmisor, previewGasto?.rucemisor, previewGasto?.ruc, "-")],
-                                    ["Razón Social", firstDefined(previewGasto?.proveedor, previewGasto?.empresa, previewGasto?.razonSocial, previewGasto?.razonsocial, previewGasto?.ruccliente, "-")],
-                                    ["RUC Cliente", firstDefined(previewGasto?.rucCliente, previewGasto?.ruccliente, previewGasto?.rucCli, "-")],
-                                    ["Placa", firstDefined(previewGasto?.placa, previewGasto?.placaVehiculo, previewGasto?.vehiculoPlaca, previewGasto?.nroPlaca, "-")],
-                                ].map(([label, value]) => (
-                                    <div key={label} className="col-span-1">
-                                        <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
-                                        <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
-                                    </div>
-                                ))}
-                            </dl>
-
-                            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                                <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Monto del Gasto</h2>
-                                {[
-                                    ["Total", firstDefined(previewGasto?.total, previewGasto?.monto, previewGasto?.importe, previewGasto?.valor, "-")],
-                                    ["IGV", firstDefined(previewGasto?.igv, previewGasto?.tax, previewGasto?.impuesto, "-")],
-                                ].map(([label, value]) => (
-                                    <div key={label} className="col-span-1">
-                                        <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
-                                        <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
-                                    </div>
-                                ))}
-                            </dl>
-
-                            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                                <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Datos de la Factura</h2>
-                                {(isMovilidadGasto(previewGasto)
-                                    ? [
-                                        ["Tipo Comprobante", getTipoComprobante(previewGasto) || "-"],
-                                        ["Fecha Emisión", previewGasto.fecha?.split("T")[0] || "-"],
-                                        ["Serie", firstDefined(previewGasto?.serie, previewGasto?.serieComprobante, previewGasto?.nroserie, "-")],
-                                        ["Número", firstDefined(previewGasto?.numero, previewGasto?.nroComprobante, previewGasto?.nro, previewGasto?.num, previewGasto?.nrodoc, "-")],
-                                        ["LUGAR ORIGEN", firstDefined(previewGasto?.lugarOrigen, previewGasto?.lugarorigen, previewGasto?.origen, previewGasto?.puntoOrigen, previewGasto?.desde, "-")],
-                                        ["LUGAR DESTINO", firstDefined(previewGasto?.lugarDestino, previewGasto?.lugardestino, previewGasto?.destino, previewGasto?.puntoDestino, previewGasto?.hasta, "-")],
-                                        ["TIPO MOVILIDAD", firstDefined(previewGasto?.tipoMovilidad, previewGasto?.tipomovilidad, previewGasto?.tipo_movilidad, previewGasto?.movilidad, previewGasto?.transporte, previewGasto?.medioTransporte, previewGasto?.medio_transporte, "-")],
-                                        ["Motivo Viaje", firstDefined(previewGasto?.motivoViaje, previewGasto?.motivo_viaje, previewGasto?.viajeMotivo, previewGasto?.motivo, "-")],
-                                    ]
-                                    : [
-                                        ["Tipo Comprobante", getTipoComprobante(previewGasto) || "-"],
-                                        ["Fecha Emisión", previewGasto.fecha?.split("T")[0] || "-"],
-                                        ["Serie", firstDefined(previewGasto?.serie, previewGasto?.serieComprobante, "-")],
-                                        ["Número", firstDefined(previewGasto?.numero, previewGasto?.nroComprobante, previewGasto?.nro, "-")],
-                                        ["Total", firstDefined(previewGasto?.total, previewGasto?.monto, previewGasto?.importe, previewGasto?.valor, "-")],
-                                    ])
-                                    .map(([label, value]) => (
-                                        <div key={label} className="col-span-1">
-                                            <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
-                                            <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
-                                        </div>
-                                    ))}
-                            </dl>
-
-                            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                                <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Observación</h2>
-                                <div className="col-span-2">
-                                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Nota:</dt>
-                                    <dd className="mt-0.5 font-medium text-slate-700">{getGlosaOrNota(previewGasto) || "-"}</dd>
-                                </div>
-                            </dl>
-
-                            <div className="flex justify-end border-t border-slate-100 pt-3">
-                                <button
-                                    type="button"
-                                    onClick={closePreview}
-                                    className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
-                                >
-                                    Cerrar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </BaseModal>
-            )}
-
-            {/* LIGHTBOX ZOOM */}
-            {zoomSrc && (
-                <div
-                    className="fixed inset-0 z-70 flex items-center justify-center bg-black/90"
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget) {
-                            setZoomSrc(null);
-                            setZoomScale(1);
-                            setZoomPos({ x: 0, y: 0 });
-                        }
-                    }}
-                    onWheel={(e) => {
-                        e.preventDefault();
-                        setZoomScale((prev) => Math.min(6, Math.max(0.5, prev - e.deltaY * 0.002)));
-                    }}
-                    style={{ touchAction: "none" }}
-                >
-                    <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setZoomScale((p) => Math.min(6, +(p + 0.5).toFixed(1)))}
-                            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20"
-                            title="Acercar"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0zM11 8v6M8 11h6" /></svg>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setZoomScale((p) => Math.max(0.5, +(p - 0.5).toFixed(1)))}
-                            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20"
-                            title="Alejar"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0zM8 11h6" /></svg>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => { setZoomScale(1); setZoomPos({ x: 0, y: 0 }); }}
-                            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20"
-                            title="Restablecer"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => { setZoomSrc(null); setZoomScale(1); setZoomPos({ x: 0, y: 0 }); }}
-                            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20"
-                            title="Cerrar"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                    </div>
-
-                    <span className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-xs font-semibold text-white/80 backdrop-blur">
-                        {Math.round(zoomScale * 100)}%
-                    </span>
-
-                    <img
-                        src={zoomSrc}
-                        alt="Zoom evidencia"
-                        draggable={false}
-                        style={{
-                            transform: `scale(${zoomScale}) translate(${zoomPos.x}px, ${zoomPos.y}px)`,
-                            transformOrigin: "center",
-                            transition: "transform 0.15s ease",
-                            maxWidth: "90vw",
-                            maxHeight: "90vh",
-                            cursor: zoomScale > 1 ? "grab" : "zoom-in",
-                            userSelect: "none",
-                        }}
-                        onMouseDown={(e) => {
-                            if (zoomScale <= 1) { setZoomScale(2); return; }
-                            zoomDragRef.isDragging = true;
-                            zoomDragRef.startX = e.clientX;
-                            zoomDragRef.startY = e.clientY;
-                            zoomDragRef.originX = zoomPos.x;
-                            zoomDragRef.originY = zoomPos.y;
-                            e.currentTarget.style.cursor = "grabbing";
-                        }}
-                        onMouseMove={(e) => {
-                            if (!zoomDragRef.isDragging) return;
-                            const dx = (e.clientX - zoomDragRef.startX) / zoomScale;
-                            const dy = (e.clientY - zoomDragRef.startY) / zoomScale;
-                            setZoomPos({ x: zoomDragRef.originX + dx, y: zoomDragRef.originY + dy });
-                        }}
-                        onMouseUp={(e) => {
-                            zoomDragRef.isDragging = false;
-                            e.currentTarget.style.cursor = zoomScale > 1 ? "grab" : "zoom-in";
-                        }}
-                        onMouseLeave={() => { zoomDragRef.isDragging = false; }}
+                <>
+                    <button
+                        type="button"
+                        aria-label="Cerrar modal"
+                        className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px]"
+                        onClick={closePreview}
                     />
-                </div>
+                    <div className="fixed inset-0 z-50 flex justify-center items-center p-8 sm:p-8 overflow-x-hidden">
+                        <div className="flex w-full flex-col overflow-hidden border border-slate-200/80 bg-white shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] ring-1 ring-white/60 backdrop-blur-sm max-h-[98vh] sm:max-h-[88vh] rounded-none sm:rounded-[1.35rem] max-w-2xl p-3 sm:p-6">
+                            <div className="min-h-0 flex-1 overflow-y-auto bg-linear-to-b from-white to-slate-50/70">
+                                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                                    <div className="flex flex-col gap-2 border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3">
+                                        <div className="min-w-0">
+                                            {/* <p className="text-xs font-medium text-slate-400">Gasto</p> */}
+                                            <h3 className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-slate-800 sm:text-[15px]">
+                                                <span>
+                                                    Vista previa del Gasto <span className="text-cyan-600">#{getGastoIdRend(previewGasto) || "-"}</span>
+                                                </span>
+
+                                                <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${getEstadoStyle(previewGasto.estado)}`}>
+                                                    {normalizeEstadoLabel(previewGasto.estado || "Sin estado")}
+                                                </span>
+                                            </h3>
+                                        </div>
+                                        <div className="shrink-0 text-left sm:text-right">
+                                            <p className="text-sm font-semibold text-cyan-700 sm:text-[15px]">
+                                                <span className="mr-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">Total</span>
+                                                {previewGasto.total ?? "-"} {previewGasto.moneda || ""}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="max-h-[65vh] space-y-5 overflow-y-auto p-4 sm:p-5">
+                                        <div>
+                                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Evidencia</p>
+                                            <EvidenciaImagen
+                                                key={`${previewGasto?.id || previewGasto?.idrend || previewGasto?.evidenciaPath || previewGasto?.evidenciaFileName || "preview"}`}
+                                                gasto={previewGasto}
+                                                alt="Evidencia del gasto"
+                                                className="w-full cursor-zoom-in rounded-xl border border-slate-200 object-contain shadow-sm transition hover:opacity-90"
+                                                style={{ maxHeight: "220px" }}
+                                                onClick={(e) => setZoomSrc(e.currentTarget.src)}
+                                                fallback={
+                                                    <div className="flex h-28 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50">
+                                                        <p className="text-xs text-slate-400">Sin evidencia adjunta</p>
+                                                    </div>
+                                                }
+                                            />
+                                        </div>
+
+                                        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                            <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Datos Generales del Gasto</h2>
+                                            {[
+                                                ["Política:", firstDefined(previewGasto?.politica, previewGasto?.pol, previewGasto?.nomPolitica, "-")],
+                                                ["Centro de Costo:", firstDefined(previewGasto?.consumidor, previewGasto?.centroCosto, previewGasto?.centrocosto, previewGasto?.nomCentroCosto, "-")],
+                                                ["Tipo de Gasto:", firstDefined(previewGasto?.tipoGasto, previewGasto?.tipogasto, previewGasto?.nomTipoGasto, "-")],
+                                                ["Categoría:", firstDefined(previewGasto?.categoria, previewGasto?.cat, "-")],
+                                                ["RUC Emisor:", firstDefined(previewGasto?.rucEmisor, previewGasto?.rucemisor, previewGasto?.ruc, "-")],
+                                                ["Razón Social:", firstDefined(previewGasto?.proveedor, previewGasto?.empresa, previewGasto?.razonSocial, previewGasto?.razonsocial, previewGasto?.ruccliente, "-")],
+                                                ["RUC Cliente:", firstDefined(previewGasto?.rucCliente, previewGasto?.ruccliente, previewGasto?.rucCli, "-")],
+                                                ["Placa:", firstDefined(previewGasto?.placa, previewGasto?.placaVehiculo, previewGasto?.vehiculoPlaca, previewGasto?.nroPlaca, "-")],
+                                            ].map(([label, value]) => (
+                                                <div key={label} className="col-span-1">
+                                                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
+                                                    <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
+                                                </div>
+                                            ))}
+                                        </dl>
+
+                                        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                            <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Monto del Gasto</h2>
+                                            {[
+                                                ["Total:", firstDefined(previewGasto?.total, previewGasto?.monto, previewGasto?.importe, previewGasto?.valor, "-")],
+                                                ["IGV:", firstDefined(previewGasto?.igv, previewGasto?.tax, previewGasto?.impuesto, "-")],
+                                            ].map(([label, value]) => (
+                                                <div key={label} className="col-span-1">
+                                                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
+                                                    <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
+                                                </div>
+                                            ))}
+                                        </dl>
+
+                                        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                            <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Datos de la Factura</h2>
+                                            {(isMovilidadGasto(previewGasto)
+                                                ? [
+                                                    ["Tipo Comprobante:", getTipoComprobante(previewGasto) || "-"],
+                                                    ["Fecha Emisión:", previewGasto.fecha?.split("T")[0] || "-"],
+                                                    [
+                                                        "Serie - Número:",
+                                                        `${firstDefined(previewGasto?.serie, previewGasto?.serieComprobante, previewGasto?.nroserie, "-")} - ${firstDefined(previewGasto?.numero, previewGasto?.nroComprobante, previewGasto?.nro, previewGasto?.num, previewGasto?.nrodoc, "-")}`,
+                                                    ],
+                                                    ["LUGAR ORIGEN:", firstDefined(previewGasto?.lugarOrigen, previewGasto?.lugarorigen, previewGasto?.origen, previewGasto?.puntoOrigen, previewGasto?.desde, "-")],
+                                                    ["LUGAR DESTINO:", firstDefined(previewGasto?.lugarDestino, previewGasto?.lugardestino, previewGasto?.destino, previewGasto?.puntoDestino, previewGasto?.hasta, "-")],
+                                                    ["TIPO MOVILIDAD:", firstDefined(previewGasto?.tipoMovilidad, previewGasto?.tipomovilidad, previewGasto?.tipo_movilidad, previewGasto?.movilidad, previewGasto?.transporte, previewGasto?.medioTransporte, previewGasto?.medio_transporte, "-")],
+                                                    ["Motivo Viaje:", firstDefined(previewGasto?.motivoViaje, previewGasto?.motivo_viaje, previewGasto?.viajeMotivo, previewGasto?.motivo, "-")],
+                                                ]
+                                                : [
+                                                    ["Tipo Comprobante:", getTipoComprobante(previewGasto) || "-"],
+                                                    ["Fecha Emisión:", previewGasto.fecha?.split("T")[0] || "-"],
+                                                    [
+                                                        "Serie - Número:",
+                                                        `${firstDefined(previewGasto?.serie, previewGasto?.serieComprobante, "-")} - ${firstDefined(previewGasto?.numero, previewGasto?.nroComprobante, previewGasto?.nro, "-")}`,
+                                                    ],
+                                                    ["Total:", firstDefined(previewGasto?.total, previewGasto?.monto, previewGasto?.importe, previewGasto?.valor, "-")],
+                                                ])
+                                                .map(([label, value]) => (
+                                                    <div key={label} className="col-span-1">
+                                                        <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
+                                                        <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
+                                                    </div>
+                                                ))}
+                                        </dl>
+
+                                        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                            <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Observación</h2>
+                                            <div className="col-span-2">
+                                                <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Nota:</dt>
+                                                <dd className="mt-0.5 font-medium text-slate-700">{getGlosaOrNota(previewGasto) || "-"}</dd>
+                                            </div>
+                                        </dl>
+
+                                        <div className="flex justify-end border-t border-slate-100 pt-3">
+                                            <button
+                                                type="button"
+                                                onClick={closePreview}
+                                                className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 cursor-pointer"
+                                            >
+                                                Cerrar
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </>
             )}
+            <ImageZoomLightbox src={zoomSrc} onClose={() => setZoomSrc(null)} />
 
             <EditarGastoModal
                 gasto={editGasto}
@@ -1181,58 +1109,79 @@ export default function CrearGasto() {
             />
 
             {showModal && (
-                <BaseModal
-                    isOpen={showModal}
-                    onClose={closeModal}
-                    title="Crear Nuevo Gasto"
-                    maxWidthClass="max-w-6xl"
-                    viewportClass="items-start overflow-auto p-4 sm:p-8"
-                    panelClass="p-4 sm:p-6"
-                >
-
-                    {error && <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-
-                    <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-[220px_1fr] sm:items-center">
-                        <label className="text-sm font-semibold text-slate-700" htmlFor="politica-select">
-                            Seleccionar política
-                        </label>
-                        <select
-                            id="politica-select"
-                            value={selectedPolitica?.id || ""}
-                            onChange={handlePoliticaChange}
-                            className="w-full cursor-pointer rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                        >
-                            <option value="">Selecciona una política</option>
-                            {politicas.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-white">
-                        {selectedPolitica && (
-                            <>
-                                <h2 className="mb-3 text-lg font-bold text-slate-800">
-                                    Política: {selectedPolitica.name}
-                                </h2>
-
-                                {String(selectedPolitica?.name ?? "").toLowerCase().includes("movilidad") ? (
-                                    <GastoMovilidad selectedPolitica={selectedPolitica} />
-                                ) : (
-                                    <GastoGeneral selectedPolitica={selectedPolitica} />
-                                )}
-                            </>
-                        )}
-
-                        {!selectedPolitica && (
-                            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                                Selecciona una política para mostrar el formulario.
+                <>
+                    <button
+                        type="button"
+                        aria-label="Cerrar modal"
+                        className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px]"
+                        onClick={closeModal}
+                    />
+                    <div className="fixed inset-0 z-50 flex justify-center items-end overflow-auto p-0 sm:items-start sm:p-8 overflow-x-hidden">
+                        <div className="flex w-full flex-col overflow-hidden border border-slate-200/80 bg-white shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] ring-1 ring-white/60 backdrop-blur-sm max-h-[95vh] sm:max-h-[88vh] rounded-t-2xl sm:rounded-[1.35rem] max-w-6xl p-3 sm:p-6">
+                            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-blue-100 bg-linear-to-r from-blue-50 via-white to-indigo-50 px-4 py-3 sm:px-6">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <span className="h-9 w-1 rounded-full bg-linear-to-b from-blue-600 via-blue-700 to-indigo-500" />
+                                    <div className="min-w-0">
+                                        <h2 className="truncate text-base font-extrabold text-slate-800 sm:text-xl">Crear Nuevo Gasto</h2>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={closeModal}
+                                    className="cursor-pointer rounded-full border border-blue-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-900 sm:text-sm"
+                                >
+                                    Cerrar
+                                </button>
                             </div>
-                        )}
+
+                            <div className="min-h-0 flex-1 overflow-y-auto bg-linear-to-b from-white to-slate-50/70">
+
+                                {error && <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+
+                                <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-[220px_1fr] sm:items-center">
+                                    <label className="text-sm font-semibold text-slate-700" htmlFor="politica-select">
+                                        Seleccionar política
+                                    </label>
+                                    <select
+                                        id="politica-select"
+                                        value={selectedPolitica?.id || ""}
+                                        onChange={handlePoliticaChange}
+                                        className="w-full cursor-pointer rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                                    >
+                                        <option value="">Selecciona una política</option>
+                                        {politicas.map((p) => (
+                                            <option key={p.id} value={p.id}>
+                                                {p.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="rounded-2xl border border-slate-200 bg-white">
+                                    {selectedPolitica && (
+                                        <>
+                                            <h2 className="mb-3 text-lg font-bold text-slate-800">
+                                                Política: {selectedPolitica.name}
+                                            </h2>
+
+                                            {String(selectedPolitica?.name ?? "").toLowerCase().includes("movilidad") ? (
+                                                <GastoMovilidad selectedPolitica={selectedPolitica} />
+                                            ) : (
+                                                <GastoGeneral selectedPolitica={selectedPolitica} />
+                                            )}
+                                        </>
+                                    )}
+
+                                    {!selectedPolitica && (
+                                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                                            Selecciona una política para mostrar el formulario.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </BaseModal>
+                </>
             )}
 
 

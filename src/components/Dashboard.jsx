@@ -217,9 +217,9 @@ export default function Dashboard() {
                         <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-700" />
                         Menú
                     </button>
-                    <p className="max-w-[65%] truncate text-sm font-semibold text-slate-700">
+                    {/*  <p className="max-w-[65%] truncate text-sm font-semibold text-slate-700">
                         {empresa ? (empresa.empresa || empresa.nombre || empresa.name) : "No seleccionada"}
-                    </p>
+                    </p>*/}
                 </div>
             </div>
 

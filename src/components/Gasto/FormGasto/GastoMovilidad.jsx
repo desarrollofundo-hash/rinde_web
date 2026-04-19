@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { centerCrop, makeAspectCrop } from "react-image-crop";
+import { Save } from "lucide-react";
 import EvidenciaUploader from "./EvidenciaUploader";
 import EvidenciaCropModal from "./EvidenciaCropModal";
 import QrScannerModal from "./QrScannerModal";
@@ -286,14 +287,14 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
         };
     }, [evidenciaPreviewUrl]);
 
-    const fieldClass = "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200";
-    const labelClass = "mb-1 block text-sm font-semibold text-slate-700";
+    const fieldClass = "w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100";
+    const labelClass = "mb-1.5 block text-sm font-semibold text-slate-600";
     const hasEvidencia = Boolean(formData.evidencia);
     const canCropImage = hasEvidencia && String(formData.evidencia?.type || "").startsWith("image/");
 
     return (
         <>
-            <form onSubmit={handleSubmit} className="mx-auto mt-4 w-full max-w-6xl space-y-4 rounded-3xl bg-linear-to-br from-slate-50 via-white to-cyan-50 ">
+            <form onSubmit={handleSubmit} className="mx-auto mt-4 w-full max-w-6xl space-y-3">
 
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -314,12 +315,12 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
                     />
 
                     {!isPlanillaMovilidad && (
-                        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
                             <label className={labelClass}>Lector de código QR</label>
-                            <p className="mt-1 text-sm text-slate-500">Escanea para autocompletar datos del comprobante.</p>
+                            <p className="mt-1 text-sm text-slate-400">Escanea para autocompletar datos del comprobante.</p>
                             <button
                                 type="button"
-                                className="mt-3 inline-flex items-center rounded-xl bg-slate-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                                className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-700 active:scale-95"
                                 onClick={() => setIsQrOpen(true)}
                             >
                                 Escanear QR
@@ -329,8 +330,11 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
                 </div>
 
                 {/*DATOS GENERALES */}
-                <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                    <h3 className="mb-3 text-lg font-bold text-slate-800">Datos Generales</h3>
+                <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+                    <div className="mb-4 flex items-center gap-2.5">
+                        <span className="h-5 w-1 rounded-full bg-cyan-500" />
+                        <h3 className="text-base font-bold text-slate-800">Datos Generales</h3>
+                    </div>
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
@@ -371,29 +375,19 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
 
                         <div>
                             <label className={labelClass}>Centro de Costo</label>
-                            {isPlanillaMovilidad ? (
-                                <input
-                                    type="text"
-                                    className={`${fieldClass} bg-slate-100 text-slate-500`}
-                                    value={centrosCosto.find((cc) => String(cc.id) === String(formData.centroCosto))?.name || "Centro automático"}
-                                    readOnly
-                                    disabled
-                                />
-                            ) : (
-                                <select
-                                    name="centroCosto"
-                                    className={fieldClass}
-                                    value={formData.centroCosto}
-                                    onChange={handleCentroCostoChange}
-                                >
-                                    <option value="">Seleccionar centro de costo</option>
-                                    {centrosCosto.map((cc) => (
-                                        <option key={cc.id} value={cc.id}>
-                                            {cc.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            )}
+                            <select
+                                name="centroCosto"
+                                className={fieldClass}
+                                value={formData.centroCosto}
+                                onChange={handleCentroCostoChange}
+                            >
+                                <option value="">Seleccionar centro de costo</option>
+                                {centrosCosto.map((cc) => (
+                                    <option key={cc.id} value={cc.id}>
+                                        {cc.name}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         {/*TIPO DE GASTO */}
@@ -404,7 +398,7 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
                                 value={formData.tipoGasto || ""}
                                 placeholder="Automático según centro de costo"
                                 disabled
-                                className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-500"
+                                className="w-full cursor-not-allowed rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-500 placeholder:text-slate-400"
                             />
                         </div>
 
@@ -412,13 +406,16 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
                 </section>
 
                 {isPlanillaMovilidad ? (
-                    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                        <h3 className="mb-3 text-lg font-bold text-slate-800">Datos del comprobante</h3>
+                    <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+                        <div className="mb-4 flex items-center gap-2.5">
+                            <span className="h-5 w-1 rounded-full bg-cyan-500" />
+                            <h3 className="text-base font-bold text-slate-800">Datos del comprobante</h3>
+                        </div>
 
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                             <div>
                                 <label className={labelClass}>RUC Cliente</label>
-                                <input type="text" name="rucCliente" className={fieldClass} value={formData.rucCliente} readOnly onChange={handleChange} />
+                                <input type="text" name="rucCliente" className={`${fieldClass} cursor-not-allowed`} value={formData.rucCliente} disabled />
                             </div>
                             <div>
                                 <label className={labelClass}>Fecha de emisión</label>
@@ -439,8 +436,11 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
                         </div>
                     </section>
                 ) : (
-                    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                        <h3 className="mb-3 text-lg font-bold text-slate-800">Datos del comprobante</h3>
+                    <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+                        <div className="mb-4 flex items-center gap-2.5">
+                            <span className="h-5 w-1 rounded-full bg-cyan-500" />
+                            <h3 className="text-base font-bold text-slate-800">Datos del comprobante</h3>
+                        </div>
 
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                             <div>
@@ -453,7 +453,7 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
                             </div>
                             <div>
                                 <label className={labelClass}>RUC Cliente</label>
-                                <input type="text" name="rucCliente" placeholder="RUC del Cliente" className={fieldClass} value={formData.rucCliente} onChange={handleChange} />
+                                <input type="text" name="rucCliente" placeholder="RUC del Cliente" className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-500 focus:border-slate-200 focus:ring-0 focus:outline-none" value={formData.rucCliente} readOnly />
                             </div>
                             <div>
                                 <label className={labelClass}>Tipo Comprobante</label>
@@ -469,36 +469,71 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
                                 <label className={labelClass}>Fecha</label>
                                 <input type="date" name="fecha" className={fieldClass} value={formData.fecha} onChange={handleChange} />
                             </div>
-                            <div>
-                                <label className={labelClass}>Serie</label>
-                                <input type="text" name="serie" placeholder="Serie" className={fieldClass} value={formData.serie} onChange={handleChange} />
+                            <div className="hidden lg:block">
+                                <div>
+                                    <label className={labelClass}>Serie</label>
+                                    <input type="text" name="serie" placeholder="Serie" className={fieldClass} value={formData.serie} onChange={handleChange} />
+                                </div>
                             </div>
-                            <div>
-                                <label className={labelClass}>Número</label>
-                                <input type="number" name="numero" placeholder="Número" className={fieldClass} value={formData.numero} onChange={handleChange} />
+
+                            <div className="grid grid-cols-2 gap-4 md:col-span-2 lg:hidden">
+                                <div>
+                                    <label className={labelClass}>Serie</label>
+                                    <input type="text" name="serie" placeholder="Serie" className={fieldClass} value={formData.serie} onChange={handleChange} />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Número</label>
+                                    <input type="number" name="numero" placeholder="Número" className={fieldClass} value={formData.numero} onChange={handleChange} />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>IGV</label>
+                                    <input type="number" name="igv" placeholder="IGV" className={fieldClass} value={formData.igv} onChange={handleChange} />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Total</label>
+                                    <input type="number" name="total" placeholder="Total" className={fieldClass} value={formData.total} onChange={handleChange} />
+                                </div>
+                                <div className="col-span-2">
+                                    <label className={labelClass}>Moneda</label>
+                                    <select name="moneda" className={fieldClass} value={formData.moneda} onChange={handleChange}>
+                                        <option value="">Seleccionar</option>
+                                        <option value="01">PEN</option>
+                                        <option value="03">USD</option>
+                                    </select>
+                                </div>
                             </div>
-                            <div>
-                                <label className={labelClass}>IGV</label>
-                                <input type="number" name="igv" placeholder="IGV" className={fieldClass} value={formData.igv} onChange={handleChange} />
-                            </div>
-                            <div>
-                                <label className={labelClass}>Total</label>
-                                <input type="number" name="total" placeholder="Total" className={fieldClass} value={formData.total} onChange={handleChange} />
-                            </div>
-                            <div>
-                                <label className={labelClass}>Moneda</label>
-                                <select name="moneda" className={fieldClass} value={formData.moneda} onChange={handleChange}>
-                                    <option value="">Seleccionar</option>
-                                    <option value="01">PEN</option>
-                                    <option value="03">USD</option>
-                                </select>
+
+                            <div className="hidden gap-4 lg:col-span-3 lg:grid lg:grid-cols-4">
+                                <div>
+                                    <label className={labelClass}>Número</label>
+                                    <input type="number" name="numero" placeholder="Número" className={fieldClass} value={formData.numero} onChange={handleChange} />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>IGV</label>
+                                    <input type="number" name="igv" placeholder="IGV" className={fieldClass} value={formData.igv} onChange={handleChange} />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Total</label>
+                                    <input type="number" name="total" placeholder="Total" className={fieldClass} value={formData.total} onChange={handleChange} />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Moneda</label>
+                                    <select name="moneda" className={fieldClass} value={formData.moneda} onChange={handleChange}>
+                                        <option value="">Seleccionar</option>
+                                        <option value="01">PEN</option>
+                                        <option value="03">USD</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </section>
                 )}
                 {isPlanillaMovilidad && (
-                    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                        <h3 className="mb-3 text-lg font-bold text-slate-800">Datos de la Movilidad</h3>
+                    <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+                        <div className="mb-4 flex items-center gap-2.5">
+                            <span className="h-5 w-1 rounded-full bg-emerald-500" />
+                            <h3 className="text-base font-bold text-slate-800">Datos de la Movilidad</h3>
+                        </div>
 
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                             <div>
@@ -537,33 +572,28 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
                     </section>
                 )}
 
-                <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                    <label className={`${labelClass} mb-1`}>Glosa o Nota</label>
+                <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+                    <div className="mb-3 flex items-center gap-2.5">
+                        <span className="h-5 w-1 rounded-full bg-slate-400" />
+                        <label className="text-base font-bold text-slate-800">Glosa o Nota</label>
+                    </div>
                     <textarea
                         name="glosa"
-                        placeholder="Glosa o Nota"
-                        className={`${fieldClass} min-h-28 resize-y`}
+                        placeholder="Escribe una nota o descripción del gasto..."
+                        className={`${fieldClass} min-h-28 resize-none`}
                         value={formData.glosa}
                         onChange={handleChange}
                     />
                 </section>
 
-                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                    <button
-                        type="button"
-                        className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                    /* onClick={() => console.log("Cancelar")} */
-                    >
-                        Cancelar
-                    </button>
 
-                    <button
-                        type="submit"
-                        className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
-                    >
-                        Guardar
-                    </button>
-                </div>
+                <button
+                    type="submit"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-95 cursor-pointer disabled:cursor-not-allowed disabled:bg-emerald-400 disabled:text-slate-200"
+                >
+                    <Save size={17} aria-hidden="true" />
+                    Guardar
+                </button>
 
                 <EvidenciaCropModal
                     isOpen={isPreviewOpen}

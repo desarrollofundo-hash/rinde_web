@@ -359,14 +359,22 @@ export default function InformeVistaPrevia({
 
             <div className="flex max-h-[87vh] w-full max-w-5xl flex-col overflow-hidden rounded-t-[28px] border border-white/30 bg-white shadow-2xl sm:rounded-2xl">
                 {/* VISTA PREVIA DEL INFORME */}
-                <div className="flex items-start justify-between gap-3 border-b border-slate-200 bg-linear-to-r from-slate-50 via-white to-cyan-50 px-4 py-4 sm:items-center sm:px-5">
-                    <div className="min-w-0">
-                        <h2 className="mt-1 truncate text-lg font-extrabold text-slate-900 sm:text-xl">Vista del Informe</h2>
+                <div className="flex shrink-0 items-center justify-between gap-3 border-b border-blue-100 bg-linear-to-r from-blue-50 via-white to-indigo-50 px-4 py-2.5 sm:px-6 sm:py-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                        <span className="h-7 w-1 rounded-full bg-linear-to-b from-blue-600 via-blue-700 to-indigo-500 sm:h-9" />
+                        <h2 className="min-w-0 text-sm font-extrabold text-slate-800 sm:text-base">
+                            <span className="flex flex-wrap items-center gap-1.5">
+                                <span>Vista del Informe</span>
+                                <span className="text-slate-300">·</span>
+                                <span className="text-blue-700">{titulo || "-"}</span>
+                                <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 sm:text-xs"># ID Inf: {idInf || "-"}</span>
+                            </span>
+                        </h2>
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="shrink-0 rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100 sm:px-4 cursor-pointer"
+                        className="cursor-pointer rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-900 sm:px-3.5 sm:py-1.5 sm:text-sm"
                     >
                         Cerrar
                     </button>
@@ -382,14 +390,8 @@ export default function InformeVistaPrevia({
                             </div>
 
                             <div className="grid grid-cols-2 gap-1 text-xs text-slate-700 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                                <div className="space-y-0.5">
-                                    <p className="text-[9px] font-semibold uppercase text-slate-500">Título</p>
-                                    <p className="line-clamp-1 font-semibold text-slate-900">{titulo || "-"}</p>
-                                </div>
-                                <div className="space-y-0.5">
-                                    <p className="text-[9px] font-semibold uppercase text-slate-500">ID Inf: #</p>
-                                    <p className="line-clamp-1 font-semibold text-slate-900">{idInf || "-"}</p>
-                                </div>
+
+
                                 <div className="space-y-0.5">
                                     <p className="text-[9px] font-semibold uppercase text-slate-500">Fecha</p>
                                     <p className="line-clamp-1 font-semibold text-slate-900">{fechaResumen}</p>
@@ -418,95 +420,88 @@ export default function InformeVistaPrevia({
                                         {getWorkflowStatusLabel(estadoActual) || "-"}
                                     </span>
                                 </div>
-                            
+
                             </div>
                         </section>
                     </div>
 
                     {/* LISTA DE GASTOS DEL INFORME */}
-                    <section className="border-t border-slate-200 bg-white/95">
-                        <div className="flex items-center justify-between px-4 pt-4 sm:px-6 sm:pt-5">
-                            <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-700">
-                                Lista de gastos del informe :
+                    <section className="border-t border-slate-100">
+                        <div className="flex items-center justify-between px-4 pt-3 sm:px-6 sm:pt-4">
+                            <h3 className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
+                                Gastos del informe ({gastosSeleccionadosDetalle.length})
                             </h3>
                         </div>
 
-                        <div className="px-4 pb-4 pt-1">
-                            <div className="max-h-56 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50">
+                        <div className="px-4 pb-3 pt-2 sm:px-6">
+                            <div className="max-h-52 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200/80 [scrollbar-width:thin]">
                                 {gastosSeleccionadosDetalle.length === 0 && (
-                                    <p className="text-sm text-slate-500">No hay gastos seleccionados para este informe.</p>
+                                    <p className="px-3 py-4 text-center text-xs text-slate-400">Sin gastos asociados</p>
                                 )}
 
                                 {gastosSeleccionadosDetalle.map((gasto) => {
                                     const id = getGastoId(gasto);
                                     return (
-                                        <div
+                                        <button
                                             key={id}
-                                            className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50/40"
+                                            type="button"
+                                            onClick={() => setGastoDetalle(gasto)}
+                                            className="flex w-full items-center gap-3 bg-white px-3 py-2.5 text-left transition hover:bg-slate-50 cursor-pointer"
                                         >
                                             <div className="min-w-0 flex-1">
-                                                <p className="truncate text-sm font-semibold text-slate-900 "># {" "}
-                                                    {gasto.idrend || "-"}
-                                                </p>
-                                                <p className="truncate text-sm font-semibold text-slate-900 ">
-                                                    {gasto.categoria || "-"}
-                                                </p>
-                                                <p className="mt-0.5 text-xs text-slate-500">
-                                                    {gasto.fecha?.split("T")[0]|| "-"}
-                                                </p>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[11px] font-semibold text-slate-400">#{gasto.idrend || "-"}</span>
+                                                    <span className="truncate text-xs font-semibold text-slate-700">{gasto.categoria || "-"}</span>
+                                                </div>
+                                                <p className="text-[11px] text-slate-400">{gasto.fecha?.split("T")[0] || "-"}</p>
                                             </div>
-                                            <span className="shrink-0 rounded-full bg-cyan-100 px-3 py-1 text-xs font-bold text-cyan-800">
+                                            <span className="shrink-0 text-xs font-bold text-cyan-700">
                                                 S/ {getGastoAmount(gasto).toFixed(2)}
                                             </span>
-                                            <button
-                                                type="button"
-                                                onClick={() => setGastoDetalle(gasto)}
-                                                className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-700 cursor-pointer"
-                                            >
-                                               <IconEye className="h-3 w-3" />
-                                                <span className="hidden sm:inline">Detalle</span>
-                                            </button>
-                                        </div>
+                                            <IconEye className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                                        </button>
                                     );
                                 })}
                             </div>
                         </div>
                     </section>
                     {/*LISTAS DE GASTOS DE ACUERDO A LA POLÍTICA */}
-                    <section className="border-t border-slate-200 bg-white/95">
-                        <div className="flex items-center justify-between px-4 pt-4 sm:px-6 sm:pt-5">
-                            <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-700">
-                                Lista de gastos no seleccionados de la política ({gastosDisponiblesParaAgregar.length})
+                    <section className="border-t border-slate-100">
+                        <div className="flex items-center justify-between px-4 pt-3 sm:px-6 sm:pt-4">
+                            <h3 className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
+                                Gastos no seleccionados ({gastosDisponiblesParaAgregar.length})
                             </h3>
                         </div>
 
-                        <div className="px-4 pb-4 pt-3 sm:px-6 sm:pb-5">
-                            <div className="max-h-56 space-y-2 overflow-y-auto rounded-2xl ">
+                        <div className="px-4 pb-3 pt-2 sm:px-6">
+                            <div className="max-h-52 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200/80 [scrollbar-width:thin]">
                                 {gastosDisponiblesParaAgregar.length === 0 && (
-                                    <p className="text-sm text-slate-500">
-                                        No hay gastos disponibles para agregar en esta política.
+                                    <p className="px-3 py-4 text-center text-xs text-slate-400">
+                                        Sin gastos disponibles en esta política
                                     </p>
                                 )}
 
                                 {gastosDisponiblesParaAgregar.map((gasto) => {
                                     const id = getGastoId(gasto);
                                     return (
-                                        <div
+                                        <button
                                             key={id}
-                                            className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/40"
+                                            type="button"
+                                            onClick={() => setGastoDetalle(gasto)}
+                                            className="flex w-full items-center gap-3 bg-white px-3 py-2.5 text-left transition hover:bg-slate-50 cursor-pointer"
                                         >
-                                            <div className="min-w-0 pr-3">
-                                                <p className="truncate text-sm font-semibold text-slate-900">
-                                                    {gasto.categoria || "-"}
-                                                </p>
-                                                <p className="mt-0.5 text-xs text-slate-500">
-                                                    {gasto.fecha?.split("T")[0] || "-"}
-                                                </p>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[11px] font-semibold text-slate-400">#{gasto.idrend || "-"}</span>
+                                                    <span className="truncate text-xs font-semibold text-slate-700">{gasto.categoria || "-"}</span>
+                                                </div>
+                                                <p className="text-[11px] text-slate-400">{gasto.fecha?.split("T")[0] || "-"}</p>
                                             </div>
-                                            <span className="shrink-0 rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">
+                                            <span className="shrink-0 text-xs font-bold text-blue-600">
                                                 S/ {getGastoAmount(gasto).toFixed(2)}
                                             </span>
-                                        </div>
+                                            <IconEye className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                                        </button>
                                     );
                                 })}
                             </div>
@@ -516,17 +511,17 @@ export default function InformeVistaPrevia({
 
 
                 {/* Botones de acción */}
-                <div className="shrink-0 border-t border-slate-200 bg-slate-50/95 px-4 py-4 backdrop-blur sm:px-6">
-                    <div className="flex flex-row gap-2 sm:grid sm:grid-cols-2 sm:xl:grid-cols-4">
+                <div className="shrink-0 border-t border-slate-200 bg-slate-50/95 px-2 py-2 backdrop-blur sm:px-6 sm:py-4">
+                    <div className="flex flex-row gap-1.5 sm:gap-2 sm:grid sm:grid-cols-2 sm:xl:grid-cols-4">
                         {/* EDITAR GASTO */}
                         <button
                             type="button"
                             onClick={handleEditar}
                             disabled={isSaving || !isEditingAllowed}
-                            className="flex-1 flex flex-col items-center justify-center min-h-12 rounded-xl bg-amber-500 px-2 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none sm:flex-row sm:gap-2 sm:px-4 sm:py-3 cursor-pointer"
+                            className="flex-1 flex flex-col items-center justify-center min-h-9 rounded-lg bg-amber-500 px-1.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none sm:min-h-12 sm:rounded-xl sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-sm cursor-pointer"
                             title={!isEditingAllowed ? "No se puede editar en estado aprobado" : ""}
                         >
-                            <IconAdd className="h-6 w-6 shrink-0" />
+                            <IconAdd className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
                             <span className="hidden sm:inline">Agregar Gasto</span>
                         </button>
 
@@ -535,10 +530,10 @@ export default function InformeVistaPrevia({
                             type="button"
                             onClick={handleOpenQuitar}
                             disabled={isSaving || !isEditingAllowed}
-                            className="flex-1 flex flex-col items-center justify-center min-h-12 rounded-xl bg-rose-500 px-2 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none sm:flex-row sm:gap-2 sm:px-4 sm:py-3 cursor-pointer"
+                            className="flex-1 flex flex-col items-center justify-center min-h-9 rounded-lg bg-rose-500 px-1.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none sm:min-h-12 sm:rounded-xl sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-sm cursor-pointer"
                             title={!isEditingAllowed ? "No se puede editar en estado aprobado" : ""}
                         >
-                            <IconDelete className="h-6 w-6 shrink-0" />
+                            <IconDelete className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
                             <span className="hidden sm:inline">Quitar Gasto</span>
                         </button>
 
@@ -547,10 +542,10 @@ export default function InformeVistaPrevia({
                             type="button"
                             onClick={handleGuardar}
                             disabled={isSaving || selectedGastos.length === 0 || !isEditingAllowed}
-                            className="flex-1 flex flex-col items-center justify-center min-h-12 rounded-xl bg-emerald-600 px-2 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none sm:flex-row sm:gap-2 sm:px-4 sm:py-3 cursor-pointer"
+                            className="flex-1 flex flex-col items-center justify-center min-h-9 rounded-lg bg-emerald-600 px-1.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none sm:min-h-12 sm:rounded-xl sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-sm cursor-pointer"
                             title={!isEditingAllowed ? "No se puede editar en estado aprobado" : ""}
                         >
-                            <IconUpdate className="h-6 w-6 shrink-0" />
+                            <IconUpdate className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
                             <span className="hidden sm:inline">Actualizar Informe</span>
                         </button>
 
@@ -558,10 +553,10 @@ export default function InformeVistaPrevia({
                             type="button"
                             onClick={handleEnviarAuditoria}
                             disabled={isSaving || selectedGastos.length === 0 || !isEditingAllowed}
-                            className="flex-1 flex flex-col items-center justify-center min-h-12 rounded-xl bg-indigo-600 px-2 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none sm:flex-row sm:gap-2 sm:px-4 sm:py-3 cursor-pointer"
+                            className="flex-1 flex flex-col items-center justify-center min-h-9 rounded-lg bg-indigo-600 px-1.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none sm:min-h-12 sm:rounded-xl sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-sm cursor-pointer"
                             title={!isEditingAllowed ? "No se puede editar en estado aprobado" : ""}
                         >
-                            <IconSend className="h-6 w-6 shrink-0" />
+                            <IconSend className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
                             <span className="hidden sm:inline">Enviar a Auditoría</span>
                         </button>
                     </div>
@@ -654,7 +649,7 @@ export default function InformeVistaPrevia({
                                     <h1 className="col-span-2 text-lg font-semibold text-slate-800">Monto del gasto:</h1>
                                     {[
                                         { label: "IGV", value: gastoDetalle?.igv != null ? `S/ ${Number(gastoDetalle.igv).toFixed(2)}` : null },
-                                        { label: "Total", value: `S/ ${getGastoAmount(gastoDetalle).toFixed(2)}`, highlight: true } ,
+                                        { label: "Total", value: `S/ ${getGastoAmount(gastoDetalle).toFixed(2)}`, highlight: true },
                                     ]
                                         .filter((f) => f.value)
                                         .map((f) => (
@@ -663,7 +658,7 @@ export default function InformeVistaPrevia({
                                                 <dd className={`mt-0.5 text-sm font-semibold ${f.highlight ? "text-cyan-700" : "text-slate-800"}`}>{f.value}</dd>
                                             </div>
                                         ))
-                                        
+
                                     }
                                     <h1 className="col-span-2 text-lg font-semibold text-slate-800">Datos de la Factura:</h1>
                                     {(isPlanillaMovilidad
@@ -715,7 +710,7 @@ export default function InformeVistaPrevia({
                                                 <dd className={`mt-0.5 text-sm font-semibold ${f.highlight ? "text-cyan-700" : "text-slate-800"}`}>{f.value}</dd>
                                             </div>
                                         ))
-                                        
+
                                     }
                                     {!isPlanillaMovilidad && (
                                         <>

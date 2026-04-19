@@ -3,6 +3,20 @@ import { useEffect, useRef } from "react";
 export default function Toast({ message, type = "success", isVisible, onClose, duration = 3000 }) {
     const timerRef = useRef(null);
 
+    const validationPrefix = "Completa los campos obligatorios:";
+    const isValidationMessage =
+        type === "error" &&
+        typeof message === "string" &&
+        message.startsWith(validationPrefix);
+
+    const validationFields = isValidationMessage
+        ? message
+            .slice(validationPrefix.length)
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean)
+        : [];
+
     useEffect(() => {
         if (!isVisible) return;
 
@@ -129,9 +143,27 @@ animation: pulse-ring 2s infinite;
 
                         {/* Contenido */}
                         <div className="flex-1 min-w-0">
-                            <p className={`${config.textColor} text-sm sm:text-base font-bold leading-snug word-break`}>
-                                {message}
-                            </p>
+                            {isValidationMessage ? (
+                                <div>
+                                    <p className={`${config.textColor} text-sm sm:text-base font-bold leading-snug`}>
+                                        Completa los campos obligatorios
+                                    </p>
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        {validationFields.map((field) => (
+                                            <span
+                                                key={field}
+                                                className="rounded-full border border-white/35 bg-white/15 px-2.5 py-1 text-xs font-semibold text-white"
+                                            >
+                                                {field}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className={`${config.textColor} text-sm sm:text-base font-bold leading-snug whitespace-pre-line`}>
+                                    {message}
+                                </p>
+                            )}
                         </div>
 
                         {/* Botón cerrar */}

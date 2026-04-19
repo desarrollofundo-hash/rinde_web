@@ -117,6 +117,18 @@ const toNullableInt = (value) => {
 
 const normalizeRuc = (value) => String(value ?? "").replace(/\D/g, "").trim();
 
+const normalizeText = (value) => String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .trim();
+
+const hasValue = (value) => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === "string") return value.trim() !== "";
+    return true;
+};
+
 const resolvePlacaFromCentros = (centros) => {
     if (!Array.isArray(centros)) return "";
 
@@ -557,6 +569,7 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
         const centroCostoSeleccionado = centrosCosto.find((cc) => String(cc.id) === String(formData.centroCosto));
         const politicaSeleccionada = politicas.find((p) => String(p.id) === String(formData.politica));
         const categoriaSeleccionada = categorias.find((c) => String(c.id) === String(formData.categoria));
+        const isPlanillaMovilidad = normalizeText(categoriaSeleccionada?.name).includes("PLANILLA DE MOVILIDAD");
 
         const resolvedIdCuenta = String(
             centroCostoSeleccionado?.id ||
@@ -586,6 +599,50 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
             centroCostoSeleccionado?.placa ||
             ""
         ).trim();
+
+        const requiredCommonFields = [
+            { label: "Política", value: formData.politica },
+            { label: "Categoría", value: formData.categoria },
+            { label: "Centro de Costo", value: formData.centroCosto },
+            { label: "Tipo de Gasto", value: resolvedTipoGasto },
+            { label: "RUC Cliente", value: formData.rucCliente },
+            { label: "Fecha", value: formData.fecha },
+            { label: "Total", value: formData.total },
+            { label: "Moneda", value: formData.moneda },
+            { label: "Glosa o Nota", value: formData.glosa },
+            { label: "Evidencia", value: formData.evidencia },
+        ];
+
+        const requiredPlanillaFields = [
+            { label: "Origen", value: formData.origen },
+            { label: "Destino", value: formData.destino },
+            { label: "Motivo de viaje", value: formData.motivoViaje },
+            { label: "Tipo de movilidad", value: formData.tipoMovilidad },
+            { label: "Placa", value: resolvedPlaca },
+        ];
+
+        const requiredNoPlanillaFields = [
+            { label: "RUC Emisor", value: formData.rucEmisor },
+            { label: "Razón Social", value: formData.razonSocial },
+            { label: "Tipo Comprobante", value: formData.tipoComprobante },
+            { label: "Serie", value: formData.serie },
+            { label: "Número", value: formData.numero },
+            { label: "IGV", value: formData.igv },
+        ];
+
+        const fieldsToValidate = isPlanillaMovilidad
+            ? [...requiredCommonFields, ...requiredPlanillaFields]
+            : [...requiredCommonFields, ...requiredNoPlanillaFields];
+
+        const missingFields = fieldsToValidate
+            .filter((field) => !hasValue(field.value))
+            .map((field) => field.label);
+
+        if (missingFields.length > 0) {
+            const validationMessage = `Completa los campos obligatorios: ${missingFields.join(", ")}`;
+            setErrorMessage(validationMessage);
+            return;
+        }
 
         if (!resolvedIdCuenta) {
             alert("Selecciona un centro de costo antes de guardar");

@@ -90,31 +90,25 @@ export default function InformeList({ informes, onVistaPrevia, formatDate }) {
                     </table>
                 </div>
 
-                <div className="max-h-[70vh] space-y-3 overflow-y-auto p-3 md:hidden">
+                <div className="max-h-[70vh] space-y-2 overflow-y-auto p-2 md:hidden">
                     {paginatedInformes.map((inf, index) => (
-                        <article key={index} className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                            <div className="mb-3 flex items-start justify-between gap-3">
-                                <h3 className="text-sm font-bold text-slate-800">{inf.titulo || "Sin título"}</h3>
-                                <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${getWorkflowStatusBadgeClass(getEstadoInforme(inf))}`}>
-                                    {getEstadoInforme(inf)}
-                                </span>
+                        <article key={index} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5">
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[11px] font-semibold text-slate-400">#{inf.idInf}</span>
+                                    <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${getWorkflowStatusBadgeClass(getEstadoInforme(inf))}`}>
+                                        {getEstadoInforme(inf)}
+                                    </span>
+                                </div>
+                                <h3 className="truncate text-sm font-bold text-slate-800">{inf.titulo || "Sin título"}</h3>
+                                <p className="truncate text-[11px] text-slate-500">{inf.politica || "-"} · {formatDate(inf.fecCre)}</p>
                             </div>
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-slate-600">
-                                <p><span className="font-semibold text-slate-700">#:</span> {inf.idInf}</p>
-                                <p><span className="font-semibold text-slate-700">Fecha:</span> {formatDate(inf.fecCre)}</p>
-                                <p><span className="font-semibold text-slate-700">DNI:</span> {inf.dni || "-"}</p>
-                                <p><span className="font-semibold text-slate-700">RUC:</span> {inf.ruc || "-"}</p>
-                            </div>
-                            <p className="mt-2 text-xs text-slate-600">
-                                <span className="font-semibold text-slate-700">Política:</span> {inf.politica || "-"}
-                            </p>
                             <button
                                 type="button"
                                 onClick={() => onVistaPrevia(inf)}
-                                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-cyan-700 cursor-pointer"
+                                className="shrink-0 rounded-lg bg-cyan-600 p-2 text-white transition hover:bg-cyan-700 cursor-pointer"
                             >
-                                <IconEye className="h-4 w-4 shrink-0" />
-                                Vista previa
+                                <IconEye className="h-4 w-4" />
                             </button>
                         </article>
                     ))}
