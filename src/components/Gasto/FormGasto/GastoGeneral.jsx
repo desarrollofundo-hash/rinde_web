@@ -506,7 +506,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
             }
             return { ...prev, categoria: "" };
         });
-                }, []);
+    }, []);
 
     const handlePoliticaChange = async (e) => {
         const politicaId = e.target.value;
@@ -1100,19 +1100,19 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                             />
                         </div>
 
-                        <div className="flex flex-col gap-1">
-                            <label className={labelClass}>Serie:</label>
-                            <input
-                                type="text"
-                                name="serie"
-                                placeholder="F001"
-                                className={fieldClass}
-                                value={formData.serie}
-                                onChange={handleChange}
-                            />
-                        </div>
+                        <div className="grid grid-cols-2 gap-2 lg:col-span-3 lg:grid-cols-2">
+                            <div className="flex flex-col gap-1">
+                                <label className={labelClass}>Serie:</label>
+                                <input
+                                    type="text"
+                                    name="serie"
+                                    placeholder="F001"
+                                    className={fieldClass}
+                                    value={formData.serie}
+                                    onChange={handleChange}
+                                />
+                            </div>
 
-                        <div className="grid grid-cols-1 gap-2 lg:col-span-3 lg:grid-cols-4">
                             <div className="flex flex-col gap-1">
                                 <label className={labelClass}>Número:</label>
                                 <input
@@ -1125,7 +1125,9 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                                     min="0"
                                 />
                             </div>
+                        </div>
 
+                        <div className="grid grid-cols-2 gap-2 lg:col-span-3 lg:grid-cols-4">
                             <div className="flex flex-col gap-1">
                                 <label className={labelClass}>IGV</label>
                                 <input
@@ -1135,7 +1137,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                                     className={fieldClass}
                                     value={formData.igv}
                                     onChange={handleChange}
-                                   
+
                                 />
                             </div>
 
@@ -1178,14 +1180,14 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                     name="glosa"
                     type="text"
                     placeholder="Agrega una descripcion breve del gasto o nota"
-                    className={`${fieldClass} min-h-28 resize-y`}
+                    className={`${fieldClass} min-h-28 resize-none`}
                     onChange={handleChange}
                 />
             </section>
 
             {/* Botones */}
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              
+
                 <button
                     type="submit"
                     className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"

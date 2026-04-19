@@ -508,18 +508,22 @@ export default function Revision() {
     return (
         <div className="min-h-screen bg-linear-to-b from-slate-50 via-cyan-50/30 to-white p-4 sm:p-6">
             <div className="mx-auto w-full max-w-7xl space-y-5">
-                <section className="rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur sm:p-6">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <h1 className="text-2xl font-extrabold tracking-tight text-slate-800 sm:text-3xl">
+                <div className="relative overflow-hidden rounded-2xl border border-blue-200/70 bg-white p-2 shadow-sm">
+
+                    {/* DECORACIÓN SUTIL */}
+                    <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-blue-200/30 blur-2xl"></div>
+
+                    <div className="flex items-center justify-between gap-2">
+
+                        {/* TEXTO */}
+                        <div className="min-w-0">
+                            <h1 className="truncate text-base font-semibold text-slate-800 sm:text-xl">
                                 Gestión de Revisiones
                             </h1>
-                            <p className="mt-1 text-sm text-slate-600 sm:text-base">
-                                Revisa y administra las revisiones de la empresa.
-                            </p>
                         </div>
+
                     </div>
-                </section>
+                </div>
 
                 {loading && (
                     <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
@@ -549,32 +553,32 @@ export default function Revision() {
                             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                                 <div className="hidden md:block max-h-[65vh] overflow-auto [scrollbar-width:thin]">
                                     <table className="w-full min-w-225 text-sm">
-                                        <thead className="bg-slate-100 text-slate-700 sticky top-0 z-10 shadow-[0_1px_0_0_rgb(226,232,240)]">
+                                        <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur">
                                             <tr>
-                                                <th className="px-4 py-3 text-left font-semibold">#</th>
-                                                <th className="px-4 py-3 text-left font-semibold">ID</th>
-                                                <th className="px-4 py-3 text-left font-semibold">Título</th>
-                                                {/* <th className="px-4 py-3 text-left font-semibold">Descripción</th> */}
-                                                <th className="px-4 py-3 text-left font-semibold">Estado</th>
-                                                <th className="px-4 py-3 text-left font-semibold">Fecha</th>
-                                                <th className="px-4 py-3 text-left font-semibold">Acciones</th>
+                                                <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">#</th>
+                                                <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">ID</th>
+                                                <th className="border-b border-slate-200 px-1 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">Título</th>
+                                                {/* <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">Descripción</th> */}
+                                                <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">Estado</th>
+                                                <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">Fecha</th>
+                                                <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">Acciones</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {paginatedRevisiones.map((revision, index) => (
                                                 <tr key={index} className="border-t border-slate-100 hover:bg-slate-50/70">
-                                                    <td className="px-4 py-3 text-slate-700">{startIdx + index + 1}</td>
-                                                    <td className="px-4 py-3 text-slate-700">{revision?.idRev ?? "-"}</td>
-                                                    <td className="px-4 py-3 font-medium text-slate-800">{revision?.titulo ?? revision?.title ?? "-"}</td>
-                                                    {/* <td className="px-4 py-3 text-slate-700">{revision?.descripcion ?? revision?.desc ?? "-"}</td> */}
-                                                    <td className="px-4 py-3">
-                                                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoBadgeClass(revision)}`}>
+                                                    <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700">{startIdx + index + 1}</td>
+                                                    <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700">{revision?.idRev ?? "-"}</td>
+                                                    <td className="border-b border-slate-100 px-2 py-1 text-sm font-semibold text-slate-800">{revision?.titulo ?? revision?.title ?? "-"}</td>
+                                                    {/* <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700">{revision?.descripcion ?? revision?.desc ?? "-"}</td> */}
+                                                    <td className="border-b border-slate-100 px-2 py-1 text-center">
+                                                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoBadgeClass(revision)}`}>
                                                             {getEstadoLabel(revision)}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-3 text-slate-700">{formatDate(revision?.fecCre)}</td>
+                                                    <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700">{formatDate(revision?.fecCre)}</td>
 
-                                                    <td className="px-4 py-3">
+                                                    <td className="border-b border-slate-100 px-2 py-1 text-center">
                                                         <button
                                                             type="button"
                                                             onClick={() => handleVerDetalles(revision)}

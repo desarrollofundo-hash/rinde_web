@@ -50,30 +50,30 @@ export default function InformeList({ informes, onVistaPrevia, formatDate }) {
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="hidden max-h-[70vh] overflow-auto md:block">
                     <table className="w-full min-w-225 text-sm">
-                        <thead className="sticky top-0 z-10 bg-slate-100 text-slate-700">
+                        <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur">
                             <tr>
-                                <th className="px-4 py-3 text-left font-semibold">#</th>
-                                <th className="px-4 py-3 text-left font-semibold">Título</th>
-                                <th className="px-4 py-3 text-left font-semibold">Política</th>
-                                <th className="px-4 py-3 text-left font-semibold">Estado</th>
-                                <th className="px-4 py-3 text-left font-semibold">Fecha</th>
-                                <th className="px-4 py-3 text-left font-semibold">Acciones</th>
+                                <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">#</th>
+                                <th className="border-b border-slate-200 px-1 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">Título</th>
+                                <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">Política</th>
+                                <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">Estado</th>
+                                <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">Fecha</th>
+                                <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             {paginatedInformes.map((inf, index) => (
                                 <tr key={index} className="border-t border-slate-100 hover:bg-slate-50/70">
-                                    <td className="px-4 py-3 text-slate-700">{inf.idInf}</td>
-                                    <td className="px-4 py-3 font-medium text-slate-800">{inf.titulo || "-"}</td>
-                                    <td className="px-4 py-3 text-slate-700">{inf.politica || "-"}</td>
-                                    <td className="px-4 py-3">
-                                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getWorkflowStatusBadgeClass(getEstadoInforme(inf))}`}>
+                                    <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700">{inf.idInf}</td>
+                                    <td className="border-b border-slate-100 px-2 py-1 text-sm font-semibold text-slate-800">{inf.titulo || "-"}</td>
+                                    <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700">{inf.politica || "-"}</td>
+                                    <td className="border-b border-slate-100 px-2 py-1 text-center">
+                                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getWorkflowStatusBadgeClass(getEstadoInforme(inf))}`}>
                                             {getEstadoInforme(inf)}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-3 text-slate-700">{formatDate(inf.fecCre)}</td>
+                                    <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700">{formatDate(inf.fecCre)}</td>
                                     {/*fecha?.split("T")[0] */}
-                                    <td className="px-4 py-3">
+                                    <td className="border-b border-slate-100 px-2 py-1 text-center">
                                         <button
                                             type="button"
                                             onClick={() => onVistaPrevia(inf)}

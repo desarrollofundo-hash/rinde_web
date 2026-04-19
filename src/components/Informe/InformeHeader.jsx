@@ -1,22 +1,30 @@
 export default function InformeHeader({ onNewInforme }) {
     return (
-        <section className="sticky top-4 z-30 rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur sm:p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="text-2xl font-extrabold tracking-tight text-slate-800 sm:text-3xl">
+        <div className="relative overflow-hidden rounded-2xl border border-blue-200/70 bg-white p-2 shadow-sm">
+
+            {/* DECORACIÓN SUTIL */}
+            <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-blue-200/30 blur-2xl"></div>
+
+            <div className="flex items-center justify-between gap-2">
+
+                {/* TEXTO */}
+                <div className="min-w-0">
+                    <h1 className="truncate text-base font-semibold text-slate-800 sm:text-xl">
                         Gestión de Informes
                     </h1>
                 </div>
 
+                {/* BOTÓN */}
                 <button
                     type="button"
                     onClick={onNewInforme}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-300 sm:px-5"
+                    className="inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-blue-900 px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-blue-800 active:scale-95 cursor-pointer"
                 >
-                    <span className="text-base leading-none">+</span>
+                    ＋
                     Nuevo Informe
                 </button>
+
             </div>
-        </section>
+        </div>
     );
 }
