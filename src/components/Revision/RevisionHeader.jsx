@@ -1,8 +1,6 @@
-import { IconAdd } from "@/Icons/add";
 import { IconExcel } from "../../Icons/excel";
 
-export default function InformeHeader({
-    onNewInforme,
+export default function RevisionHeader({
     isExportMode = false,
     selectedCount = 0,
     onExportClick,
@@ -19,7 +17,7 @@ export default function InformeHeader({
                 {/* TEXTO */}
                 <div className="min-w-0">
                     <h1 className="truncate text-base font-semibold text-slate-800 sm:text-xl">
-                        Gestión de Informes
+                        Gestión de Revisiones
                     </h1>
                 </div>
 
@@ -27,11 +25,11 @@ export default function InformeHeader({
                     <button
                         type="button"
                         onClick={onExportClick}
-                        className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-emerald-300 bg-white p-2.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 cursor-pointer sm:px-3 sm:py-2"
-                        title={isExportMode ? "Exportar selección" : "Seleccionar informes para exportar"}
+                        className="inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 cursor-pointer"
+                        title={isExportMode ? "Exportar selección" : "Seleccionar revisiones para exportar"}
                     >
                         <IconExcel className="h-4 w-4" />
-                        <span className="hidden sm:inline">{isExportMode ? `Exportar (${selectedCount})` : "Exportar"}</span>
+                        <span>{isExportMode ? `Exportar (${selectedCount})` : "Exportar"}</span>
                     </button>
 
                     {isExportMode && (
@@ -43,16 +41,6 @@ export default function InformeHeader({
                             Cancelar
                         </button>
                     )}
-
-                    <button
-                        type="button"
-                        onClick={onNewInforme}
-                        className="inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-blue-900 px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-blue-800 active:scale-95 cursor-pointer"
-                    >
-                        <IconAdd className="h-4 w-4" />
-                        <span className="sm:hidden">Nuevo</span>
-                        <span className="hidden sm:inline">Nuevo Informe</span>
-                    </button>
                 </div>
 
             </div>

@@ -168,10 +168,10 @@ export default function ModalInforme({
     };
 
     const handleGuardar = () => {
-       /*  console.log("🔵 handleGuardar ejecutado");
-        console.log("📊 Gastos disponibles:", gastos.length);
-        console.log("✅ Gastos seleccionados:", selectedGastos);
-        console.log("📝 IDs seleccionados:", JSON.stringify(selectedGastos)); */
+        /*  console.log("🔵 handleGuardar ejecutado");
+         console.log("📊 Gastos disponibles:", gastos.length);
+         console.log("✅ Gastos seleccionados:", selectedGastos);
+         console.log("📝 IDs seleccionados:", JSON.stringify(selectedGastos)); */
 
         if (selectedGastos.length === 0) {
             setError("Selecciona al menos un gasto para asociar al informe");
@@ -342,7 +342,7 @@ export default function ModalInforme({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                        className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 cursor-pointer"
                     >
                         Cancelar
                     </button>
@@ -350,7 +350,7 @@ export default function ModalInforme({
                         type="button"
                         onClick={handleGuardar}
                         disabled={loading || selectedGastos.length === 0}
-                        className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:bg-slate-400"
+                        className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:bg-slate-400 cursor-pointer"
                     >
                         {selectedGastos.length === 0
                             ? "Selecciona gastos"

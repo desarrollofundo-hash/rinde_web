@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { Button as MovingBorderButton } from "./ui/moving-border";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { IconSignIn } from "@/Icons/signIn.jsx";
+import { BackgroundRippleEffect } from "./ui/background-ripple-effect";
 
 export default function Login() {
     const [form, setForm] = useState({
@@ -117,8 +118,10 @@ export default function Login() {
             <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-slate-100 via-blue-50 to-indigo-100" />
             <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-blue-300/30 blur-3xl" />
 
-            <section className="relative hidden md:flex items-center justify-center border-r border-blue-200/60 bg-linear-to-br from-blue-950 to-slate-900 p-10 text-white">
-                <div className="max-w-md space-y-5">
+            <section className="relative hidden items-center justify-center overflow-hidden border-r border-blue-200/60 bg-linear-to-br from-blue-950 to-slate-900 p-10 text-white md:flex">
+                <BackgroundRippleEffect rows={12} cols={8} />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,0.22),transparent_28%),radial-gradient(circle_at_80%_18%,rgba(59,130,246,0.22),transparent_24%),radial-gradient(circle_at_50%_100%,rgba(255,255,255,0.08),transparent_34%)]" />
+                <div className="relative z-10 max-w-md space-y-5">
                     <MovingBorderButton
                         as="div"
                         borderRadius="9999px"
@@ -199,7 +202,7 @@ export default function Login() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="group flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-blue-900 to-blue-800 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-900/25 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-900/30 hover:from-blue-800 hover:to-blue-700 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2"
+                            className="group flex w-full items-center justify-center gap-2.5 rounded-xl bg-linear-to-r from-blue-900 to-blue-800 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-900/25 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-900/30 hover:from-blue-800 hover:to-blue-700 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2"
                         >
                             {loading ? (
                                 <Loader2 size={18} className="animate-spin" />

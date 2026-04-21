@@ -968,32 +968,35 @@ export default function CrearGasto() {
                         className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px]"
                         onClick={closePreview}
                     />
-                    <div className="fixed inset-0 z-50 flex justify-center items-center p-8 sm:p-8 overflow-x-hidden">
-                        <div className="flex w-full flex-col overflow-hidden border border-slate-200/80 bg-white shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] ring-1 ring-white/60 backdrop-blur-sm max-h-[98vh] sm:max-h-[88vh] rounded-none sm:rounded-[1.35rem] max-w-2xl p-3 sm:p-6">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-auto p-4">
+                        <div className="flex w-full max-w-2xl flex-col overflow-hidden bg-transparent shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] backdrop-blur-sm max-h-[88vh] rounded-2xl p-0 sm:rounded-[1.35rem]">
                             <div className="min-h-0 flex-1 overflow-y-auto bg-linear-to-b from-white to-slate-50/70">
                                 <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                                     <div className="flex flex-col gap-2 border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3">
                                         <div className="min-w-0">
                                             {/* <p className="text-xs font-medium text-slate-400">Gasto</p> */}
                                             <h3 className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-slate-800 sm:text-[15px]">
-                                                <span>
-                                                    Vista previa del Gasto <span className="text-cyan-600">#{getGastoIdRend(previewGasto) || "-"}</span>
+                                                <span>Vista previa del Gasto</span>
+
+                                                <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">
+                                                    # Id : {getGastoIdRend(previewGasto) || "-"}
                                                 </span>
 
                                                 <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${getEstadoStyle(previewGasto.estado)}`}>
                                                     {normalizeEstadoLabel(previewGasto.estado || "Sin estado")}
                                                 </span>
+
                                             </h3>
                                         </div>
-                                        <div className="shrink-0 text-left sm:text-right">
+                                        {/*   <div className="shrink-0 text-left sm:text-right">
                                             <p className="text-sm font-semibold text-cyan-700 sm:text-[15px]">
                                                 <span className="mr-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">Total</span>
                                                 {previewGasto.total ?? "-"} {previewGasto.moneda || ""}
                                             </p>
-                                        </div>
+                                        </div> */}
                                     </div>
 
-                                    <div className="max-h-[65vh] space-y-5 overflow-y-auto p-4 sm:p-5">
+                                    <div className="max-h-[65vh] space-y-5 overflow-y-auto p-5">
                                         <div>
                                             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Evidencia</p>
                                             <EvidenciaImagen

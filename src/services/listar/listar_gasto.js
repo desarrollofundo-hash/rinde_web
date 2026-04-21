@@ -97,7 +97,7 @@ export async function getListaGastos({
         // ✅ NORMALIZAR DATOS (opcional pero recomendado)
         const gastos = data.map((item, index) => {
             if (index === 0) {
-                console.log("========================================");
+             /*    console.log("========================================");
                 console.log("=======================================");
                 console.log("🔍 PRIMER GASTO");
                 console.log("Campos disponibles:", Object.keys(data[0] || {}));
@@ -127,7 +127,7 @@ export async function getListaGastos({
                     data[0].motivoviaje,
                 ));
                 console.log("Tipo Movilidad:", data[0].tipoMovilidad);
-                console.log("=======================================");
+                console.log("======================================="); */
             }
 
             const tipoGastoValue = firstDefined(

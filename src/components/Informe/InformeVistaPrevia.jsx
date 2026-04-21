@@ -23,6 +23,7 @@ export default function InformeVistaPrevia({
     estadoActual = "",
 }) {
     const [selectedGastos, setSelectedGastos] = useState([]);
+    const [initialSelectedGastos, setInitialSelectedGastos] = useState([]);
     const [isAdjuntarOpen, setIsAdjuntarOpen] = useState(false);
     const [gastosParaAdjuntar, setGastosParaAdjuntar] = useState([]);
     const [isQuitarOpen, setIsQuitarOpen] = useState(false);
@@ -115,6 +116,7 @@ export default function InformeVistaPrevia({
 
             const timeoutId = window.setTimeout(() => {
                 setSelectedGastos(normalized);
+                setInitialSelectedGastos(normalized);
                 setGastosParaAdjuntar([]);
             }, 0);
 
@@ -217,6 +219,13 @@ export default function InformeVistaPrevia({
         return unique.join(", ");
     }, [categoria, gastosSeleccionadosDetalle]);
 
+    // ✅ Verificar si hay cambios en los gastos seleccionados
+    const hasChanges = useMemo(() => {
+        if (selectedGastos.length !== initialSelectedGastos.length) return true;
+        const selectedSet = new Set(selectedGastos);
+        return !initialSelectedGastos.every((id) => selectedSet.has(id));
+    }, [selectedGastos, initialSelectedGastos]);
+
     const fechaResumen = formatFecha(fecha);
 
     const normalizeText = (value) =>
@@ -311,7 +320,10 @@ export default function InformeVistaPrevia({
     const handleAdjuntarGastos = () => {
         if (gastosParaAdjuntar.length === 0) return;
         const normalizedToAdd = gastosParaAdjuntar.map(id => String(id));
-        setSelectedGastos((prev) => Array.from(new Set([...prev, ...normalizedToAdd])));
+        setSelectedGastos((prev) => {
+            const updated = Array.from(new Set([...prev, ...normalizedToAdd]));
+            return updated;
+        });
         setGastosParaAdjuntar([]);
         setIsAdjuntarOpen(false);
     };
@@ -336,7 +348,10 @@ export default function InformeVistaPrevia({
         if (gastosParaQuitar.length === 0) return;
 
         const setQuitar = new Set(gastosParaQuitar.map((id) => String(id)));
-        setSelectedGastos((prev) => prev.filter((id) => !setQuitar.has(String(id))));
+        setSelectedGastos((prev) => {
+            const updated = prev.filter((id) => !setQuitar.has(String(id)));
+            return updated;
+        });
         setGastosParaQuitar([]);
         setIsQuitarOpen(false);
     };
@@ -541,9 +556,9 @@ export default function InformeVistaPrevia({
                         <button
                             type="button"
                             onClick={handleGuardar}
-                            disabled={isSaving || selectedGastos.length === 0 || !isEditingAllowed}
+                            disabled={isSaving || selectedGastos.length === 0 || !isEditingAllowed || !hasChanges}
                             className="flex-1 flex flex-col items-center justify-center min-h-9 rounded-lg bg-emerald-600 px-1.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none sm:min-h-12 sm:rounded-xl sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-sm cursor-pointer"
-                            title={!isEditingAllowed ? "No se puede editar en estado aprobado" : ""}
+                            title={!isEditingAllowed ? "No se puede editar en estado aprobado" : !hasChanges ? "Debes agregar o quitar gastos para actualizar" : ""}
                         >
                             <IconUpdate className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
                             <span className="hidden sm:inline">Actualizar Informe</span>
@@ -564,7 +579,7 @@ export default function InformeVistaPrevia({
 
                 {/* MODAL DETALLE DE GASTO */}
                 {gastoDetalle && (
-                    <div className="fixed inset-0 z-60 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4">
+                    <div className="fixed inset-0 z-70 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4">
                         <button
                             type="button"
                             aria-label="Cerrar detalle"
@@ -580,7 +595,7 @@ export default function InformeVistaPrevia({
                                 <button
                                     type="button"
                                     onClick={() => setGastoDetalle(null)}
-                                    className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                                    className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
                                 >
                                     ✕
                                 </button>
@@ -606,7 +621,7 @@ export default function InformeVistaPrevia({
                                 </div>
 
                                 <dl className="grid grid-cols-2 gap-x-4 gap-y-4">
-                                    <h1 className="col-span-2 text-lg font-semibold text-slate-800 ">Datos Generales del Gasto: </h1>
+                                    <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Datos Generales del Gasto</h2>
                                     {[
                                         { label: "Política", value: firstDefined(gastoDetalle?.politica, gastoDetalle?.pol) },
                                         {
@@ -646,7 +661,7 @@ export default function InformeVistaPrevia({
                                             </div>
                                         ))
                                     }
-                                    <h1 className="col-span-2 text-lg font-semibold text-slate-800">Monto del gasto:</h1>
+                                    <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Monto del Gasto</h2>
                                     {[
                                         { label: "IGV", value: gastoDetalle?.igv != null ? `S/ ${Number(gastoDetalle.igv).toFixed(2)}` : null },
                                         { label: "Total", value: `S/ ${getGastoAmount(gastoDetalle).toFixed(2)}`, highlight: true },
@@ -660,7 +675,7 @@ export default function InformeVistaPrevia({
                                         ))
 
                                     }
-                                    <h1 className="col-span-2 text-lg font-semibold text-slate-800">Datos de la Factura:</h1>
+                                    <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Datos de la Factura</h2>
                                     {(isPlanillaMovilidad
                                         ? [
                                             { label: "Tipo Comprobante", value: gastoDetalle?.tipoComprobante ?? gastoDetalle?.tipocomprobante },
@@ -730,7 +745,7 @@ export default function InformeVistaPrevia({
                                 </dl>
                             </div>
                             {/* Footer */}
-                            <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-5 py-3">
+                            {/*  <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-5 py-3">
                                 <button
                                     type="button"
                                     onClick={() => setGastoDetalle(null)}
@@ -738,7 +753,7 @@ export default function InformeVistaPrevia({
                                 >
                                     Cerrar
                                 </button>
-                            </div>
+                            </div> */}
                         </div>
                     </div>
                 )}
@@ -846,60 +861,83 @@ export default function InformeVistaPrevia({
                     <div className="fixed inset-0 z-60 flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
                         <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl">
                             <div className="border-b border-slate-200 bg-linear-to-r from-cyan-50 via-white to-slate-50 px-5 py-4">
-                                <h3 className="text-lg font-bold text-slate-900">Adjuntar gastos al informe</h3>
-                                <p className="mt-1 text-sm text-slate-600">Selecciona gastos no asociados y adjúntalos.</p>
+                                <h3 className="text-lg font-bold text-slate-900">Adjuntar o quitar gastos al informe</h3>
                             </div>
 
-                            <div className="max-h-[60vh] space-y-2 overflow-y-auto p-4">
-                                {gastosDisponiblesParaAgregar.length === 0 && (
-                                    <p className="text-sm text-slate-500">No hay gastos disponibles para adjuntar.</p>
-                                )}
-                                {gastosDisponiblesParaAgregar.map((gasto) => {
-                                    const id = getGastoId(gasto);
-                                    return (
-                                        <label
-                                            key={id}
-                                            className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 transition hover:border-cyan-200 hover:bg-cyan-50/40"
-                                        >
-                                            <div className="min-w-0 pr-3">
-                                                <p className="truncate text-sm font-semibold text-slate-800">{gasto.categoria || "-"}</p>
-
-                                                <p className="text-xs text-slate-500">
-                                                    {gasto.fecha?.split("T")[0] || "-"}
-                                                    <span className="ml-7 font-semibold text-blue-800">
-                                                        S/ {getGastoAmount(gasto).toFixed(2)}
-                                                    </span>
-                                                </p>
+                            <div className="px-4 pb-3 pt-2 flex-1 overflow-y-auto">
+                                <div className="max-h-[60vh] divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200/80 [scrollbar-width:thin]">
+                                    {gastosDisponiblesParaAgregar.length === 0 && (
+                                        <p className="px-3 py-4 text-center text-xs text-slate-400">No hay gastos disponibles para adjuntar.</p>
+                                    )}
+                                    {gastosDisponiblesParaAgregar.map((gasto) => {
+                                        const id = getGastoId(gasto);
+                                        const isChecked = gastosParaAdjuntar.includes(id);
+                                        return (
+                                            <div
+                                                key={id}
+                                                className={`flex w-full items-center gap-3 px-3 py-2.5 transition ${isChecked ? "bg-cyan-50" : "bg-white hover:bg-slate-50"}`}
+                                            >
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleToggleAdjuntar(id)}
+                                                    className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded border-2 transition cursor-pointer ${isChecked ? "border-cyan-600 bg-cyan-600" : "border-slate-300 bg-white"}`}
+                                                >
+                                                    {isChecked && (
+                                                        <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
+                                                        </svg>
+                                                    )}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleToggleAdjuntar(id)}
+                                                    className="min-w-0 flex-1 text-left cursor-pointer"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[11px] font-semibold text-slate-400">#{gasto.idrend || id || "-"}</span>
+                                                        <span className="truncate text-xs font-semibold text-slate-700">{gasto.categoria || "-"}</span>
+                                                    </div>
+                                                    <p className="text-[11px] text-slate-400">{gasto.fecha?.split("T")[0] || "-"}</p>
+                                                </button>
+                                                <span className={`shrink-0 text-xs font-bold ${isChecked ? "text-cyan-700" : "text-blue-600"}`}>
+                                                    S/ {getGastoAmount(gasto).toFixed(2)}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setGastoDetalle(gasto)}
+                                                    className="shrink-0 cursor-pointer rounded p-0.5 text-slate-300 transition hover:text-slate-500"
+                                                    title="Ver detalle"
+                                                >
+                                                    <IconEye className="h-3.5 w-3.5" />
+                                                </button>
                                             </div>
-                                            <input
-                                                type="checkbox"
-                                                checked={gastosParaAdjuntar.includes(id)}
-                                                onChange={() => handleToggleAdjuntar(id)}
-                                                className="h-5 w-5 cursor-pointer accent-cyan-600"
-                                            />
-                                        </label>
-                                    );
-                                })}
+                                        );
+                                    })}
+                                </div>
                             </div>
 
-                            <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-4 py-4 sm:flex-row">
+                            <div className="flex flex-row gap-3 border-t border-slate-200 bg-slate-50 px-4 py-4">
                                 <button
                                     type="button"
                                     onClick={() => {
                                         setIsAdjuntarOpen(false);
                                         setGastosParaAdjuntar([]);
                                     }}
-                                    className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                                    className="flex-1 flex flex-row items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-1.5 py-1.5 sm:px-4 sm:py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 cursor-pointer"
                                 >
-                                    Cancelar
+                                    <svg className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    <span className="hidden sm:inline">Cancelar</span>
                                 </button>
                                 <button
                                     type="button"
                                     onClick={handleAdjuntarGastos}
                                     disabled={gastosParaAdjuntar.length === 0}
-                                    className="flex-1 rounded-xl bg-cyan-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:bg-slate-400"
+                                    className="flex-1 flex flex-row items-center justify-center gap-2 rounded-xl bg-cyan-600 px-1.5 py-1.5 sm:px-4 sm:py-3 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:bg-slate-400 cursor-pointer"
                                 >
-                                    Adjuntar gastos ({gastosParaAdjuntar.length})
+                                    <IconAdd className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                                    <span className="hidden sm:inline">Adjuntar gastos ({gastosParaAdjuntar.length})</span>
                                 </button>
                             </div>
                         </div>
@@ -911,59 +949,82 @@ export default function InformeVistaPrevia({
                         <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl">
                             <div className="border-b border-slate-200 bg-linear-to-r from-amber-50 via-white to-slate-50 px-5 py-4">
                                 <h3 className="text-lg font-bold text-slate-900">Quitar gastos del informe</h3>
-                                <p className="mt-1 text-sm text-slate-600">Selecciona los gastos que deseas quitar.</p>
                             </div>
 
-                            <div className="max-h-[60vh] space-y-2 overflow-y-auto p-4">
-                                {gastosSeleccionadosDetalle.length === 0 && (
-                                    <p className="text-sm text-slate-500">No hay gastos asociados a este informe.</p>
-                                )}
-
-                                {gastosSeleccionadosDetalle.map((gasto) => {
-                                    const id = getGastoId(gasto);
-                                    return (
-                                        <label
-                                            key={id}
-                                            className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 transition hover:border-amber-200 hover:bg-amber-50/40"
-                                        >
-                                            <div className="min-w-0 pr-3">
-                                                <p className="truncate text-sm font-semibold text-slate-800">{gasto.categoria || "-"}</p>
-                                                <p className="text-xs text-slate-500">
-                                                    {gasto.fecha || "-"}
-                                                    <span className="ml-4 font-semibold text-amber-700">
-                                                        S/ {getGastoAmount(gasto).toFixed(2)}
-                                                    </span>
-                                                </p>
+                            <div className="px-4 pb-3 pt-2 flex-1 overflow-y-auto">
+                                <div className="max-h-[60vh] divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200/80 [scrollbar-width:thin]">
+                                    {gastosSeleccionadosDetalle.length === 0 && (
+                                        <p className="px-3 py-4 text-center text-xs text-slate-400">No hay gastos asociados a este informe.</p>
+                                    )}
+                                    {gastosSeleccionadosDetalle.map((gasto) => {
+                                        const id = getGastoId(gasto);
+                                        const isChecked = gastosParaQuitar.includes(String(id));
+                                        return (
+                                            <div
+                                                key={id}
+                                                className={`flex w-full items-center gap-3 px-3 py-2.5 transition ${isChecked ? "bg-amber-50" : "bg-white hover:bg-slate-50"}`}
+                                            >
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleToggleQuitar(id)}
+                                                    className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded border-2 transition cursor-pointer ${isChecked ? "border-amber-600 bg-amber-600" : "border-slate-300 bg-white"}`}
+                                                >
+                                                    {isChecked && (
+                                                        <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
+                                                        </svg>
+                                                    )}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleToggleQuitar(id)}
+                                                    className="min-w-0 flex-1 text-left cursor-pointer"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[11px] font-semibold text-slate-400">#{gasto.idrend || id || "-"}</span>
+                                                        <span className="truncate text-xs font-semibold text-slate-700">{gasto.categoria || "-"}</span>
+                                                    </div>
+                                                    <p className="text-[11px] text-slate-400">{gasto.fecha?.split("T")[0] || "-"}</p>
+                                                </button>
+                                                <span className={`shrink-0 text-xs font-bold ${isChecked ? "text-amber-700" : "text-blue-600"}`}>
+                                                    S/ {getGastoAmount(gasto).toFixed(2)}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setGastoDetalle(gasto)}
+                                                    className="shrink-0 cursor-pointer rounded p-0.5 text-slate-300 transition hover:text-slate-500"
+                                                    title="Ver detalle"
+                                                >
+                                                    <IconEye className="h-3.5 w-3.5" />
+                                                </button>
                                             </div>
-                                            <input
-                                                type="checkbox"
-                                                checked={gastosParaQuitar.includes(String(id))}
-                                                onChange={() => handleToggleQuitar(id)}
-                                                className="h-5 w-5 cursor-pointer accent-amber-600"
-                                            />
-                                        </label>
-                                    );
-                                })}
+                                        );
+                                    })}
+                                </div>
                             </div>
 
-                            <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-4 py-4 sm:flex-row">
+                            <div className="flex flex-row gap-3 border-t border-slate-200 bg-slate-50 px-4 py-4">
                                 <button
                                     type="button"
                                     onClick={() => {
                                         setIsQuitarOpen(false);
                                         setGastosParaQuitar([]);
                                     }}
-                                    className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                                    className="flex-1 flex flex-row items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-1.5 py-1.5 sm:px-4 sm:py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 cursor-pointer"
                                 >
-                                    Cancelar
+                                    <svg className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    <span className="hidden sm:inline">Cancelar</span>
                                 </button>
                                 <button
                                     type="button"
                                     onClick={handleQuitarGastos}
                                     disabled={gastosParaQuitar.length === 0}
-                                    className="flex-1 rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:bg-slate-400"
+                                    className="flex-1 flex flex-row items-center justify-center gap-2 rounded-xl bg-amber-600 px-1.5 py-1.5 sm:px-4 sm:py-3 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:bg-slate-400 cursor-pointer"
                                 >
-                                    Quitar seleccionados ({gastosParaQuitar.length})
+                                    <IconDelete className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                                    <span className="hidden sm:inline">Quitar seleccionados ({gastosParaQuitar.length})</span>
                                 </button>
                             </div>
                         </div>

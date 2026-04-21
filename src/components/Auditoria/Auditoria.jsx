@@ -10,9 +10,12 @@ import {
     resolveWorkflowStatus,
 } from "../shared/workflowStatus";
 import Toast from "../shared/Toast";
+import { downloadExcelXml } from "../../lib/exportExcel";
 import { IconEye } from "../../Icons/preview";
-import PaginationControls from "../Gasto/PaginationControls";
 import EvidenciaImagen from "../Gasto/EvidenciaImagen";
+import ImageZoomLightbox from "../Gasto/ImageZoomLightbox";
+import AuditoriaHeader from "./AuditoriaHeader";
+import AuditoriaList from "./AuditoriaList";
 
 export default function Auditoria() {
     const DEFAULT_ITEMS_PER_PAGE = 8;
@@ -31,11 +34,10 @@ export default function Auditoria() {
         return PAGE_SIZE_OPTIONS.includes(stored) ? stored : DEFAULT_ITEMS_PER_PAGE;
     });
     const [toastConfig, setToastConfig] = useState({ isVisible: false, message: "", type: "success" });
+    const [isExportMode, setIsExportMode] = useState(false);
+    const [selectedAuditoriaIds, setSelectedAuditoriaIds] = useState([]);
     const [detalleModal, setDetalleModal] = useState({ open: false, detalle: null });
     const [zoomSrc, setZoomSrc] = useState(null);
-    const [zoomScale, setZoomScale] = useState(1);
-    const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
-    const zoomDragRef = { isDragging: false, startX: 0, startY: 0, originX: 0, originY: 0 };
 
     useEffect(() => {
         localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(pageSize));
@@ -54,8 +56,6 @@ export default function Auditoria() {
     }, [auditorias, effectiveCurrentPage, pageSize]);
 
     const currentFrom = auditorias.length === 0 ? 0 : (effectiveCurrentPage - 1) * pageSize + 1;
-    const currentTo = (effectiveCurrentPage - 1) * pageSize + paginatedAuditorias.length;
-
     const showToast = (message, type = "success") => {
         setToastConfig({ isVisible: true, message, type });
     };
@@ -109,7 +109,7 @@ export default function Auditoria() {
             );
 
             return resolved;
-        } catch (e) {
+        } catch {
             /*   console.warn("⚠️ No se pudo resolver area desde lista de empresas:", e?.message); */
             return "0";
         }
@@ -304,7 +304,6 @@ export default function Auditoria() {
             });
 
             if (Array.isArray(data) && data.length === 0 && altUserId && altUserId !== userId) {
-                /* console.log("🔁 Reintentando listado con user alterno:", altUserId); */
                 data = await getListaAuditoria({
                     id: "1",
                     idad: String(altUserId),
@@ -547,10 +546,205 @@ export default function Auditoria() {
         return iso;
     };
 
+    const parseAmount = (value) => {
+        if (typeof value === "number") {
+            return Number.isFinite(value) ? value : 0;
+        }
+
+        if (typeof value !== "string") {
+            return 0;
+        }
+
+        const raw = value.trim().replace(/[^\d,.-]/g, "");
+        if (!raw) return 0;
+
+        let normalized = raw;
+        const hasComma = raw.includes(",");
+        const hasDot = raw.includes(".");
+
+        if (hasComma && hasDot) {
+            if (raw.lastIndexOf(",") > raw.lastIndexOf(".")) {
+                normalized = raw.replace(/\./g, "").replace(",", ".");
+            } else {
+                normalized = raw.replace(/,/g, "");
+            }
+        } else if (hasComma) {
+            normalized = /,\d{1,2}$/.test(raw) ? raw.replace(",", ".") : raw.replace(/,/g, "");
+        }
+
+        const parsed = Number(normalized);
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const getAuditoriaTotal = (auditoria) => parseAmount(firstDefined(
+        auditoria?.totalAuditoria,
+        auditoria?.totalauditoria,
+        auditoria?.total,
+        auditoria?.monto,
+        auditoria?.importe,
+        auditoria?.montoTotal,
+        auditoria?.montototal,
+        0,
+    ));
+
+    const getAuditoriaCantidadGastos = (auditoria) => Number(firstDefined(
+        auditoria?.cantidadGastos,
+        auditoria?.cantGastos,
+        auditoria?.cantidad,
+        auditoria?.cant,
+        auditoria?.nroGastos,
+        0,
+    )) || 0;
+
+    const formatCurrency = (value) => new Intl.NumberFormat("es-PE", {
+        style: "currency",
+        currency: "PEN",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(parseAmount(value));
+
     const getEstadoLabel = (auditoria) => getWorkflowStatusLabel(resolveWorkflowStatus(auditoria, "PENDIENTE"));
 
     const getEstadoBadgeClass = (auditoria) =>
         getWorkflowStatusBadgeClass(resolveWorkflowStatus(auditoria, "PENDIENTE"));
+
+    const toggleAuditoriaSelection = (auditoria) => {
+        const id = getAuditoriaId(auditoria);
+        if (!id) return;
+
+        setSelectedAuditoriaIds((prev) => (
+            prev.includes(id)
+                ? prev.filter((item) => item !== id)
+                : [...prev, id]
+        ));
+    };
+
+    const toggleSelectAllAuditorias = () => {
+        const allIds = (Array.isArray(auditorias) ? auditorias : [])
+            .map((a) => getAuditoriaId(a))
+            .filter(Boolean);
+
+        const areAllSelected = allIds.length > 0 && allIds.every((id) => selectedAuditoriaIds.includes(id));
+
+        if (areAllSelected) {
+            setSelectedAuditoriaIds([]);
+            return;
+        }
+
+        setSelectedAuditoriaIds(allIds);
+    };
+
+    const cancelExportMode = () => {
+        setIsExportMode(false);
+        setSelectedAuditoriaIds([]);
+    };
+
+    const exportSelectedAuditoriasExcel = async () => {
+        const selectedAuditorias = (Array.isArray(auditorias) ? auditorias : []).filter((a) =>
+            selectedAuditoriaIds.includes(getAuditoriaId(a))
+        );
+
+        if (selectedAuditorias.length === 0) {
+            showToast("Selecciona al menos una auditoría para exportar", "warning");
+            return;
+        }
+
+        try {
+            const resumenRows = [];
+            const detalleRows = [];
+
+            for (const auditoria of selectedAuditorias) {
+                const idAd = getAuditoriaId(auditoria);
+                if (!idAd) continue;
+
+                const detallesData = await getListaAuditoriaDetalle({ idAd: String(idAd) });
+                const detallesAudit = Array.isArray(detallesData) ? detallesData : [];
+
+                resumenRows.push({
+                    "IdAd": Number(firstDefined(auditoria?.idAd, auditoria?.idad, auditoria?.id, 0)),
+                    "IdInf": Number(firstDefined(auditoria?.idInf, auditoria?.idinf, auditoria?.idInforme, 0)),
+                    "IdUser": Number(firstDefined(auditoria?.idUser, auditoria?.iduser, 0)),
+                    "Dni": String(firstDefined(auditoria?.dni, "")),
+                    "Ruc": String(firstDefined(auditoria?.ruc, auditoria?.RUC, "")),
+                    "Area": String(firstDefined(auditoria?.area, "")),
+                    "EstadoActual": String(firstDefined(auditoria?.estadoActual, auditoria?.estadoactual, auditoria?.estado, "")),
+                    "Fecha": String(formatDate(firstDefined(auditoria?.fecCre, auditoria?.fecha, ""))),
+                    "Total": getAuditoriaTotal(auditoria),
+                    "CantGastos": getAuditoriaCantidadGastos(auditoria),
+                    "Obs": String(firstDefined(auditoria?.obs, "")),
+                });
+
+                detallesAudit.forEach((det) => {
+                    detalleRows.push({
+                        "IdAd": Number(firstDefined(det?.idAd, det?.idad, auditoria?.idAd, auditoria?.idad, 0)),
+                        "IdInf": Number(firstDefined(det?.idInf, det?.idinf, auditoria?.idInf, auditoria?.idinf, 0)),
+                        "IdRend": Number(firstDefined(det?.idRend, det?.idrend, det?.id, 0)),
+                        "IdUser": Number(firstDefined(det?.idUser, det?.iduser, auditoria?.idUser, auditoria?.iduser, 0)),
+                        "Dni": String(firstDefined(det?.dni, auditoria?.dni, "")),
+                        "Politica": String(firstDefined(det?.politica, det?.pol, auditoria?.politica, "")),
+                        "Categoria": String(firstDefined(det?.categoria, det?.cat, "")),
+                        "TipoGasto": String(firstDefined(det?.tipogasto, det?.tipoGasto, det?.tipo_movilidad, "")),
+                        "Ruc": String(firstDefined(det?.ruc, det?.RUC, auditoria?.ruc, "")),
+                        "Proveedor": String(firstDefined(det?.proveedor, det?.empresa, det?.razonSocial, det?.rucEmisor, "")),
+                        "TipoCombrobante": String(firstDefined(det?.tipoCombrobante, det?.tipocombrobante, det?.tipoComprobante, det?.tipocomprobante, "")),
+                        "Serie": String(firstDefined(det?.serie, "")),
+                        "Numero": String(firstDefined(det?.numero, "")),
+                        "IGV": parseAmount(firstDefined(det?.igv, 0)),
+                        "Fecha": String(formatDate(firstDefined(det?.fecha, det?.fecCre, det?.feccre, ""))),
+                        "Total": parseAmount(firstDefined(det?.total, det?.monto, det?.importe, 0)),
+                        "Moneda": String(firstDefined(det?.moneda, "PEN")),
+                        "RucCliente": String(firstDefined(det?.rucCliente, det?.ruccliente, "")),
+                        "DesEmp": String(firstDefined(det?.desEmp, det?.desemp, det?.empresa, det?.proveedor, "")),
+                        "Gerencia": String(firstDefined(det?.gerencia, "")),
+                        "Area": String(firstDefined(det?.area, auditoria?.area, "")),
+                        "Consumidor": String(firstDefined(det?.consumidor, det?.centroCosto, det?.centrocosto, "")),
+                        "Placa": String(firstDefined(det?.placa, det?.placaVehiculo, det?.placavehiculo, "")),
+                        "EstadoActual": String(firstDefined(det?.estadoActual, det?.estadoactual, det?.estado, auditoria?.estadoActual, auditoria?.estadoactual, "")),
+                        "Glosa": String(firstDefined(det?.glosa, det?.nota, det?.obs, auditoria?.obs, "")),
+                        "MotivoViaje": String(firstDefined(det?.motivoViaje, det?.motivoviaje, "")),
+                        "LugarOrigen": String(firstDefined(det?.lugarOrigen, det?.lugarorigen, det?.origen, "")),
+                        "LugarDestino": String(firstDefined(det?.lugarDestino, det?.lugardestino, det?.destino, "")),
+                        "TipoMovilidad": String(firstDefined(det?.tipoMovilidad, det?.tipomovilidad, det?.tipo_movilidad, det?.movilidad, "")),
+                        "Obs": String(firstDefined(det?.obs, det?.observacion, det?.observaciones, "")),
+                        "FecCre": String(formatDate(firstDefined(det?.fecCre, det?.feccre, det?.fecha, ""))),
+                    });
+                });
+            }
+
+            const now = new Date();
+            const pad = (n) => String(n).padStart(2, "0");
+            const fileName = `auditorias_seleccionadas_${selectedAuditorias.length}_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.xls`;
+
+            downloadExcelXml({
+                fileName,
+                sheets: [
+                    {
+                        name: "Resumen",
+                        rows: resumenRows.length > 0 ? resumenRows : [{ Mensaje: "No hay auditorías válidas para exportar" }],
+                    },
+                    {
+                        name: "Detalles",
+                        rows: detalleRows.length > 0 ? detalleRows : [{ Mensaje: "Estas auditorías no tienen gastos en detalle" }],
+                    },
+                ],
+            });
+
+            showToast("Excel de auditorías generado correctamente", "success");
+            cancelExportMode();
+        } catch (error) {
+            showToast(`Error al exportar auditorías: ${error?.message || "Inténtalo nuevamente"}`, "error");
+        }
+    };
+
+    const handleExportClick = async () => {
+        if (!isExportMode) {
+            setIsExportMode(true);
+            setSelectedAuditoriaIds([]);
+            return;
+        }
+
+        await exportSelectedAuditoriasExcel();
+    };
 
     useEffect(() => {
         fetchAuditorias();
@@ -582,18 +776,12 @@ export default function Auditoria() {
     return (
         <div className="min-h-screen bg-linear-to-b from-slate-50 via-cyan-50/30 to-white p-4 sm:p-6">
             <div className="mx-auto w-full max-w-7xl space-y-5">
-                <section className="sticky top-4 z-30 rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur sm:p-6">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <h1 className="text-2xl font-extrabold tracking-tight text-slate-800 sm:text-3xl">
-                                Gestión de Auditorías
-                            </h1>
-                            <p className="mt-1 text-sm text-slate-600 sm:text-base">
-                                Aquí puedes <span className="font-semibold text-slate-700"> revisar tu lista de auditorías, ver detalles y enviar a revisión para su aprobación.</span>
-                            </p>
-                        </div>
-                    </div>
-                </section>
+                <AuditoriaHeader
+                    isExportMode={isExportMode}
+                    selectedCount={selectedAuditoriaIds.length}
+                    onExportClick={handleExportClick}
+                    onCancelExport={cancelExportMode}
+                />
 
                 {loading && (
                     <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
@@ -609,136 +797,58 @@ export default function Auditoria() {
                 )}
 
                 {!loading && auditorias.length > 0 && (
-                    <section className="space-y-4">
-                        {/*  <div className="sticky top-20 z-20 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <h2 className="text-lg font-bold text-slate-800">Listado de Auditorías</h2>
-                                <div className="flex items-center gap-2">
-                                    <p className="text-xs font-medium text-slate-500 sm:text-sm">
-                                        Página {effectiveCurrentPage} de {totalPages}
-                                    </p>
-                                    <span className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">
-                                        {auditorias.length} registro(s)
-                                    </span>
-                                </div>
-                            </div>
-                        </div> */}
-
-                        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                            <div className="hidden max-h-[70vh] overflow-auto md:block">
-                                <table className="w-full min-w-225 text-sm">
-                                    <thead className="sticky top-0 z-10 bg-slate-100 text-slate-700">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left font-semibold">#</th>
-                                            <th className="px-4 py-3 text-left font-semibold">ID</th>
-                                            <th className="px-4 py-3 text-left font-semibold">DNI</th>
-                                            <th className="px-4 py-3 text-left font-semibold">Estado</th>
-                                            <th className="px-4 py-3 text-left font-semibold">Fecha</th>
-                                            <th className="px-4 py-3 text-left font-semibold">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {paginatedAuditorias.map((auditoria, index) => (
-                                            <tr key={index} className="border-t border-slate-100 hover:bg-slate-50/70">
-                                                <td className="px-4 py-3 text-slate-700">{currentFrom + index}</td>
-                                                <td className="px-4 py-3 text-slate-700">{auditoria?.idAd ?? auditoria?.id ?? "-"}</td>
-                                                <td className="px-4 py-3 text-slate-700">{auditoria?.dni ?? "-"}</td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoBadgeClass(auditoria)}`}>
-                                                        {getEstadoLabel(auditoria)}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-slate-700">{formatDate(auditoria?.fecCre)}</td>
-                                                <td className="px-4 py-3">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleVerDetalles(auditoria)}
-                                                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-cyan-700 cursor-pointer"
-                                                    >
-                                                        <IconEye className="h-4 w-4 shrink-0" />
-                                                        Ver Detalles
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div className="max-h-[70vh] space-y-3 overflow-y-auto p-3 md:hidden">
-                                {paginatedAuditorias.map((auditoria, index) => (
-                                    <article key={index} className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                                        <div className="mb-3 flex items-start justify-between gap-3">
-                                            <h3 className="text-sm font-bold text-slate-800">{auditoria?.obs ?? "Sin observación"}</h3>
-                                            <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${getEstadoBadgeClass(auditoria)}`}>
-                                                {getEstadoLabel(auditoria)}
-                                            </span>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-slate-600">
-                                            <p><span className="font-semibold text-slate-700">#:</span> {currentFrom + index}</p>
-                                            <p><span className="font-semibold text-slate-700">Fecha:</span> {formatDate(auditoria?.fecCre)}</p>
-                                            <p><span className="font-semibold text-slate-700">ID:</span> {auditoria?.idAd ?? auditoria?.id ?? "-"}</p>
-                                            <p><span className="font-semibold text-slate-700">DNI:</span> {auditoria?.dni ?? "-"}</p>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleVerDetalles(auditoria)}
-                                            className="mt-3 w-full rounded-lg bg-cyan-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-cyan-700"
-                                        >
-                                            Ver Detalles
-                                        </button>
-                                    </article>
-                                ))}
-                            </div>
-
-                            <div className="border-t border-slate-200 bg-slate-50/80 px-2 py-2 sm:px-3">
-                                <PaginationControls
-                                    currentPage={effectiveCurrentPage}
-                                    totalPages={totalPages}
-                                    onPageChange={setCurrentPage}
-                                    totalItems={auditorias.length}
-                                    currentFrom={currentFrom}
-                                    currentTo={currentTo}
-                                    pageSize={pageSize}
-                                    onPageSizeChange={(nextSize) => {
-                                        setPageSize(nextSize);
-                                        setCurrentPage(1);
-                                    }}
-                                    pageSizeOptions={PAGE_SIZE_OPTIONS}
-                                />
-                            </div>
-                        </div>
-                    </section>
+                    <AuditoriaList
+                        auditorias={auditorias}
+                        paginatedAuditorias={paginatedAuditorias}
+                        isExportMode={isExportMode}
+                        selectedAuditoriaIds={selectedAuditoriaIds}
+                        getAuditoriaId={getAuditoriaId}
+                        getEstadoBadgeClass={getEstadoBadgeClass}
+                        getEstadoLabel={getEstadoLabel}
+                        formatDate={formatDate}
+                        formatCurrency={formatCurrency}
+                        getAuditoriaTotal={getAuditoriaTotal}
+                        getAuditoriaCantidadGastos={getAuditoriaCantidadGastos}
+                        currentFrom={currentFrom}
+                        currentPage={effectiveCurrentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                        pageSize={pageSize}
+                        onPageSizeChange={(nextSize) => {
+                            setPageSize(nextSize);
+                            setCurrentPage(1);
+                        }}
+                        pageSizeOptions={PAGE_SIZE_OPTIONS}
+                        onToggleSelectAllAuditorias={toggleSelectAllAuditorias}
+                        onToggleAuditoriaSelection={toggleAuditoriaSelection}
+                        onVerDetalles={handleVerDetalles}
+                    />
                 )}
 
                 {/* MODAL DETALLE DE GASTO INDIVIDUAL */}
                 {detalleModal.open && detalleModal.detalle && (
-                    <div
-                        className="fixed inset-0 z-60 flex items-end bg-black/50 sm:items-center sm:p-4"
-                        onClick={(e) => { if (e.target === e.currentTarget) setDetalleModal({ open: false, detalle: null }); }}
-                    >
-                        <div className="relative z-10 flex w-full max-h-[85dvh] flex-col rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:mx-auto sm:max-w-md sm:rounded-2xl">
+                    <div className="fixed inset-0 z-60 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4">
+                        <button
+                            type="button"
+                            aria-label="Cerrar detalle"
+                            className="absolute inset-0"
+                            onClick={() => setDetalleModal({ open: false, detalle: null })}
+                        />
+                        <div className="relative z-10 flex w-full max-h-[85dvh] flex-col rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:max-w-md sm:rounded-2xl">
                             {/* Header */}
-                            <div className="flex items-center justify-between rounded-t-3xl border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-5 py-4 sm:rounded-t-2xl">
-                                <div>
-                                    <h3 className="text-base font-bold text-slate-800">
-                                        Detalle del Gasto  <span className="text-cyan-600">#{getDetalleRendId(detalleModal.detalle) || '-'}</span>
-                                    </h3>
-                                    <h3 className="text-base font-bold text-slate-800">
-                                        Fecha:<span className="text-cyan-600">{getDetalleFecha(detalleModal.detalle) || "-"}</span>
-                                    </h3>
-                                    <div className="mt-1">
-                                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoBadgeClass(detalleModal.detalle)}`}>
-                                            {getEstadoLabel(detalleModal.detalle)}
-                                        </span>
-                                    </div>
+                            <div className="flex items-center justify-between rounded-t-3xl border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-3 py-2 sm:rounded-t-2xl">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h3 className="text-base font-bold text-slate-800">Detalle : # {getDetalleRendId(detalleModal.detalle) || "-"}</h3>
+                                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getWorkflowStatusBadgeClass(resolveWorkflowStatus(detalleModal.detalle, "PENDIENTE"), true)}`}>
+                                        {getWorkflowStatusLabel(resolveWorkflowStatus(detalleModal.detalle, "PENDIENTE")) || "-"}
+                                    </span>
                                 </div>
                                 <button
                                     type="button"
                                     onClick={() => setDetalleModal({ open: false, detalle: null })}
-                                    className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                                    className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    ✕
                                 </button>
                             </div>
 
@@ -746,7 +856,6 @@ export default function Auditoria() {
                             <div className="max-h-[60vh] overflow-y-auto p-5">
                                 {/* Evidencia */}
                                 <div className="mb-5">
-
                                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Evidencia</p>
                                     <EvidenciaImagen
                                         gasto={detalleModal.detalle}
@@ -762,162 +871,131 @@ export default function Auditoria() {
                                     />
                                 </div>
 
-                                {/* Campos */}
-                                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                                    <h1 className="col-span-2 text-lg font-bold text-slate-800">Datos Generales del Gasto:</h1>
+                                <dl className="grid grid-cols-2 gap-x-4 gap-y-4">
+                                    <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Datos Generales del Gasto</h2>
                                     {[
-                                        ["Política", firstDefined(detalleModal.detalle?.politica, detalleModal.detalle?.pol, "-")],
-                                        ["Centro de Costo", firstDefined(detalleModal.detalle?.consumidor, detalleModal.detalle?.centroCosto, detalleModal.detalle?.centrocosto, detalleModal.detalle?.centro_costo, detalleModal.detalle?.nomCentroCosto, detalleModal.detalle?.idCuenta, "-")],
-                                        ["Tipo Gasto", firstDefined(detalleModal.detalle?.tipoGasto, detalleModal.detalle?.tipogasto, detalleModal.detalle?.tipo_gasto, detalleModal.detalle?.nomTipoGasto, "-")],
-                                        ["Categoría", firstDefined(detalleModal.detalle?.categoria, detalleModal.detalle?.cat, detalleModal.detalle?.nomCategoria, "-")],
-                                        ["RUC Emisor", firstDefined(detalleModal.detalle?.rucEmisor, detalleModal.detalle?.rucemisor, detalleModal.detalle?.ruc, "-")],
-                                        ["RUC Cliente", firstDefined(detalleModal.detalle?.rucCliente, detalleModal.detalle?.ruccliente, detalleModal.detalle?.rucCli, "-")],
-                                        ["Razón Social", firstDefined(detalleModal.detalle?.proveedor, detalleModal.detalle?.razonSocial, detalleModal.detalle?.razonsocial, detalleModal.detalle?.empresa, "-")],
-                                        ["Placa", firstDefined(detalleModal.detalle?.placa, detalleModal.detalle?.placaVehiculo, "-")],
-                                    ].map(([label, value]) => (
-                                        <div key={label} className="col-span-1">
-                                            <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
-                                            <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
-                                        </div>
-                                    ))}
-                                </dl>
-                                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                                    <h1 className="col-span-2 text-lg font-bold text-slate-800">Monto del Gasto:</h1>
-                                    {[
-                                        ["Total", `S/ ${getDetalleMonto(detalleModal.detalle).toFixed(2)}`],
-                                        ["IGV", firstDefined(detalleModal.detalle?.igv, detalleModal.detalle?.tax, detalleModal.detalle?.impuesto, "-")],
-                                    ].map(([label, value]) => (
-                                        <div key={label} className="col-span-1">
-                                            <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
-                                            <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
-                                        </div>
-                                    ))}
-                                </dl>
-                                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                                    <h1 className="col-span-2 text-lg font-bold text-slate-800">Datos de la Factura:</h1>
-                                    {(isPlanillaMovilidadDetalle(detalleModal.detalle)
-                                        ? [
-                                            ["Tipo Comprobante", getDetalleComprobante(detalleModal.detalle)],
-                                            ["Fecha Emisión", getDetalleFecha(detalleModal.detalle)],
-                                            ["Serie", firstDefined(detalleModal.detalle?.serie, detalleModal.detalle?.serieComprobante, detalleModal.detalle?.nroserie, "-")],
-                                            ["Número", firstDefined(detalleModal.detalle?.numero, detalleModal.detalle?.nroComprobante, detalleModal.detalle?.nro, detalleModal.detalle?.num, detalleModal.detalle?.nrodoc, "-")],
-                                            ["LUGAR ORIGEN", firstDefined(detalleModal.detalle?.lugarOrigen, detalleModal.detalle?.lugarorigen, detalleModal.detalle?.origen, detalleModal.detalle?.puntoOrigen, detalleModal.detalle?.desde) || "-"],
-                                            ["LUGAR DESTINO", firstDefined(detalleModal.detalle?.lugarDestino, detalleModal.detalle?.lugardestino, detalleModal.detalle?.destino, detalleModal.detalle?.puntoDestino, detalleModal.detalle?.hasta) || "-"],
-                                            ["TIPO MOVILIDAD", firstDefined(detalleModal.detalle?.tipoMovilidad, detalleModal.detalle?.tipomovilidad, detalleModal.detalle?.tipo_movilidad, detalleModal.detalle?.movilidad, detalleModal.detalle?.transporte, detalleModal.detalle?.medioTransporte, detalleModal.detalle?.medio_transporte) || "-"],
-                                            ["Motivo Viaje", firstDefined(detalleModal.detalle?.motivoViaje, detalleModal.detalle?.motivo_viaje, detalleModal.detalle?.motivo, detalleModal.detalle?.glosa, "-")],
-                                        ]
-                                        : [
-                                            ["Tipo Comprobante", getDetalleComprobante(detalleModal.detalle)],
-                                            ["Fecha Emisión", getDetalleFecha(detalleModal.detalle)],
-                                            ["Serie", firstDefined(detalleModal.detalle?.serie, detalleModal.detalle?.serieComprobante, "-")],
-                                            ["Número", firstDefined(detalleModal.detalle?.numero, detalleModal.detalle?.nroComprobante, detalleModal.detalle?.nro, "-")],
-                                            ["Total", `S/ ${getDetalleMonto(detalleModal.detalle).toFixed(2)}`],
-                                        ])
-                                        .map(([label, value]) => (
-                                            <div key={label} className="col-span-1">
-                                                <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
-                                                <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
+                                        { label: "Política", value: firstDefined(detalleModal.detalle?.politica, detalleModal.detalle?.pol) },
+                                        {
+                                            label: "Centro Costo:",
+                                            value: firstDefined(
+                                                detalleModal.detalle?.centroCosto,
+                                                detalleModal.detalle?.centrocosto,
+                                                detalleModal.detalle?.centro_costo,
+                                                detalleModal.detalle?.consumidor,
+                                                detalleModal.detalle?.idCuenta,
+                                                detalleModal.detalle?.idcuenta,
+                                            )
+                                        },
+                                        { label: "Categoría:", value: firstDefined(detalleModal.detalle?.categoria, detalleModal.detalle?.cat) },
+                                        {
+                                            label: "Tipo gasto",
+                                            value: firstDefined(
+                                                detalleModal.detalle?.tipogasto,
+                                                detalleModal.detalle?.tipoGasto,
+                                                detalleModal.detalle?.tipo_gasto,
+                                                detalleModal.detalle?.tipoMovilidad,
+                                                detalleModal.detalle?.movilidad,
+                                            )
+                                        },
+                                        { label: "RUC Emisor:", value: firstDefined(detalleModal.detalle?.ruc, detalleModal.detalle?.rucEmisor, detalleModal.detalle?.rucemisor) },
+                                        { label: "Razón Social:", value: firstDefined(detalleModal.detalle?.proveedor, detalleModal.detalle?.empresa, detalleModal.detalle?.razonSocial, detalleModal.detalle?.razonsocial) },
+                                        { label: "RUC Cliente:", value: firstDefined(detalleModal.detalle?.rucCliente, detalleModal.detalle?.ruccliente, detalleModal.detalle?.rucCli) },
+                                        { label: "Placa", value: firstDefined(detalleModal.detalle?.placa, detalleModal.detalle?.vehiculoPlaca, detalleModal.detalle?.placaVehiculo, detalleModal.detalle?.nroPlaca) },
+                                        { label: "Comprobante", value: getDetalleComprobante(detalleModal.detalle) },
+                                        /* { label: "Estado", value: getEstadoLabel(detalleModal.detalle) }, */
+                                    ]
+                                        .filter((f) => f.value)
+                                        .map((f) => (
+                                            <div key={f.label} className={f.colSpan ? "col-span-2" : ""}>
+                                                <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{f.label}</dt>
+                                                <dd className={`mt-0.5 text-sm font-semibold ${f.highlight ? "text-cyan-700" : "text-slate-800"}`}>{f.value}</dd>
                                             </div>
                                         ))}
-                                </dl>
-                                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                                    <h1 className="col-span-2 text-lg font-bold text-slate-800">Datos Observación:</h1>
+                                    <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Monto del Gasto</h2>
                                     {[
-                                        ["Comentario", firstDefined(detalleModal.detalle?.obs, detalleModal.detalle?.observacion, detalleModal.detalle?.observaciones, detalleModal.detalle?.glosa, getDetalleDescripcion(detalleModal.detalle))],
-                                    ].map(([label, value]) => (
-                                        <div key={label} className="col-span-1">
-                                            <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
-                                            <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
-                                        </div>
-                                    ))}
+                                        {
+                                            label: "IGV",
+                                            value: firstDefined(detalleModal.detalle?.igv, detalleModal.detalle?.tax, detalleModal.detalle?.impuesto)
+                                                ? `S/ ${Number(firstDefined(detalleModal.detalle?.igv, detalleModal.detalle?.tax, detalleModal.detalle?.impuesto)).toFixed(2)}`
+                                                : null,
+                                        },
+                                        { label: "Total", value: `S/ ${getDetalleMonto(detalleModal.detalle).toFixed(2)}`, highlight: true },
+                                    ]
+                                        .filter((f) => f.value)
+                                        .map((f) => (
+                                            <div key={`monto-${f.label}`} className={f.colSpan ? "col-span-2" : ""}>
+                                                <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{f.label}</dt>
+                                                <dd className={`mt-0.5 text-sm font-semibold ${f.highlight ? "text-cyan-700" : "text-slate-800"}`}>{f.value}</dd>
+                                            </div>
+                                        ))}
+
+                                    <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">Datos de la Factura</h2>
+                                    {(isPlanillaMovilidadDetalle(detalleModal.detalle)
+                                        ? [
+                                            { label: "Tipo Comprobante", value: getDetalleComprobante(detalleModal.detalle) },
+                                            { label: "Fecha emisión", value: getDetalleFecha(detalleModal.detalle) },
+                                            { label: "Serie", value: firstDefined(detalleModal.detalle?.serie, detalleModal.detalle?.nroserie, detalleModal.detalle?.serieComprobante) },
+                                            { label: "Número", value: firstDefined(detalleModal.detalle?.numero, detalleModal.detalle?.nro, detalleModal.detalle?.num, detalleModal.detalle?.nrodoc) },
+                                            { label: "Total", value: `S/ ${getDetalleMonto(detalleModal.detalle).toFixed(2)}` },
+                                            { label: "LUGAR ORIGEN", value: firstDefined(detalleModal.detalle?.lugarOrigen, detalleModal.detalle?.lugarorigen, detalleModal.detalle?.origen, detalleModal.detalle?.puntoOrigen, detalleModal.detalle?.desde) || "-" },
+                                            { label: "LUGAR DESTINO", value: firstDefined(detalleModal.detalle?.lugarDestino, detalleModal.detalle?.lugardestino, detalleModal.detalle?.destino, detalleModal.detalle?.puntoDestino, detalleModal.detalle?.hasta) || "-" },
+                                            { label: "Motivo viaje", value: firstDefined(detalleModal.detalle?.motivoViaje, detalleModal.detalle?.motivo_viaje, detalleModal.detalle?.motivo, detalleModal.detalle?.glosa) },
+                                            {
+                                                label: "TIPO MOVILIDAD",
+                                                value: firstDefined(
+                                                    detalleModal.detalle?.tipoMovilidad,
+                                                    detalleModal.detalle?.tipomovilidad,
+                                                    detalleModal.detalle?.tipo_movilidad,
+                                                    detalleModal.detalle?.movilidad,
+                                                    detalleModal.detalle?.transporte,
+                                                    detalleModal.detalle?.medioTransporte,
+                                                    detalleModal.detalle?.medio_transporte,
+                                                ) || "-"
+                                            },
+                                            { label: "Placa", value: firstDefined(detalleModal.detalle?.placa, detalleModal.detalle?.vehiculoPlaca, detalleModal.detalle?.placaVehiculo, detalleModal.detalle?.nroPlaca) },
+                                            { label: "Observación", value: firstDefined(detalleModal.detalle?.obs, detalleModal.detalle?.observacion, detalleModal.detalle?.observaciones, detalleModal.detalle?.glosa, getDetalleDescripcion(detalleModal.detalle)), colSpan: true },
+                                        ]
+                                        : [
+                                            { label: "Tipo Comprobante", value: getDetalleComprobante(detalleModal.detalle) },
+                                            { label: "Fecha", value: getDetalleFecha(detalleModal.detalle) },
+                                            {
+                                                label: "Serie / N°",
+                                                value: [
+                                                    firstDefined(detalleModal.detalle?.serie, detalleModal.detalle?.nroserie, detalleModal.detalle?.serieComprobante),
+                                                    firstDefined(detalleModal.detalle?.numero, detalleModal.detalle?.nro, detalleModal.detalle?.num, detalleModal.detalle?.nrodoc),
+                                                ].filter(Boolean).join(" - "),
+                                            },
+                                        ])
+                                        .filter((f) => f.value)
+                                        .map((f) => (
+                                            <div key={`factura-${f.label}`} className={f.colSpan ? "col-span-2" : ""}>
+                                                <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{f.label}</dt>
+                                                <dd className={`mt-0.5 text-sm font-semibold ${f.highlight ? "text-cyan-700" : "text-slate-800"}`}>{f.value}</dd>
+                                            </div>
+                                        ))}
+
+                                    {!isPlanillaMovilidadDetalle(detalleModal.detalle) && (
+                                        <>
+                                            <h1 className="col-span-2 text-lg font-semibold text-slate-800">Observación:</h1>
+                                            {[
+                                                { label: "Observación", value: firstDefined(detalleModal.detalle?.obs, detalleModal.detalle?.observacion, detalleModal.detalle?.observaciones, detalleModal.detalle?.glosa, getDetalleDescripcion(detalleModal.detalle)), colSpan: true },
+                                            ]
+                                                .filter((f) => f.value)
+                                                .map((f) => (
+                                                    <div key={`obs-${f.label}`} className={f.colSpan ? "col-span-2" : ""}>
+                                                        <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{f.label}</dt>
+                                                        <dd className={`mt-0.5 text-sm font-semibold ${f.highlight ? "text-cyan-700" : "text-slate-800"}`}>{f.value}</dd>
+                                                    </div>
+                                                ))}
+                                        </>
+                                    )}
                                 </dl>
                             </div>
-
-                            {/* Footer */}
-                            <div className="shrink-0 border-t bg-slate-50 px-5 py-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setDetalleModal({ open: false, detalle: null })}
-                                    className="w-full rounded-xl bg-slate-800 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
-                                >
-                                    Cerrar
-                                </button>
-                            </div>
                         </div>
                     </div>
                 )}
 
-                {/* LIGHTBOX ZOOM */}
-                {zoomSrc && (
-                    <div
-                        className="fixed inset-0 z-70 flex items-center justify-center bg-black/90"
-                        onClick={(e) => {
-                            if (e.target === e.currentTarget) {
-                                setZoomSrc(null);
-                                setZoomScale(1);
-                                setZoomPos({ x: 0, y: 0 });
-                            }
-                        }}
-                        onWheel={(e) => {
-                            e.preventDefault();
-                            setZoomScale((prev) => Math.min(6, Math.max(0.5, prev - e.deltaY * 0.002)));
-                        }}
-                        style={{ touchAction: "none" }}
-                    >
-                        <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
-                            <button type="button" onClick={() => setZoomScale((p) => Math.min(6, +(p + 0.5).toFixed(1)))} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20" title="Acercar">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0zM11 8v6M8 11h6" /></svg>
-                            </button>
-                            <button type="button" onClick={() => setZoomScale((p) => Math.max(0.5, +(p - 0.5).toFixed(1)))} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20" title="Alejar">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0zM8 11h6" /></svg>
-                            </button>
-                            <button type="button" onClick={() => { setZoomScale(1); setZoomPos({ x: 0, y: 0 }); }} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20" title="Restablecer">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                            </button>
-                            <button type="button" onClick={() => { setZoomSrc(null); setZoomScale(1); setZoomPos({ x: 0, y: 0 }); }} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20" title="Cerrar">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                        </div>
-                        <span className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-xs font-semibold text-white/80 backdrop-blur">
-                            {Math.round(zoomScale * 100)}%
-                        </span>
-                        <img
-                            src={zoomSrc}
-                            alt="Zoom evidencia"
-                            draggable={false}
-                            style={{
-                                transform: `scale(${zoomScale}) translate(${zoomPos.x}px, ${zoomPos.y}px)`,
-                                transformOrigin: "center",
-                                transition: "transform 0.15s ease",
-                                maxWidth: "90vw",
-                                maxHeight: "90vh",
-                                cursor: zoomScale > 1 ? "grab" : "zoom-in",
-                                userSelect: "none",
-                            }}
-                            onMouseDown={(e) => {
-                                if (zoomScale <= 1) { setZoomScale(2); return; }
-                                zoomDragRef.isDragging = true;
-                                zoomDragRef.startX = e.clientX;
-                                zoomDragRef.startY = e.clientY;
-                                zoomDragRef.originX = zoomPos.x;
-                                zoomDragRef.originY = zoomPos.y;
-                                e.currentTarget.style.cursor = "grabbing";
-                            }}
-                            onMouseMove={(e) => {
-                                if (!zoomDragRef.isDragging) return;
-                                const dx = (e.clientX - zoomDragRef.startX) / zoomScale;
-                                const dy = (e.clientY - zoomDragRef.startY) / zoomScale;
-                                setZoomPos({ x: zoomDragRef.originX + dx, y: zoomDragRef.originY + dy });
-                            }}
-                            onMouseUp={(e) => {
-                                zoomDragRef.isDragging = false;
-                                e.currentTarget.style.cursor = zoomScale > 1 ? "grab" : "zoom-in";
-                            }}
-                            onMouseLeave={() => { zoomDragRef.isDragging = false; }}
-                            onClick={() => { if (zoomScale === 1) setZoomScale(2); }}
-                        />
-                    </div>
-                )}
+                <ImageZoomLightbox src={zoomSrc} onClose={() => setZoomSrc(null)} />
 
                 {/* MODAL DE DETALLES */}
                 {selectedAuditoria && (
@@ -927,12 +1005,15 @@ export default function Auditoria() {
                                 <div className="flex items-center justify-between gap-3">
                                     <div>
                                         <h2 className="text-lg font-bold text-slate-800">Detalles de Auditoría</h2>
-                                        <p className="text-sm text-slate-600">Rendidor: {firstDefined(selectedAuditoria?.usuario, "-")}</p>
+                                        <p className="text-sm text-slate-600 ">Rendidor: {firstDefined(selectedAuditoria?.usuario, "-")}</p>
                                     </div>
 
                                     <button
+                                        type="button"
                                         onClick={handleCerrarDetalles}
-                                        className="text-2xl font-bold text-slate-500 transition hover:text-slate-700"
+                                        aria-label="Cerrar detalles de auditoria"
+                                        title="Cerrar"
+                                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-bold leading-none text-slate-500 shadow-sm transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/60 focus-visible:ring-offset-2 cursor-pointer"
                                     >
                                         ✕
                                     </button>
@@ -980,92 +1061,38 @@ export default function Auditoria() {
                                         <p className="mt-3 text-slate-600 text-sm">Cargando detalles...</p>
                                     </div>
                                 ) : detalles.length > 0 ? (
-                                    <>
-                                        {/* Tabla — solo en md+ */}
-                                        <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200">
-                                            <table className="w-full text-sm">
-                                                <thead className="bg-slate-50 border-b border-slate-200">
-                                                    <tr>
-                                                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-8">#</th>
-                                                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">ID Gasto</th>
-                                                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Empresa</th>
-                                                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
-                                                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Fecha</th>
-                                                        <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Total</th>
-                                                        <th className="px-3 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Acciones</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-100">
-                                                    {detalles.map((detalle, idx) => (
-                                                        <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
-                                                            <td className="px-3 py-3 text-slate-400 text-xs">{idx + 1}</td>
-                                                            <td className="px-3 py-3 text-slate-700 font-mono text-xs">{getDetalleRendId(detalle) || "-"}</td>
-                                                            <td className="px-3 py-3 text-slate-700 max-w-40 truncate" title={getDetalleEmpresa(detalle)}>{getDetalleEmpresa(detalle)}</td>
-                                                            <td className="px-3 py-3">
-                                                                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap ${getEstadoBadgeClass(detalle)}`}>
-                                                                    {getEstadoLabel(detalle)}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-3 py-3 text-slate-600 text-xs whitespace-nowrap">{getDetalleFecha(detalle)}</td>
-                                                            <td className="px-3 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">S/ {getDetalleMonto(detalle).toFixed(2)}</td>
-                                                            <td className="px-3 py-3 text-center">
-                                                                <button
-                                                                    type="button"
-                                                                    className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-cyan-700 transition-colors"
-                                                                    onClick={() => setDetalleModal({ open: true, detalle })}
-                                                                >
-                                                                    <IconEye className="h-3.5 w-3.5 shrink-0" />
-                                                                    Ver
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
+                                    <section className="border-t border-slate-100">
+                                        <div className="flex items-center justify-between px-0 pb-2 pt-1 sm:px-1">
+                                            <h3 className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
+                                                Gastos del informe ({detalles.length})
+                                            </h3>
                                         </div>
 
-                                        {/* Cards — solo en móvil */}
-                                        <div className="space-y-3 md:hidden">
-                                            {detalles.map((detalle, idx) => (
-                                                <article key={idx} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-                                                    <div className="flex items-start justify-between gap-3 mb-3">
-                                                        <div className="min-w-0">
-                                                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">Empresa</p>
-                                                            <p className="text-sm font-semibold text-slate-800 truncate">{getDetalleEmpresa(detalle)}</p>
+                                        <div className="px-0 pb-1 pt-1 sm:px-1">
+                                            <div className="max-h-52 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200/80 [scrollbar-width:thin]">
+                                                {detalles.map((detalle, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        type="button"
+                                                        onClick={() => setDetalleModal({ open: true, detalle })}
+                                                        className="flex w-full items-center gap-3 bg-white px-3 py-2.5 text-left transition hover:bg-slate-50 cursor-pointer"
+                                                    >
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[11px] font-semibold text-slate-400">#{getDetalleRendId(detalle) || idx + 1}</span>
+                                                                <span className="truncate text-xs font-semibold text-slate-700">{getDetalleEmpresa(detalle)}</span>
+                                                            </div>
+                                                            <p className="text-[11px] text-slate-400">{getDetalleFecha(detalle)}</p>
                                                         </div>
-                                                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${getEstadoBadgeClass(detalle)}`}>
-                                                            {getEstadoLabel(detalle)}
+                                                        <span className="shrink-0 text-xs font-bold text-cyan-700">
+                                                            S/ {getDetalleMonto(detalle).toFixed(2)}
                                                         </span>
-                                                    </div>
-                                                    <div className="grid grid-cols-3 gap-2 text-xs mb-3">
-                                                        <div>
-                                                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">#</p>
-                                                            <p className="text-slate-600 font-medium">{idx + 1}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">ID Gasto</p>
-                                                            <p className="text-slate-600 font-mono">{getDetalleRendId(detalle) || "-"}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Fecha</p>
-                                                            <p className="text-slate-600">{getDetalleFecha(detalle)}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center justify-between">
-                                                        <p className="text-base font-bold text-slate-800">S/ {getDetalleMonto(detalle).toFixed(2)}</p>
-                                                        <button
-                                                            type="button"
-                                                            className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-cyan-700 transition-colors"
-                                                            onClick={() => setDetalleModal({ open: true, detalle })}
-                                                        >
-                                                            <IconEye className="h-3.5 w-3.5 shrink-0" />
-                                                            Ver detalle
-                                                        </button>
-                                                    </div>
-                                                </article>
-                                            ))}
+                                                        <IconEye className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </>
+                                    </section>
                                 ) : (
                                     <div className="text-center py-10">
                                         <p className="text-slate-500 text-sm">No hay detalles disponibles</p>
@@ -1077,7 +1104,7 @@ export default function Auditoria() {
                                 <button
                                     onClick={handleEnviarRevision}
                                     disabled={sendingRevision || isEnvioRevisionBloqueado(selectedAuditoria)}
-                                    className="rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white font-semibold py-2 px-6 transition "
+                                    className="rounded-lg bg-indigo-600 hover:bg-indigo-800 disabled:bg-slate-400 text-white font-semibold py-2 px-6 transition cursor-pointer"
                                 >
                                     {sendingRevision
                                         ? "Enviando..."

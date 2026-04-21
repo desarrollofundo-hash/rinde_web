@@ -14,6 +14,7 @@ import ModalInforme from "./ModalInforme";
 import InformeVistaPrevia from "./InformeVistaPrevia";
 import { resolveWorkflowStatus } from "../shared/workflowStatus";
 import Toast from "../shared/Toast";
+import { downloadExcelXml } from "../../lib/exportExcel";
 
 export default function Informe() {
     const [informes, setInformes] = useState([]);
@@ -25,6 +26,8 @@ export default function Informe() {
     const [informeEnEdicion, setInformeEnEdicion] = useState({});
     const [previewData, setPreviewData] = useState({ gastosSeleccionados: [], gastosPolitica: [], gastosPersistidos: [] });
     const [toastConfig, setToastConfig] = useState({ isVisible: false, message: "", type: "success" });
+    const [isExportMode, setIsExportMode] = useState(false);
+    const [selectedInformeIds, setSelectedInformeIds] = useState([]);
 
     const showToast = (message, type = "success") => {
         setToastConfig({ isVisible: true, message, type });
@@ -221,7 +224,8 @@ export default function Informe() {
             const companyData = companyRaw ? JSON.parse(companyRaw) : null;
 
             const effectiveIdUser = Number(idUser ?? resolveUserId(userData));
-            const effectiveNowIso = nowIso || new Date().toISOString();
+            const effectiveFecCre = nowIso || new Date().toISOString(); // Fecha original
+            const effectiveFecEdit = new Date().toISOString(); // Siempre la fecha actual para edición
             const effectiveRuc = resolveCompanyRuc(companyData);
 
             if (!effectiveIdUser) {
@@ -268,10 +272,10 @@ export default function Informe() {
                 obs: String(glosa || ""),
                 estadoactual: "EN INFORME",
                 estado: "S",
-                fecCre: effectiveNowIso,
+                fecCre: effectiveFecCre,
                 useReg: effectiveIdUser,
                 hostname: "WEB",
-                fecEdit: effectiveNowIso,
+                fecEdit: effectiveFecEdit,
                 useEdit: 0,
                 useElim: 0,
             }));
@@ -284,10 +288,10 @@ export default function Informe() {
                 obs: String(glosa || ""),
                 estadoactual: "BORRADOR",
                 estado: "N",
-                fecCre: effectiveNowIso,
+                fecCre: effectiveFecCre,
                 useReg: effectiveIdUser,
                 hostname: "WEB",
-                fecEdit: effectiveNowIso,
+                fecEdit: effectiveFecEdit,
                 useEdit: 0,
                 useElim: 0,
             }));
@@ -297,7 +301,8 @@ export default function Informe() {
                         console.log("💾 Guardando detalle de informe...");
                         console.log("📌 idUser efectivo:", effectiveIdUser);
                         console.log("📌 ruc efectivo:", effectiveRuc);
-                        console.log("📌 fecha efectiva:", effectiveNowIso);
+                        console.log("📌 fecha creación:", effectiveFecCre);
+                        console.log("📌 fecha edición:", effectiveFecEdit);
                         console.log("📌 Gastos seleccionados actuales:", gastosSeleccionadosIds);
                         console.log("📌 Gastos persistidos previos:", gastosPersistidosIds);
                         console.log("📌 Altas (S):", gastosNuevosSeleccionados);
@@ -335,11 +340,6 @@ export default function Informe() {
             window.dispatchEvent(new CustomEvent("informe:updated"));
         } catch (error) {
             setIsSaving(false);
-            /*  console.log("\n" + "=".repeat(50));
-             console.error("❌ ERROR en handleSaveInformeConGastos:", error);
-             console.error("   Mensaje:", error?.message);
-             console.error("   Stack:", error?.stack);
-             console.log("=".repeat(50) + "\n"); */
             showToast(`Error al guardar informe: ${error?.message || "Inténtalo nuevamente"}`, "error");
         }
     };
@@ -376,7 +376,8 @@ export default function Informe() {
 
         try {
             const effectiveIdUser = Number(infoActual.idUser ?? resolveUserId(userData));
-            const effectiveNowIso = infoActual.nowIso || new Date().toISOString();
+            const effectiveFecCre = infoActual.nowIso || new Date().toISOString(); // Fecha de creación original
+            const effectiveFecEdit = new Date().toISOString(); // Fecha actual para edición
             const effectiveRuc = resolveCompanyRuc(companyData);
             const gastosSource = Array.isArray(previewData?.gastosPolitica) ? previewData.gastosPolitica : [];
 
@@ -389,10 +390,10 @@ export default function Informe() {
                 obs: "",
                 estadoActual: "EN AUDITORIA",
                 estado: "S",
-                fecCre: effectiveNowIso,
+                fecCre: effectiveFecCre,
                 useReg: effectiveIdUser,
                 hostname: "WEB",
-                fecEdit: effectiveNowIso,
+                fecEdit: effectiveFecEdit,
                 useEdit: 0,
                 useElim: 0,
             };
@@ -420,10 +421,10 @@ export default function Informe() {
                     obs: String(det?.obs ?? infoActual.glosa ?? ""),
                     estadoActual: "EN AUDITORIA",
                     estado: "S",
-                    fecCre: effectiveNowIso,
+                    fecCre: effectiveFecCre,
                     useReg: effectiveIdUser,
                     hostname: "WEB",
-                    fecEdit: effectiveNowIso,
+                    fecEdit: effectiveFecEdit,
                     useEdit: effectiveIdUser,
                     useElim: 0,
                 };
@@ -461,10 +462,10 @@ export default function Informe() {
                 obs: "",
                 estadoactual: "EN AUDITORIA",
                 estado: "S",
-                fecCre: effectiveNowIso,
+                fecCre: effectiveFecCre,
                 useReg: effectiveIdUser,
                 hostname: "WEB",
-                fecEdit: new Date().toISOString(),
+                fecEdit: effectiveFecEdit,
                 useEdit: effectiveIdUser,
                 useElim: 0,
             };
@@ -594,9 +595,6 @@ export default function Informe() {
                     });
                 }
 
-                /*                 console.log("📥 Gastos cargados del endpoint:", gastosData.length, "gastos");
-                 */
-                // 2️⃣ CARGAR DETALLES DEL INFORME DESDE LA BD (fuente de verdad)
                 let detalleData = [];
                 try {
                     detalleData = await getInformeDetalle({
@@ -613,8 +611,7 @@ export default function Informe() {
                         });
                     }
 
-                    /*                     console.log("📋 Detalles del informe desde BD:", detalleData.length, "registros");
-                     */
+
                     const idsGastosDisponibles = new Set(
                         (Array.isArray(gastosData) ? gastosData : [])
                             .map((g) => String(g?.idrend ?? g?.idRend ?? g?.id ?? ""))
@@ -650,11 +647,8 @@ export default function Informe() {
 
                     gastosSeleccionados = Array.from(new Set(gastosSeleccionados));
                     detallesInforme = detalleSeleccionado;
-
-/*                     console.log("✅ IDs de gastos del informe de BD:", gastosSeleccionados);
- */                } catch (bdError) {
-/*                     console.error("❌ No se pudieron cargar detalles de BD:", bdError.message);
- */                    gastosSeleccionados = [];
+                } catch (bdError) {
+                    gastosSeleccionados = [];
                 }
 
                 // 4️⃣ FILTRAR POR POLÍTICA Y EXCLUIR GASTOS YA USADOS EN OTROS INFORMES
@@ -670,9 +664,7 @@ export default function Informe() {
                         return isAvailable;
                     })
                     : [];
-
-/*                 console.log(`  Filtrados: política '${politica}' + no usados en otros informes:`, gastosPolitica.length, "gastos");
- */            }
+            }
         } catch (error) {
             /* console.error("❌ Error cargando datos para vista previa:", error); */
         }
@@ -713,6 +705,213 @@ export default function Informe() {
         return iso;
     };
 
+    const parseAmount = (value) => {
+        if (typeof value === "number") {
+            return Number.isFinite(value) ? value : 0;
+        }
+
+        if (typeof value !== "string") {
+            return 0;
+        }
+
+        const raw = value.trim().replace(/[^\d,.-]/g, "");
+        if (!raw) return 0;
+
+        let normalized = raw;
+        const hasComma = raw.includes(",");
+        const hasDot = raw.includes(".");
+
+        if (hasComma && hasDot) {
+            if (raw.lastIndexOf(",") > raw.lastIndexOf(".")) {
+                normalized = raw.replace(/\./g, "").replace(",", ".");
+            } else {
+                normalized = raw.replace(/,/g, "");
+            }
+        } else if (hasComma) {
+            normalized = /,\d{1,2}$/.test(raw) ? raw.replace(",", ".") : raw.replace(/,/g, "");
+        }
+
+        const parsed = Number(normalized);
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const pickFirst = (...values) => {
+        for (const value of values) {
+            if (value !== undefined && value !== null && String(value).trim() !== "") {
+                return value;
+            }
+        }
+        return "";
+    };
+
+    const toggleInformeSelection = (inf) => {
+        const id = String(inf?.idInf ?? inf?.idinf ?? inf?.id ?? "");
+        if (!id) return;
+
+        setSelectedInformeIds((prev) => (
+            prev.includes(id)
+                ? prev.filter((item) => item !== id)
+                : [...prev, id]
+        ));
+    };
+
+    const toggleSelectAllInformes = () => {
+        const allIds = (Array.isArray(informes) ? informes : [])
+            .map((inf) => String(inf?.idInf ?? inf?.idinf ?? inf?.id ?? ""))
+            .filter(Boolean);
+
+        const areAllSelected = allIds.length > 0 && allIds.every((id) => selectedInformeIds.includes(id));
+
+        if (areAllSelected) {
+            setSelectedInformeIds([]);
+            return;
+        }
+
+        setSelectedInformeIds(allIds);
+    };
+
+    const cancelExportMode = () => {
+        setIsExportMode(false);
+        setSelectedInformeIds([]);
+    };
+
+    const exportSelectedInformesExcel = async () => {
+        const selectedInformes = (Array.isArray(informes) ? informes : []).filter((inf) =>
+            selectedInformeIds.includes(String(inf?.idInf ?? inf?.idinf ?? inf?.id ?? ""))
+        );
+
+        if (selectedInformes.length === 0) {
+            showToast("Selecciona al menos un informe para exportar", "warning");
+            return;
+        }
+
+        try {
+            const userRaw = localStorage.getItem("user");
+            const companyRaw = localStorage.getItem("company");
+            const userData = userRaw ? JSON.parse(userRaw) : null;
+            const companyData = companyRaw ? JSON.parse(companyRaw) : null;
+
+            if (!userData || !companyData) {
+                throw new Error("No hay sesión de usuario o empresa activa");
+            }
+
+            const companyRuc = resolveCompanyRuc(companyData);
+            const userPrincipal = String(resolveUserId(userData));
+            const userAlterno = String(Number(userData?.usecod ?? userData?.id ?? 0));
+
+            const resumenRows = [];
+            const detalleRows = [];
+
+            for (const inf of selectedInformes) {
+                const idInf = inf?.idInf ?? inf?.idinf ?? inf?.id;
+                if (!idInf) continue;
+
+                let detalleData = await getInformeDetalle({
+                    idinf: String(idInf),
+                    user: userPrincipal,
+                    ruc: companyRuc,
+                });
+
+                if (Array.isArray(detalleData) && detalleData.length === 0 && userAlterno && userAlterno !== userPrincipal) {
+                    detalleData = await getInformeDetalle({
+                        idinf: String(idInf),
+                        user: userAlterno,
+                        ruc: companyRuc,
+                    });
+                }
+
+                const detalleSeleccionado = (Array.isArray(detalleData) ? detalleData : []).filter((d) => {
+                    const estado = String(d?.estado ?? d?.Estado ?? "S").trim().toUpperCase();
+                    return estado === "S";
+                });
+
+                const totalSeleccionado = detalleSeleccionado.reduce((acc, det) => {
+                    const monto = parseAmount(det?.total ?? det?.monto ?? det?.importe ?? det?.valor ?? 0);
+                    return acc + monto;
+                }, 0);
+
+                resumenRows.push({
+                    "ID Informe": Number(idInf),
+                    "Titulo": String(inf?.titulo ?? ""),
+                    "Politica": String(inf?.politica ?? ""),
+                    "Estado": String(resolveWorkflowStatus(inf, "PENDIENTE")),
+                    "Fecha Creacion": String(formatDate(inf?.fecCre ?? inf?.feccre ?? inf?.fecha ?? "")),
+                    "Cantidad Gastos Seleccionados": detalleSeleccionado.length,
+                    "Total Seleccionado": totalSeleccionado,
+                    "RUC Empresa": String(companyRuc || ""),
+                    "Glosa": String(inf?.nota ?? inf?.obs ?? ""),
+                });
+
+                detalleSeleccionado.forEach((det) => {
+                    detalleRows.push({
+                        "IdInf": Number(pickFirst(det?.idInf, det?.idinf, inf?.idInf, inf?.idinf, idInf, 0)),
+                        "IdRend": Number(pickFirst(det?.idRend, det?.idrend, det?.idRendicion, det?.idrendicion, det?.id, 0)),
+                        "IdUser": Number(pickFirst(det?.idUser, det?.iduser, inf?.idUser, inf?.iduser, userData?.id, userData?.usecod, 0)),
+                        "Dni": String(pickFirst(det?.dni, det?.Dni, inf?.dni, userData?.dni, userData?.usedoc, "")),
+                        "Politica": String(pickFirst(det?.politica, det?.pol, inf?.politica, "")),
+                        "Categoria": String(pickFirst(det?.categoria, det?.cat, "")),
+                        "TipoGasto": String(pickFirst(det?.tipogasto, det?.tipoGasto, det?.tipo_gasto, "")),
+                        "Ruc": String(pickFirst(det?.ruc, det?.RUC, inf?.ruc, companyRuc, "")),
+                        "Proveedor": String(pickFirst(det?.proveedor, det?.empresa, det?.razonSocial, det?.razonsocial, det?.rucEmisor, "")),
+                        "TipoCombrobante": String(pickFirst(det?.tipoComprobante, det?.tipocomprobante, det?.tipo_comprobante, "")),
+                        "Serie": String(pickFirst(det?.serie, det?.Serie, "")),
+                        "Numero": String(pickFirst(det?.numero, det?.Numero, "")),
+                        "IGV": parseAmount(pickFirst(det?.igv, det?.IGV, 0)),
+                        "Fecha": String(formatDate(pickFirst(det?.fecha, det?.fecCre, det?.feccre, ""))),
+                        "Total": parseAmount(pickFirst(det?.total, det?.monto, det?.importe, det?.valor, 0)),
+                        "Moneda": String(pickFirst(det?.moneda, "PEN")),
+                        "RucCliente": String(pickFirst(det?.rucCliente, det?.ruccliente, "")),
+
+                        "Gerencia": String(pickFirst(det?.gerencia, inf?.gerencia, "")),
+                        "Area": String(pickFirst(det?.area, inf?.area, "")),
+                        "Consumidor": String(pickFirst(det?.consumidor, det?.centroCosto, det?.centrocosto, "")),
+                        "Placa": String(pickFirst(det?.placa, det?.placaVehiculo, det?.placavehiculo, "")),
+                        "EstadoActual": String(pickFirst(det?.estadoActual, det?.estadoactual, inf?.estadoActual, inf?.estadoactual, "")),
+                        "Glosa": String(pickFirst(det?.glosa, det?.nota, det?.obs, inf?.nota, inf?.obs, "")),
+                        "MotivoViaje": String(pickFirst(det?.motivoViaje, det?.motivoviaje, "")),
+                        "LugarOrigen": String(pickFirst(det?.lugarOrigen, det?.lugarorigen, det?.origen, "")),
+                        "LugarDestino": String(pickFirst(det?.lugarDestino, det?.lugardestino, det?.destino, "")),
+                        "TipoMovilidad": String(pickFirst(det?.tipoMovilidad, det?.tipomovilidad, det?.tipo_movilidad, det?.movilidad, "")),
+                        "Obs": String(pickFirst(det?.obs, det?.observacion, det?.observaciones, "")),
+                        "FecCre": String(formatDate(pickFirst(det?.fecCre, det?.feccre, det?.fecha, ""))),
+                    });
+                });
+            }
+
+            const now = new Date();
+            const pad = (n) => String(n).padStart(2, "0");
+            const fileName = `informes_seleccionados_${selectedInformes.length}_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.xls`;
+
+            downloadExcelXml({
+                fileName,
+                sheets: [
+                    {
+                        name: "Resumen",
+                        rows: resumenRows.length > 0 ? resumenRows : [{ Mensaje: "No hay informes válidos para exportar" }],
+                    },
+                    {
+                        name: "Detalles",
+                        rows: detalleRows.length > 0 ? detalleRows : [{ Mensaje: "Este informe no tiene gastos seleccionados" }],
+                    },
+                ],
+            });
+            showToast("Excel generado correctamente", "success");
+            cancelExportMode();
+        } catch (error) {
+            showToast(`Error al exportar informe: ${error?.message || "Inténtalo nuevamente"}`, "error");
+        }
+    };
+
+    const handleExportClick = async () => {
+        if (!isExportMode) {
+            setIsExportMode(true);
+            setSelectedInformeIds([]);
+            return;
+        }
+
+        await exportSelectedInformesExcel();
+    };
+
     return (
         <div className="min-h-screen bg-linear-to-b from-slate-50 via-cyan-50/30 to-white p-4 sm:p-6">
             <div className="mx-auto w-full max-w-7xl space-y-5">
@@ -728,7 +927,13 @@ export default function Informe() {
                     </div>
                 )}
 
-                <InformeHeader onNewInforme={handleOpenModal} />
+                <InformeHeader
+                    onNewInforme={handleOpenModal}
+                    isExportMode={isExportMode}
+                    selectedCount={selectedInformeIds.length}
+                    onExportClick={handleExportClick}
+                    onCancelExport={cancelExportMode}
+                />
 
                 <NewInforme
                     isOpen={isModalNewInformeOpen}
@@ -782,6 +987,10 @@ export default function Informe() {
                         informes={informes}
                         onVistaPrevia={handleVistaPreviaDesdeListado}
                         formatDate={formatDate}
+                        isExportMode={isExportMode}
+                        selectedInformeIds={selectedInformeIds}
+                        onToggleInformeSelection={toggleInformeSelection}
+                        onToggleSelectAll={toggleSelectAllInformes}
                     />
                 )}
 

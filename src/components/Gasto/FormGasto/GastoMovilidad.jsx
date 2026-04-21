@@ -138,7 +138,28 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
     const [selectedPreset, setSelectedPreset] = useState("doc");
     const [cropShape, setCropShape] = useState("rect");
     const [isQrOpen, setIsQrOpen] = useState(false);
+    const [evidenciaInputResetKey, setEvidenciaInputResetKey] = useState(0);
     const imageCropRef = useRef(null);
+
+    const handleSubmitForm = async (e) => {
+        const isSaved = await handleSubmit(e);
+        if (!isSaved) return;
+
+        if (evidenciaPreviewUrl) {
+            URL.revokeObjectURL(evidenciaPreviewUrl);
+        }
+
+        setEvidenciaPreviewUrl("");
+        setIsPreviewOpen(false);
+        setIsCropMode(false);
+        setCrop(undefined);
+        setCompletedCrop(null);
+        setSelectedPreset("doc");
+        setCropShape("rect");
+        setIsQrOpen(false);
+        imageCropRef.current = null;
+        setEvidenciaInputResetKey((prev) => prev + 1);
+    };
 
     const handleChange = (e) => {
         const { name, files } = e.target;
@@ -294,15 +315,16 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
 
     return (
         <>
-            <form onSubmit={handleSubmit} className="mx-auto mt-4 w-full max-w-6xl space-y-3">
+            <form onSubmit={handleSubmitForm} className="mx-auto mt-4 w-full max-w-6xl space-y-3">
 
 
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div className="grid grid-cols-1 items-stretch gap-2 lg:grid-cols-2">
                     <EvidenciaUploader
                         labelClass={labelClass}
                         formData={formData}
                         hasEvidencia={hasEvidencia}
                         canCropImage={canCropImage}
+                        inputResetKey={evidenciaInputResetKey}
                         onFileChange={handleChange}
                         onOpenPreview={() => {
                             setIsPreviewOpen(true);
@@ -315,16 +337,21 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
                     />
 
                     {!isPlanillaMovilidad && (
-                        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                            <label className={labelClass}>Lector de código QR</label>
-                            <p className="mt-1 text-sm text-slate-400">Escanea para autocompletar datos del comprobante.</p>
-                            <button
-                                type="button"
-                                className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-700 active:scale-95"
-                                onClick={() => setIsQrOpen(true)}
-                            >
-                                Escanear QR
-                            </button>
+                        <div className="h-full rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+                            <div className="flex h-full flex-col justify-center gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2.5">
+                                <div className="min-w-0 text-left sm:flex-1">
+                                    <p className="text-sm font-semibold text-slate-700">Lector de código QR</p>
+                                    <p className="mt-0.5 text-xs leading-4 text-slate-500">Escanea para autocompletar datos del comprobante.</p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    className="inline-flex w-full shrink-0 items-center justify-center rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 sm:w-auto cursor-pointer"
+                                    onClick={() => setIsQrOpen(true)}
+                                >
+                                    Escanear QR
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>

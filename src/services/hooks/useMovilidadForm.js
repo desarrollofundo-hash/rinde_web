@@ -544,7 +544,7 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
         const rawUser = localStorage.getItem("user");
         if (!rawUser) {
             alert("Error de autenticación. Por favor, inicie sesión de nuevo.");
-            return;
+            return false;
         }
 
         const user = JSON.parse(rawUser);
@@ -558,12 +558,12 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
 
         if (!userId) {
             alert("Error de autenticación. Por favor, inicie sesión de nuevo.");
-            return;
+            return false;
         }
 
         if (!rucClienteFormulario || !rucEmpresaSesion || rucClienteFormulario !== rucEmpresaSesion) {
             alert("No se puede guardar: el RUC Cliente debe ser igual al RUC de la empresa logueada.");
-            return;
+            return false;
         }
 
         const centroCostoSeleccionado = centrosCosto.find((cc) => String(cc.id) === String(formData.centroCosto));
@@ -610,7 +610,6 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
             { label: "Total", value: formData.total },
             { label: "Moneda", value: formData.moneda },
             { label: "Glosa o Nota", value: formData.glosa },
-            { label: "Evidencia", value: formData.evidencia },
         ];
 
         const requiredPlanillaFields = [
@@ -641,12 +640,12 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
         if (missingFields.length > 0) {
             const validationMessage = `Completa los campos obligatorios: ${missingFields.join(", ")}`;
             setErrorMessage(validationMessage);
-            return;
+            return false;
         }
 
         if (!resolvedIdCuenta) {
             alert("Selecciona un centro de costo antes de guardar");
-            return;
+            return false;
         }
 
         const nowIso = getLocalIsoDateTime();
@@ -698,11 +697,14 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
             }
 
             alert("Guardado correctamente ✅");
+            const politicaToKeep = String(selectedPolitica?.id ?? formData.politica ?? "");
             setFormData({
                 ...INITIAL_FORM_DATA,
+                politica: politicaToKeep,
                 rucCliente: rucEmpresaSesion,
                 placa: String(formData.placa || ""),
             });
+            return true;
         } catch (error) {
             console.error("Error guardando movilidad:", error);
             // Extraer mensaje del servidor si está disponible
@@ -726,9 +728,24 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
                 }
             }
 
+            const isExceso44Message = /44|exced/i.test(String(errorMsg || ""));
+
+            if (isPlanillaMovilidad && isExceso44Message) {
+                const politicaToKeep = String(selectedPolitica?.id ?? formData.politica ?? "");
+                setErrorMessage(`Guardado correctamente. ${errorMsg}`);
+                setFormData({
+                    ...INITIAL_FORM_DATA,
+                    politica: politicaToKeep,
+                    rucCliente: rucEmpresaSesion,
+                    placa: String(formData.placa || ""),
+                });
+                return true;
+            }
+
             setErrorMessage(errorMsg);
+            return false;
         }
-    }, [categorias, centrosCosto, formData, politicas]);
+    }, [categorias, centrosCosto, formData, politicas, selectedPolitica]);
 
     useEffect(() => {
         const cargarDatos = async () => {

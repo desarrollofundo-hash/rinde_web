@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
     getListaRevision,
     getListaRevisionDetalle,
@@ -11,27 +11,18 @@ import {
     resolveWorkflowStatus,
 } from "../shared/workflowStatus";
 import Toast from "../shared/Toast";
+import { downloadExcelXml } from "../../lib/exportExcel";
 import { IconEye } from "../../Icons/preview";
 import EvidenciaImagen from "../Gasto/EvidenciaImagen";
+import ImageZoomLightbox from "../Gasto/ImageZoomLightbox";
 import { IconDown } from "../../Icons/down";
 import { IconUp } from "../../Icons/up";
-import PaginationControls from "../Gasto/PaginationControls";
-const DEFAULT_PAGE_SIZE = 10;
-const PAGE_SIZE_STORAGE_KEY = "revision.pageSize";
-const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100];
+import RevisionHeader from "./RevisionHeader";
+import RevisionList from "./RevisionList";
 
 export default function Revision() {
     const [revisiones, setRevisiones] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(() => {
-        const stored = Number(localStorage.getItem(PAGE_SIZE_STORAGE_KEY));
-        return PAGE_SIZE_OPTIONS.includes(stored) ? stored : DEFAULT_PAGE_SIZE;
-    });
-
-    useEffect(() => {
-        localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(pageSize));
-    }, [pageSize]);
     const [selectedRevision, setSelectedRevision] = useState(null);
     const [detalles, setDetalles] = useState([]);
     const [loadingDetalles, setLoadingDetalles] = useState(false);
@@ -39,11 +30,10 @@ export default function Revision() {
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [rejectObs, setRejectObs] = useState("");
     const [toastConfig, setToastConfig] = useState({ isVisible: false, message: "", type: "success" });
+    const [isExportMode, setIsExportMode] = useState(false);
+    const [selectedRevisionIds, setSelectedRevisionIds] = useState([]);
     const [detalleRevision, setDetalleRevision] = useState(null);
     const [zoomSrc, setZoomSrc] = useState(null);
-    const [zoomScale, setZoomScale] = useState(1);
-    const zoomImgRef = useRef(null);
-    const zoomDragRef = useRef({ isDragging: false, startX: 0, startY: 0, originX: 0, originY: 0, posX: 0, posY: 0 });
 
     const showToast = (message, type = "success") => {
         setToastConfig({ isVisible: true, message, type });
@@ -110,7 +100,7 @@ export default function Revision() {
                 match?.idarea,
             );
         } catch (e) {
-            /* console.warn("⚠️ No se pudo resolver gerencia desde lista de empresas:", e?.message); */
+            
             return "0";
         }
     };
@@ -255,8 +245,7 @@ export default function Revision() {
             const userData = userRaw ? JSON.parse(userRaw) : null;
             const companyData = companyRaw ? JSON.parse(companyRaw) : null;
 
-            /*       console.log("👤 USER:", userData);
-                  console.log("🏢 COMPANY:", companyData); */
+
 
             if (!userData) {
                 throw new Error("No hay usuario logueado");
@@ -280,28 +269,10 @@ export default function Revision() {
                 gerencia,
                 ruc: companyRuc,
             });
-            /* 
-                        console.log("� PARAMS enviados a getListaRevision:", { id: "1", idrev: "1", gerencia, ruc: companyRuc });
-                        console.log("�📥 REVISIONES (RAW):", data); */
             const rawDataApi = Array.isArray(data) ? data : [];
 
             const dataApi = rawDataApi;
-
-/*             console.log(`📊 Revisión -> recibidos: ${rawDataApi.length}`);
- */
-   /*          console.table(
-                rawDataApi.map((item) => ({
-                    idRev: firstDefined(item?.idRev, item?.idrev, item?.id, ""),
-                    idAd: firstDefined(item?.idAd, item?.idad, item?.idAuditoria, ""),
-                    idUser: firstDefined(item?.idUser, item?.iduser, item?.useReg, item?.idrev, ""),
-                    ruc: firstDefined(item?.ruc, item?.RUC, item?.numRuc, ""),
-                    gerencia: firstDefined(item?.gerencia, item?.area, ""),
-                    estadoActual: firstDefined(item?.estadoActual, item?.estadoactual, ""),
-                    estado: firstDefined(item?.estado, ""),
-                    useElim: firstDefined(item?.useElim, item?.useelim, ""),
-                }))
-            );
-    */         setRevisiones(dataApi);
+            setRevisiones(dataApi);
         } catch (error) {
             /* console.error("❌ Error:", error.message); */
             setRevisiones([]);
@@ -377,7 +348,6 @@ export default function Revision() {
                 };
             });
 
-            /* console.log("✅ Detalles obtenidos:", enrichedDetalles); */
             setDetalles(enrichedDetalles);
         } catch (error) {
             /* console.error("❌ Error al obtener detalles:", error.message); */
@@ -411,8 +381,6 @@ export default function Revision() {
 
         try {
             setSendingDecision(true);
-            /*             console.log("🚀 Iniciando envío de revisión...");
-             */
             const userRaw = localStorage.getItem("user");
             const companyRaw = localStorage.getItem("company");
             const userData = userRaw ? JSON.parse(userRaw) : null;
@@ -458,9 +426,66 @@ export default function Revision() {
                                 console.log(`✅ Detalle idRev ${detallePayload.idRev} guardado correctamente`); */
             }
 
+            const selectedRevisionId = getRevisionId(selectedRevision);
+
+            // Refleja el cambio de estado inmediatamente en la UI sin esperar recarga manual.
+            setRevisiones((prev) =>
+                (Array.isArray(prev) ? prev : []).map((revision) => {
+                    if (getRevisionId(revision) !== selectedRevisionId) return revision;
+                    return {
+                        ...revision,
+                        estadoActual: decision,
+                        estadoactual: decision,
+                        estado: "S",
+                        obs: obsValue,
+                        fecEdit: nowIso,
+                        useEdit: userCode,
+                    };
+                })
+            );
+
+            setSelectedRevision((prev) => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    estadoActual: decision,
+                    estadoactual: decision,
+                    estado: "S",
+                    obs: obsValue,
+                    fecEdit: nowIso,
+                    useEdit: userCode,
+                };
+            });
+
+            setDetalles((prev) =>
+                (Array.isArray(prev) ? prev : []).map((detalle) => ({
+                    ...detalle,
+                    estadoActual: decision,
+                    estadoactual: decision,
+                    estado: "S",
+                    obs: obsValue,
+                    fecEdit: nowIso,
+                    useEdit: userCode,
+                }))
+            );
+
+            setDetalleRevision((prev) => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    estadoActual: decision,
+                    estadoactual: decision,
+                    estado: "S",
+                    obs: obsValue,
+                    fecEdit: nowIso,
+                    useEdit: userCode,
+                };
+            });
+
             const message = decision === "APROBADO" ? "INFORME APROBADO" : "INFORME RECHAZADO";
             showToast(message, "success");
             handleCerrarDetalles();
+            fetchRevisiones();
         } catch (error) {
             /* console.error("❌ Error actualizando revisión:", error); */
             showToast(`Error al actualizar revisión: ${error?.message || "Inténtalo nuevamente"}`, "error");
@@ -496,10 +521,200 @@ export default function Revision() {
         return iso;
     };
 
+    const parseAmount = (value) => {
+        if (typeof value === "number") {
+            return Number.isFinite(value) ? value : 0;
+        }
+
+        if (typeof value !== "string") {
+            return 0;
+        }
+
+        const raw = value.trim().replace(/[^\d,.-]/g, "");
+        if (!raw) return 0;
+
+        let normalized = raw;
+        const hasComma = raw.includes(",");
+        const hasDot = raw.includes(".");
+
+        if (hasComma && hasDot) {
+            if (raw.lastIndexOf(",") > raw.lastIndexOf(".")) {
+                normalized = raw.replace(/\./g, "").replace(",", ".");
+            } else {
+                normalized = raw.replace(/,/g, "");
+            }
+        } else if (hasComma) {
+            normalized = /,\d{1,2}$/.test(raw) ? raw.replace(",", ".") : raw.replace(/,/g, "");
+        }
+
+        const parsed = Number(normalized);
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const getRevisionTotal = (revision) => parseAmount(firstDefined(
+        revision?.totalRevision,
+        revision?.totalrevision,
+        revision?.total,
+        revision?.monto,
+        revision?.importe,
+        revision?.montoTotal,
+        revision?.montototal,
+        0,
+    ));
+
+    const getRevisionCantidadGastos = (revision) => Number(firstDefined(
+        revision?.cantidadGastos,
+        revision?.cantGastos,
+        revision?.cantidad,
+        revision?.cant,
+        revision?.nroGastos,
+        0,
+    )) || 0;
+
     const getEstadoLabel = (revision) => getWorkflowStatusLabel(resolveWorkflowStatus(revision, "PENDIENTE"));
 
     const getEstadoBadgeClass = (revision) =>
         getWorkflowStatusBadgeClass(resolveWorkflowStatus(revision, "PENDIENTE"));
+
+    const toggleRevisionSelection = (revision) => {
+        const id = String(getRevisionId(revision));
+        if (!id || id === "0") return;
+
+        setSelectedRevisionIds((prev) => (
+            prev.includes(id)
+                ? prev.filter((item) => item !== id)
+                : [...prev, id]
+        ));
+    };
+
+    const toggleSelectAllRevisiones = () => {
+        const allIds = (Array.isArray(revisiones) ? revisiones : [])
+            .map((r) => String(getRevisionId(r)))
+            .filter((id) => id && id !== "0");
+
+        const areAllSelected = allIds.length > 0 && allIds.every((id) => selectedRevisionIds.includes(id));
+
+        if (areAllSelected) {
+            setSelectedRevisionIds([]);
+            return;
+        }
+
+        setSelectedRevisionIds(allIds);
+    };
+
+    const cancelExportMode = () => {
+        setIsExportMode(false);
+        setSelectedRevisionIds([]);
+    };
+
+    const exportSelectedRevisionesExcel = async () => {
+        const selectedRevisiones = (Array.isArray(revisiones) ? revisiones : []).filter((r) =>
+            selectedRevisionIds.includes(String(getRevisionId(r)))
+        );
+
+        if (selectedRevisiones.length === 0) {
+            showToast("Selecciona al menos una revisión para exportar", "warning");
+            return;
+        }
+
+        try {
+            const resumenRows = [];
+            const detalleRows = [];
+
+            for (const revision of selectedRevisiones) {
+                const idRev = getRevisionId(revision);
+                if (!idRev) continue;
+
+                const detallesData = await getListaRevisionDetalle({ idrev: String(idRev) });
+                const detallesRevision = Array.isArray(detallesData) ? detallesData : [];
+
+                resumenRows.push({
+                    "IdRev": Number(firstDefined(revision?.idRev, revision?.idrev, revision?.id, 0)),
+                    "IdAd": Number(firstDefined(revision?.idAd, revision?.idad, revision?.idAuditoria, 0)),
+                    "IdInf": Number(firstDefined(revision?.idInf, revision?.idinf, revision?.idInforme, 0)),
+                    "IdUser": Number(firstDefined(revision?.idUser, revision?.iduser, 0)),
+                    "Dni": String(firstDefined(revision?.dni, "")),
+                    "Ruc": String(firstDefined(revision?.ruc, revision?.RUC, "")),
+                    "Gerencia": String(firstDefined(revision?.gerencia, "")),
+                    "EstadoActual": String(firstDefined(revision?.estadoActual, revision?.estadoactual, revision?.estado, "")),
+                    "Fecha": String(formatDate(firstDefined(revision?.fecCre, revision?.feccre, revision?.fecha, ""))),
+                    "Total": getRevisionTotal(revision),
+                    "CantGastos": getRevisionCantidadGastos(revision),
+                    "Obs": String(firstDefined(revision?.obs, revision?.nota, revision?.descripcion, "")),
+                });
+
+                detallesRevision.forEach((det) => {
+                    detalleRows.push({
+                        "IdRev": Number(firstDefined(det?.idRev, det?.idrev, revision?.idRev, revision?.idrev, revision?.id, 0)),
+                        "IdAd": Number(firstDefined(det?.idAd, det?.idad, det?.idAuditoria, revision?.idAd, revision?.idad, revision?.idAuditoria, 0)),
+                        "IdInf": Number(firstDefined(det?.idInf, det?.idinf, revision?.idInf, revision?.idinf, 0)),
+                        "IdRend": Number(firstDefined(det?.idRend, det?.idrend, det?.idRendicion, det?.idrendicion, det?.id, 0)),
+                        "IdUser": Number(firstDefined(det?.idUser, det?.iduser, revision?.idUser, revision?.iduser, 0)),
+                        "Dni": String(firstDefined(det?.dni, revision?.dni, "")),
+                        "Politica": String(firstDefined(det?.politica, det?.pol, revision?.politica, revision?.pol, "")),
+                        "Categoria": String(firstDefined(det?.categoria, det?.cat, "")),
+                        "TipoGasto": String(firstDefined(det?.tipogasto, det?.tipoGasto, det?.tipo_gasto, "")),
+                        "Ruc": String(firstDefined(det?.ruc, det?.RUC, revision?.ruc, revision?.RUC, "")),
+                        "Proveedor": String(firstDefined(det?.proveedor, det?.empresa, det?.razonSocial, det?.razonsocial, det?.rucEmisor, "")),
+                        "TipoCombrobante": String(firstDefined(det?.tipoCombrobante, det?.tipocombrobante, det?.tipoComprobante, det?.tipocomprobante, "")),
+                        "Serie": String(firstDefined(det?.serie, det?.serieComprobante, det?.nroserie, "")),
+                        "Numero": String(firstDefined(det?.numero, det?.nroComprobante, det?.nro, det?.num, det?.nrodoc, "")),
+                        "IGV": parseAmount(firstDefined(det?.igv, det?.tax, det?.impuesto, 0)),
+                        "Fecha": String(formatDate(firstDefined(det?.fecha, det?.fecCre, det?.feccre, ""))),
+                        "Total": parseAmount(firstDefined(det?.total, det?.monto, det?.importe, det?.valor, 0)),
+                        "Moneda": String(firstDefined(det?.moneda, "PEN")),
+                        "RucCliente": String(firstDefined(det?.rucCliente, det?.ruccliente, det?.rucCli, "")),
+                        "DesEmp": String(firstDefined(det?.desEmp, det?.desemp, det?.empresa, det?.proveedor, "")),
+                        "Gerencia": String(firstDefined(det?.gerencia, revision?.gerencia, "")),
+                        "Area": String(firstDefined(det?.area, revision?.area, "")),
+                        "Consumidor": String(firstDefined(det?.consumidor, det?.centroCosto, det?.centrocosto, det?.nomCentroCosto, "")),
+                        "Placa": String(firstDefined(det?.placa, det?.placaVehiculo, det?.placavehiculo, "")),
+                        "EstadoActual": String(firstDefined(det?.estadoActual, det?.estadoactual, det?.estado, revision?.estadoActual, revision?.estadoactual, "")),
+                        "Glosa": String(firstDefined(det?.glosa, det?.nota, det?.obs, det?.observacion, det?.observaciones, revision?.obs, "")),
+                        "MotivoViaje": String(firstDefined(det?.motivoViaje, det?.motivoviaje, det?.motivo_viaje, det?.motivo, "")),
+                        "LugarOrigen": String(firstDefined(det?.lugarOrigen, det?.lugarorigen, det?.origen, det?.puntoOrigen, det?.desde, "")),
+                        "LugarDestino": String(firstDefined(det?.lugarDestino, det?.lugardestino, det?.destino, det?.puntoDestino, det?.hasta, "")),
+                        "TipoMovilidad": String(firstDefined(det?.tipoMovilidad, det?.tipomovilidad, det?.tipo_movilidad, det?.movilidad, det?.transporte, det?.medioTransporte, det?.medio_transporte, "")),
+                        "Obs": String(firstDefined(det?.obs, det?.observacion, det?.observaciones, "")),
+                        "FecCre": String(formatDate(firstDefined(det?.fecCre, det?.feccre, det?.fecha, ""))),
+                    });
+                });
+            }
+
+            const now = new Date();
+            const pad = (n) => String(n).padStart(2, "0");
+            const fileName = `revisiones_seleccionadas_${selectedRevisiones.length}_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.xls`;
+
+            downloadExcelXml({
+                fileName,
+                sheets: [
+                    {
+                        name: "Resumen",
+                        rows: resumenRows.length > 0 ? resumenRows : [{ Mensaje: "No hay revisiones válidas para exportar" }],
+                    },
+                    {
+                        name: "Detalles",
+                        rows: detalleRows.length > 0 ? detalleRows : [{ Mensaje: "Estas revisiones no tienen gastos en detalle" }],
+                    },
+                ],
+            });
+
+            showToast("Excel de revisiones generado correctamente", "success");
+            cancelExportMode();
+        } catch (error) {
+            showToast(`Error al exportar revisiones: ${error?.message || "Inténtalo nuevamente"}`, "error");
+        }
+    };
+
+    const handleExportClick = async () => {
+        if (!isExportMode) {
+            setIsExportMode(true);
+            setSelectedRevisionIds([]);
+            return;
+        }
+
+        await exportSelectedRevisionesExcel();
+    };
 
     useEffect(() => {
         fetchRevisiones();
@@ -508,22 +723,12 @@ export default function Revision() {
     return (
         <div className="min-h-screen bg-linear-to-b from-slate-50 via-cyan-50/30 to-white p-4 sm:p-6">
             <div className="mx-auto w-full max-w-7xl space-y-5">
-                <div className="relative overflow-hidden rounded-2xl border border-blue-200/70 bg-white p-2 shadow-sm">
-
-                    {/* DECORACIÓN SUTIL */}
-                    <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-blue-200/30 blur-2xl"></div>
-
-                    <div className="flex items-center justify-between gap-2">
-
-                        {/* TEXTO */}
-                        <div className="min-w-0">
-                            <h1 className="truncate text-base font-semibold text-slate-800 sm:text-xl">
-                                Gestión de Revisiones
-                            </h1>
-                        </div>
-
-                    </div>
-                </div>
+                <RevisionHeader
+                    isExportMode={isExportMode}
+                    selectedCount={selectedRevisionIds.length}
+                    onExportClick={handleExportClick}
+                    onCancelExport={cancelExportMode}
+                />
 
                 {loading && (
                     <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
@@ -538,101 +743,16 @@ export default function Revision() {
                     </div>
                 )}
 
-                {!loading && revisiones.length > 0 && (() => {
-                    const totalPages = Math.max(1, Math.ceil(revisiones.length / pageSize));
-                    const safePage = Math.min(currentPage, totalPages);
-                    const startIdx = (safePage - 1) * pageSize;
-                    const endIdx = startIdx + pageSize;
-                    const paginatedRevisiones = revisiones.slice(startIdx, endIdx);
-                    const currentFrom = startIdx + 1;
-                    const currentTo = Math.min(endIdx, revisiones.length);
-
-                    return (
-                        <section className="space-y-4">
-
-                            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                                <div className="hidden md:block max-h-[65vh] overflow-auto [scrollbar-width:thin]">
-                                    <table className="w-full min-w-225 text-sm">
-                                        <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur">
-                                            <tr>
-                                                <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">#</th>
-                                                <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">ID</th>
-                                                <th className="border-b border-slate-200 px-1 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">Título</th>
-                                                {/* <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">Descripción</th> */}
-                                                <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">Estado</th>
-                                                <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">Fecha</th>
-                                                <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">Acciones</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {paginatedRevisiones.map((revision, index) => (
-                                                <tr key={index} className="border-t border-slate-100 hover:bg-slate-50/70">
-                                                    <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700">{startIdx + index + 1}</td>
-                                                    <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700">{revision?.idRev ?? "-"}</td>
-                                                    <td className="border-b border-slate-100 px-2 py-1 text-sm font-semibold text-slate-800">{revision?.titulo ?? revision?.title ?? "-"}</td>
-                                                    {/* <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700">{revision?.descripcion ?? revision?.desc ?? "-"}</td> */}
-                                                    <td className="border-b border-slate-100 px-2 py-1 text-center">
-                                                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoBadgeClass(revision)}`}>
-                                                            {getEstadoLabel(revision)}
-                                                        </span>
-                                                    </td>
-                                                    <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700">{formatDate(revision?.fecCre)}</td>
-
-                                                    <td className="border-b border-slate-100 px-2 py-1 text-center">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleVerDetalles(revision)}
-                                                            className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-cyan-700 cursor-pointer"
-                                                        >
-                                                            <IconEye className="h-3.5 w-3.5 shrink-0" />
-                                                            Ver Detalles
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                <div className="space-y-2 p-2 md:hidden">
-                                    {paginatedRevisiones.map((revision, index) => (
-                                        <article key={index} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5">
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-[11px] font-semibold text-slate-400">#{revision?.idRev ?? "-"}</span>
-                                                    <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${getEstadoBadgeClass(revision)}`}>
-                                                        {getEstadoLabel(revision)}
-                                                    </span>
-                                                </div>
-                                                <h3 className="truncate text-sm font-bold text-slate-800">{revision?.titulo ?? revision?.title ?? "Sin título"}</h3>
-                                                <p className="truncate text-[11px] text-slate-500">{revision?.gerencia || "-"} · {formatDate(revision?.fecCre)}</p>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleVerDetalles(revision)}
-                                                className="shrink-0 rounded-lg bg-cyan-600 p-2 text-white transition hover:bg-cyan-700 cursor-pointer"
-                                            >
-                                                <IconEye className="h-4 w-4" />
-                                            </button>
-                                        </article>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <PaginationControls
-                                currentPage={safePage}
-                                totalPages={totalPages}
-                                onPageChange={setCurrentPage}
-                                totalItems={revisiones.length}
-                                currentFrom={currentFrom}
-                                currentTo={currentTo}
-                                pageSize={pageSize}
-                                onPageSizeChange={(newSize) => { setPageSize(newSize); setCurrentPage(1); }}
-                                pageSizeOptions={PAGE_SIZE_OPTIONS}
-                            />
-                        </section>
-                    );
-                })()}
+                {!loading && revisiones.length > 0 && (
+                    <RevisionList
+                        revisiones={revisiones}
+                        onVerDetalles={handleVerDetalles}
+                        isExportMode={isExportMode}
+                        selectedRevisionIds={selectedRevisionIds}
+                        onToggleRevisionSelection={toggleRevisionSelection}
+                        onToggleSelectAll={toggleSelectAllRevisiones}
+                    />
+                )}
 
                 {/* MODAL DETALLE DE GASTO INDIVIDUAL */}
                 {detalleRevision && (
@@ -642,18 +762,20 @@ export default function Revision() {
                     >
                         <div className="relative z-10 flex w-full max-h-[85dvh] flex-col rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:mx-auto sm:max-w-md sm:rounded-2xl">
                             {/* Header */}
-                            <div className="flex items-start justify-between rounded-t-3xl border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-5 py-4 sm:rounded-t-2xl">
+                            <div className="flex items-center justify-between rounded-t-3xl border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-4 py-2.5 sm:rounded-t-2xl">
                                 <div className="min-w-0">
-                                    <p className="text-xs font-medium text-slate-400">Gasto</p>
-                                    <h3 className="text-base font-bold text-slate-800">
-                                        Detalle del Gasto <span className="text-cyan-600">#{getDetalleRendId(detalleRevision) || "-"}</span>
-                                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoBadgeClass(detalleRevision)}`}>
+                                    <h3 className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-slate-800 sm:text-base">
+                                        <span>Detalle del Gasto</span>
+                                        <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 sm:text-[11px]">
+                                            #{getDetalleRendId(detalleRevision) || "-"}
+                                        </span>
+                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold sm:text-[11px] ${getEstadoBadgeClass(detalleRevision)}`}>
                                             {getEstadoLabel(detalleRevision)}
                                         </span>
                                     </h3>
-                                    <p className="text-xs text-slate-500 mt-0.5">
+                                    {/*    <p className="text-xs text-slate-500 mt-0.5">
                                         <span className="font-semibold text-slate-600">Fecha:</span> {getDetalleFecha(detalleRevision)}
-                                    </p>
+                                    </p> */}
 
                                     {/*       <div className="mt-1.5">
                                         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoBadgeClass(detalleRevision)}`}>
@@ -664,7 +786,7 @@ export default function Revision() {
                                 <button
                                     type="button"
                                     onClick={() => setDetalleRevision(null)}
-                                    className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                                    className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
@@ -773,7 +895,6 @@ export default function Revision() {
                                             selectedRevision?.observacion,
                                             selectedRevision?.descripcion,
                                             selectedRevision?.glosa,
-                                            "-"
                                         )],
                                     ].map(([label, value]) => (
                                         <div key={label} className="col-span-2">
@@ -785,101 +906,20 @@ export default function Revision() {
                             </div>
 
                             {/* Footer */}
-                            <div className="shrink-0 border-t bg-slate-50 px-5 py-3">
+                            {/*  <div className="shrink-0 border-t bg-slate-50 px-5 py-3">
                                 <button
                                     type="button"
                                     onClick={() => setDetalleRevision(null)}
-                                    className="w-full rounded-xl bg-slate-800 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
+                                    className="w-full rounded-xl bg-slate-800 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 cursor-pointer  "
                                 >
                                     Cerrar
                                 </button>
-                            </div>
+                            </div> */}
                         </div>
                     </div>
                 )}
 
-                {/* LIGHTBOX ZOOM */}
-                {zoomSrc && (
-                    <div
-                        className="fixed inset-0 z-70 flex items-center justify-center bg-black/90"
-                        onClick={(e) => {
-                            if (e.target === e.currentTarget) {
-                                setZoomSrc(null); setZoomScale(1); zoomDragRef.current.posX = 0; zoomDragRef.current.posY = 0;
-                            }
-                        }}
-                        onWheel={(e) => {
-                            e.preventDefault();
-                            setZoomScale((prev) => Math.min(6, Math.max(0.5, prev - e.deltaY * 0.002)));
-                        }}
-                        style={{ touchAction: "none" }}
-                    >
-                        <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
-                            <button type="button" onClick={() => setZoomScale((p) => Math.min(6, +(p + 0.5).toFixed(1)))} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20" title="Acercar">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0zM11 8v6M8 11h6" /></svg>
-                            </button>
-                            <button type="button" onClick={() => setZoomScale((p) => Math.max(0.5, +(p - 0.5).toFixed(1)))} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20" title="Alejar">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0zM8 11h6" /></svg>
-                            </button>
-                            <button type="button" onClick={() => { setZoomScale(1); if (zoomImgRef.current) { zoomDragRef.current.posX = 0; zoomDragRef.current.posY = 0; zoomImgRef.current.style.transform = `scale(1) translate(0px, 0px)`; } }} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20" title="Restablecer">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                            </button>
-                            <button type="button" onClick={() => { setZoomSrc(null); setZoomScale(1); zoomDragRef.current.posX = 0; zoomDragRef.current.posY = 0; }} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20" title="Cerrar">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                        </div>
-                        <span className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-xs font-semibold text-white/80 backdrop-blur">
-                            {Math.round(zoomScale * 100)}%
-                        </span>
-                        <img
-                            ref={zoomImgRef}
-                            src={zoomSrc}
-                            alt="Zoom evidencia"
-                            draggable={false}
-                            style={{
-                                transform: `scale(${zoomScale}) translate(0px, 0px)`,
-                                transformOrigin: "center",
-                                transition: "transform 0.15s ease",
-                                maxWidth: "90vw",
-                                maxHeight: "90vh",
-                                cursor: zoomScale > 1 ? "grab" : "zoom-in",
-                                userSelect: "none",
-                            }}
-                            onMouseDown={(e) => {
-                                if (zoomScale <= 1) { setZoomScale(2); return; }
-                                const d = zoomDragRef.current;
-                                d.isDragging = true;
-                                d.startX = e.clientX;
-                                d.startY = e.clientY;
-                                d.originX = d.posX;
-                                d.originY = d.posY;
-                                e.currentTarget.style.transition = "none";
-                                e.currentTarget.style.cursor = "grabbing";
-                            }}
-                            onMouseMove={(e) => {
-                                const d = zoomDragRef.current;
-                                if (!d.isDragging) return;
-                                d.posX = d.originX + (e.clientX - d.startX) / zoomScale;
-                                d.posY = d.originY + (e.clientY - d.startY) / zoomScale;
-                                e.currentTarget.style.transform = `scale(${zoomScale}) translate(${d.posX}px, ${d.posY}px)`;
-                            }}
-                            onMouseUp={(e) => {
-                                zoomDragRef.current.isDragging = false;
-                                e.currentTarget.style.transition = "transform 0.15s ease";
-                                e.currentTarget.style.cursor = zoomScale > 1 ? "grab" : "zoom-in";
-                            }}
-                            onMouseLeave={() => {
-                                if (zoomDragRef.current.isDragging) {
-                                    zoomDragRef.current.isDragging = false;
-                                    if (zoomImgRef.current) {
-                                        zoomImgRef.current.style.transition = "transform 0.15s ease";
-                                        zoomImgRef.current.style.cursor = "grab";
-                                    }
-                                }
-                            }}
-                            onClick={() => { if (zoomScale === 1) setZoomScale(2); }}
-                        />
-                    </div>
-                )}
+                <ImageZoomLightbox src={zoomSrc} onClose={() => setZoomSrc(null)} />
 
                 {/* MODAL DE DETALLES */}
                 {selectedRevision && (

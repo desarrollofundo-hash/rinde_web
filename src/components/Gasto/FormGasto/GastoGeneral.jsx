@@ -13,6 +13,8 @@ import EvidenciaUploader from "./EvidenciaUploader";
 import EvidenciaCropModal from "./EvidenciaCropModal";
 import QrScannerModal from "./QrScannerModal";
 import Toast from "../../shared/Toast.jsx";
+import { Save } from "lucide-react";
+
 
 const getUserDni = (user) => {
     if (!user || typeof user !== "object") return "";
@@ -260,6 +262,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
     const [selectedPreset, setSelectedPreset] = useState("doc");
     const [cropShape, setCropShape] = useState("rect");
     const [isQrOpen, setIsQrOpen] = useState(false);
+    const [evidenciaInputResetKey, setEvidenciaInputResetKey] = useState(0);
     const [toastConfig, setToastConfig] = useState({ isVisible: false, message: "", type: "success" });
     const imageCropRef = useRef(null);
 
@@ -792,7 +795,11 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                 URL.revokeObjectURL(evidenciaPreviewUrl);
             }
 
-            setFormData(INITIAL_FORM_DATA);
+            const politicaToKeep = String(selectedPoliticaProp?.id ?? formData.politica ?? "");
+            setFormData({
+                ...INITIAL_FORM_DATA,
+                politica: politicaToKeep,
+            });
             setEvidenciaPreviewUrl("");
             setIsPreviewOpen(false);
             setIsCropMode(false);
@@ -802,6 +809,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
             setCropShape("rect");
             setIsQrOpen(false);
             imageCropRef.current = null;
+            setEvidenciaInputResetKey((prev) => prev + 1);
 
         } catch (error) {
             /* console.error("❌ Error:", error); */
@@ -864,12 +872,13 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
             </div> */}
 
             {/* Evidencia y QR */}
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <div className="grid grid-cols-1 items-stretch gap-2 lg:grid-cols-2">
                 <EvidenciaUploader
                     labelClass={labelClass}
                     formData={formData}
                     hasEvidencia={hasEvidencia}
                     canCropImage={canCropImage}
+                    inputResetKey={evidenciaInputResetKey}
                     onFileChange={handleChange}
                     onOpenPreview={() => {
                         setIsPreviewOpen(true);
@@ -881,16 +890,21 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                     }}
                 />
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                    <label className={labelClass}>Lector de código QR</label>
-                    <p className="mt-1 text-sm text-slate-500">Escanea para autocompletar datos del comprobante.</p>
-                    <button
-                        type="button"
-                        className="mt-2 inline-flex items-center rounded-xl bg-slate-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                        onClick={() => setIsQrOpen(true)}
-                    >
-                        Escanear QR
-                    </button>
+                <div className="h-full rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+                    <div className="flex h-full flex-col justify-center gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2.5">
+                        <div className="min-w-0 text-left sm:flex-1">
+                            <p className="text-sm font-semibold text-slate-700">Lector de código QR</p>
+                            <p className="mt-0.5 text-xs leading-4 text-slate-500">Escanea para autocompletar datos del comprobante.</p>
+                        </div>
+
+                        <button
+                            type="button"
+                            className="inline-flex w-full shrink-0 items-center justify-center rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 sm:w-auto cursor-pointer"
+                            onClick={() => setIsQrOpen(true)}
+                        >
+                            Escanear QR
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -1089,18 +1103,34 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                             </select>
                         </div>
 
-                        <div className="flex flex-col gap-1">
-                            <label className={labelClass}>Fecha</label>
-                            <input
-                                type="date"
-                                name="fecha"
-                                className={fieldClass}
-                                value={formData.fecha}
-                                onChange={handleChange}
-                            />
+                        <div className="grid grid-cols-1 gap-3 md:col-span-2 md:grid-cols-2 lg:col-span-2">
+                            <div className="flex flex-col gap-1">
+                                <label className={labelClass}>Fecha</label>
+                                <input
+                                    type="date"
+                                    name="fecha"
+                                    className={fieldClass}
+                                    value={formData.fecha}
+                                    onChange={handleChange}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                                <label className={labelClass}>Moneda:</label>
+                                <select
+                                    name="moneda"
+                                    className={fieldClass}
+                                    value={formData.moneda}
+                                    onChange={handleChange}
+                                >
+                                    <option value="">Seleccionar</option>
+                                    <option value="01">PEN</option>
+                                    <option value="03">USD</option>
+                                </select>
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 lg:col-span-3 lg:grid-cols-2">
+                        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:col-span-3">
                             <div className="flex flex-col gap-1">
                                 <label className={labelClass}>Serie:</label>
                                 <input
@@ -1125,9 +1155,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                                     min="0"
                                 />
                             </div>
-                        </div>
 
-                        <div className="grid grid-cols-2 gap-2 lg:col-span-3 lg:grid-cols-4">
                             <div className="flex flex-col gap-1">
                                 <label className={labelClass}>IGV</label>
                                 <input
@@ -1153,20 +1181,6 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                                     min="0"
                                 />
                             </div>
-
-                            <div className="flex flex-col gap-1">
-                                <label className={labelClass}>Moneda:</label>
-                                <select
-                                    name="moneda"
-                                    className={fieldClass}
-                                    value={formData.moneda}
-                                    onChange={handleChange}
-                                >
-                                    <option value="">Seleccionar</option>
-                                    <option value="01">PEN</option>
-                                    <option value="03">USD</option>
-                                </select>
-                            </div>
                         </div>
 
                     </div>
@@ -1181,6 +1195,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                     type="text"
                     placeholder="Agrega una descripcion breve del gasto o nota"
                     className={`${fieldClass} min-h-28 resize-none`}
+                    value={formData.glosa}
                     onChange={handleChange}
                 />
             </section>
@@ -1190,8 +1205,9 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
 
                 <button
                     type="submit"
-                    className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 cursor-pointer"
                 >
+                    <Save size={17} aria-hidden="true" />
                     Guardar
                 </button>
             </div>

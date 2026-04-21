@@ -13,6 +13,8 @@ import {
 } from "../services/permissions";
 import { IconLogout } from "../Icons/logout";
 import { IconCompany } from "../Icons/companyIcon";
+import { Button as MovingBorderButton } from "./ui/moving-border";
+import { BackgroundRippleEffect } from "./ui/background-ripple-effect";
 
 export default function Dashboard() {
     const location = useLocation();
@@ -57,7 +59,7 @@ export default function Dashboard() {
         }
     });
 
-    const [usuario, setUsuario] = useState(() => {
+    const [usuario, _setUsuario] = useState(() => {
         try {
             const rawUsuario = localStorage.getItem("user");
             return rawUsuario ? JSON.parse(rawUsuario) : null;
@@ -202,24 +204,23 @@ export default function Dashboard() {
     };
 
     return (
-        <div className="relative flex h-screen max-h-screen overflow-hidden bg-slate-100">
-            <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-slate-100 via-blue-50 to-indigo-100" />
-            <div className="pointer-events-none absolute -top-28 -right-30 h-72 w-72 rounded-full bg-blue-300/30 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-30 -left-30 h-72 w-72 rounded-full bg-indigo-300/30 blur-3xl" />
+        <div className="relative flex h-screen max-h-screen overflow-hidden bg-[#f4f8ff]">
+            <BackgroundRippleEffect rows={7} cols={10} className="pointer-events-none opacity-90" />
+            <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-slate-50/70 via-blue-50/55 to-cyan-50/40" />
+            <div className="pointer-events-none absolute -top-28 -right-30 h-72 w-72 rounded-full bg-sky-300/35 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-30 -left-30 h-72 w-72 rounded-full bg-blue-300/30 blur-3xl" />
 
-            <div className="fixed left-0 right-0 top-0 z-30 border-b border-blue-200/70 bg-white/95 px-3 py-3 shadow-sm backdrop-blur lg:hidden">
+            <div className="fixed left-0 right-0 top-0 z-30 border-b border-blue-200/60 bg-white/95 px-3 py-3 shadow-sm backdrop-blur-xl lg:hidden">
                 <div className="flex items-center justify-between gap-2">
                     <button
                         type="button"
                         onClick={() => setIsMobileMenuOpen(true)}
-                        className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800"
+                        className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 shadow-xs"
                     >
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-700" />
+                        <span className="inline-block h-2 w-2 rounded-full bg-blue-700" />
                         Menú
                     </button>
-                    {/*  <p className="max-w-[65%] truncate text-sm font-semibold text-slate-700">
-                        {empresa ? (empresa.empresa || empresa.nombre || empresa.name) : "No seleccionada"}
-                    </p>*/}
+
                 </div>
             </div>
 
@@ -237,7 +238,7 @@ export default function Dashboard() {
                     }`}
             >
                 {/* Tarjeta de perfil */}
-                <div className="mb-5 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-slate-50 p-4 shadow-sm">
+                <div className="mb-5 rounded-2xl border border-blue-100/90 bg-linear-to-br from-blue-50 via-white to-slate-50 p-4 shadow-sm">
                     {/* Usuario */}
                     <div className="flex items-center gap-3">
 
@@ -274,7 +275,7 @@ export default function Dashboard() {
                     <button
                         type="button"
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className="rounded-md border border-blue-200 px-2 py-1 text-xs font-semibold text-blue-700 lg:hidden"
+                        className="rounded-lg border border-blue-200 bg-white px-2 py-1 text-xs font-semibold text-blue-700 shadow-xs lg:hidden"
                     >
                         Cerrar
                     </button>
@@ -287,12 +288,12 @@ export default function Dashboard() {
                                 type="button"
                                 onClick={() => handleSelectTab(tab)}
                                 className={`group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${activeTab === tab
-                                    ? "bg-blue-900 text-white shadow"
-                                    : "text-slate-700 hover:bg-blue-50"
+                                    ? "bg-linear-to-r from-blue-700 to-blue-600 text-white shadow-lg shadow-blue-200/70"
+                                    : "border border-transparent text-slate-700 hover:border-blue-200/70 hover:bg-blue-50/80"
                                     }`}
                             >
                                 <span>{tab}</span>
-                                <span className={`h-2 w-2 rounded-full transition ${activeTab === tab ? "bg-blue-200" : "bg-slate-300 group-hover:bg-blue-300"}`} />
+                                <span className={`h-2 w-2 rounded-full transition ${activeTab === tab ? "bg-blue-100" : "bg-slate-300 group-hover:bg-blue-300"}`} />
                             </button>
 
                             {tab === "Gastos" && activeTab === "Gastos" && (
@@ -317,21 +318,22 @@ export default function Dashboard() {
                 </nav>
 
                 <div className="mt-auto space-y-3 border-t border-blue-200/70 pt-4">
-                    <button
+                    <MovingBorderButton
                         type="button"
                         onClick={handleChangeCompany}
-                        className="group inline-flex w-full items-center justify-between rounded-xl border border-blue-700/20 bg-linear-to-r from-blue-700 to-blue-600 px-3.5 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:from-blue-800 hover:to-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 cursor-pointer"
+                        containerClassName="w-full h-12"
+                        borderRadius="0.85rem"
+                        className="group inline-flex w-full items-center justify-between rounded-[0.8rem] border border-blue-700/30 bg-linear-to-r from-blue-700 to-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:from-blue-800 hover:to-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 cursor-pointer"
                     >
                         <IconCompany className="h-5 w-5" />
                         <span>{isCompanySelectorOpen ? "Ocultar empresas" : "Cambiar de empresa"}</span>
-
                         <span className={`text-base leading-none transition-transform ${isCompanySelectorOpen ? "rotate-180" : ""}`}>
                             ▾
                         </span>
-                    </button>
+                    </MovingBorderButton>
 
                     {isCompanySelectorOpen && (
-                        <div className="rounded-2xl border border-blue-200/80 bg-white/90 p-2.5 shadow-sm backdrop-blur-sm">
+                        <div className="rounded-2xl border border-blue-200/80 bg-white/95 p-2.5 shadow-md backdrop-blur-sm">
                             <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                                 Selecciona empresa
                             </p>
@@ -397,7 +399,7 @@ export default function Dashboard() {
                     <button
                         type="button"
                         onClick={handleLogout}
-                        className="inline-flex w-full items-center justify-center rounded-xl border border-red-500/20 bg-red-600 px-3.5 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 cursor-pointer"
+                        className="inline-flex w-full items-center justify-center rounded-xl border border-red-500/20 bg-red-600 px-3.5 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 cursor-pointer"
                     >
                         <IconLogout className="mr-1 h-5 w-5 text-white [&_path]:stroke-white" />
                         Cerrar sesión
@@ -405,8 +407,8 @@ export default function Dashboard() {
                 </div>
             </aside >
 
-            <main className="relative z-10 min-w-0 flex-1 overflow-x-hidden overflow-y-auto pt-[calc(3.75rem+env(safe-area-inset-top))] lg:pt-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                <div className="w-full" key={String(empresa?.id ?? empresa?.ruc ?? "no-company")}>
+            <main className="relative z-10 min-w-0 flex-1 overflow-x-hidden overflow-y-auto pt-[calc(3.75rem+env(safe-area-inset-top))] lg:px-3 lg:py-3 lg:pt-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                <div className="w-full rounded-3xl border border-white/60 bg-white/45 shadow-[0_8px_36px_rgba(15,23,42,0.08)] backdrop-blur-md" key={String(empresa?.id ?? empresa?.ruc ?? "no-company")}>
                     {renderContent()}
                 </div>
             </main>
