@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     getWorkflowStatusBadgeClass,
     resolveWorkflowStatus,
 } from "../shared/workflowStatus";
 import { IconEye } from "../../Icons/preview";
+import { IconBroom } from "../../Icons/broom";
 import PaginationControls from "../Gasto/PaginationControls";
 
 export default function InformeList({
@@ -13,14 +14,13 @@ export default function InformeList({
     isExportMode = false,
     selectedInformeIds = [],
     onToggleInformeSelection,
-    onToggleSelectAll,
 }) {
     const DEFAULT_ITEMS_PER_PAGE = 8;
     const PAGE_SIZE_STORAGE_KEY = "informe.pageSize";
     const PAGE_SIZE_OPTIONS = [5, 8, 10, 20, 50];
     const getEstadoInforme = (inf) => resolveWorkflowStatus(inf, "PENDIENTE");
 
-    const parseAmount = (value) => {
+    const parseAmount = useCallback((value) => {
         if (typeof value === "number") {
             return Number.isFinite(value) ? value : 0;
         }
@@ -48,9 +48,9 @@ export default function InformeList({
 
         const parsed = Number(normalized);
         return Number.isFinite(parsed) ? parsed : 0;
-    };
+    }, []);
 
-    const resolveInformeTotal = (inf) => parseAmount(
+    const resolveInformeTotal = useCallback((inf) => parseAmount(
         inf?.totalInforme
         ?? inf?.totalinf
         ?? inf?.total
@@ -59,7 +59,7 @@ export default function InformeList({
         ?? inf?.montoTotal
         ?? inf?.montototal
         ?? 0
-    );
+    ), [parseAmount]);
 
     const resolveInformeGastosCount = (inf) => Number(
         inf?.cantidadGastos
@@ -70,7 +70,7 @@ export default function InformeList({
         ?? 0
     );
 
-    const formatCurrency = (value) => {
+    const formatCurrency = useCallback((value) => {
         const amount = parseAmount(value);
         return new Intl.NumberFormat("es-PE", {
             style: "currency",
@@ -78,9 +78,10 @@ export default function InformeList({
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         }).format(amount);
-    };
+    }, [parseAmount]);
 
     const [currentPage, setCurrentPage] = useState(1);
+    const [searchTerm, setSearchTerm] = useState("");
     const [pageSize, setPageSize] = useState(() => {
         const stored = Number(localStorage.getItem(PAGE_SIZE_STORAGE_KEY));
         return PAGE_SIZE_OPTIONS.includes(stored) ? stored : DEFAULT_ITEMS_PER_PAGE;
@@ -90,58 +91,84 @@ export default function InformeList({
         localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(pageSize));
     }, [pageSize]);
 
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    const filteredInformes = useMemo(() => {
+        const source = Array.isArray(informes) ? informes : [];
+        if (!normalizedSearch) return source;
+
+        return source.filter((inf) => {
+            const searchable = [
+                inf?.idInf ?? inf?.idinf ?? inf?.id,
+                inf?.titulo,
+                inf?.politica,
+                getEstadoInforme(inf),
+                formatDate(inf?.fecCre),
+                formatCurrency(resolveInformeTotal(inf)),
+                resolveInformeGastosCount(inf),
+            ]
+                .filter((value) => value !== undefined && value !== null)
+                .join(" ")
+                .toLowerCase();
+
+            return searchable.includes(normalizedSearch);
+        });
+    }, [formatCurrency, formatDate, informes, normalizedSearch, resolveInformeTotal]);
+
     const totalPages = useMemo(
-        () => Math.max(1, Math.ceil((informes?.length || 0) / pageSize)),
-        [informes, pageSize]
+        () => Math.max(1, Math.ceil((filteredInformes?.length || 0) / pageSize)),
+        [filteredInformes, pageSize]
     );
 
     const effectiveCurrentPage = Math.min(currentPage, totalPages);
 
     const paginatedInformes = useMemo(() => {
         const start = (effectiveCurrentPage - 1) * pageSize;
-        return (informes || []).slice(start, start + pageSize);
-    }, [informes, effectiveCurrentPage, pageSize]);
+        return (filteredInformes || []).slice(start, start + pageSize);
+    }, [filteredInformes, effectiveCurrentPage, pageSize]);
 
-    const allInformeIds = useMemo(
-        () => (Array.isArray(informes) ? informes : [])
-            .map((inf) => String(inf?.idInf ?? inf?.idinf ?? inf?.id ?? ""))
-            .filter(Boolean),
-        [informes]
-    );
-
-    const areAllSelected = allInformeIds.length > 0 && allInformeIds.every((id) => selectedInformeIds.includes(id));
-
-    const currentFrom = informes.length === 0 ? 0 : (effectiveCurrentPage - 1) * pageSize + 1;
+    const currentFrom = filteredInformes.length === 0 ? 0 : (effectiveCurrentPage - 1) * pageSize + 1;
     const currentTo = (effectiveCurrentPage - 1) * pageSize + paginatedInformes.length;
 
     return (
         <section className="space-y-4">
             {/*  <div className="sticky top-20 z-20 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h2 className="text-lg font-bold text-slate-800">Listado de Informes</h2>
+                    <h2 className="text-lg font-bold text-slate-800">Lista de Informes</h2>
                     <p className="text-xs font-medium text-slate-500 sm:text-sm">
                         Página {effectiveCurrentPage} de {totalPages}
                     </p>
                 </div>
             </div> */}
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="hidden max-h-[70vh] overflow-auto md:block">
-                    <table className="w-full min-w-225 text-sm">
+                <div className="border-b border-slate-200 p-2 sm:p-3">
+                    <div className="flex min-w-0 items-center gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Buscar por título, política, estado, fecha o total"
+                            className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        />
+
+                        <button
+                            type="button"
+                            title="Limpiar búsqueda"
+                            onClick={() => setSearchTerm("")}
+                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 cursor-pointer sm:h-auto sm:w-auto sm:px-3 sm:py-2.5"
+                        >
+                            <IconBroom className="h-5 w-5" />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="hidden max-h-[70dvh] overflow-hidden md:flex md:flex-col">
+                    <div className="min-h-0 flex-1 overflow-auto overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                        <table className="w-full text-sm">
                         <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur">
                             <tr>
                                 {isExportMode && (
-                                    <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
-                                        <label className="inline-flex cursor-pointer items-center gap-1">
-                                            <input
-                                                type="checkbox"
-                                                checked={areAllSelected}
-                                                onChange={() => onToggleSelectAll?.()}
-                                                className="h-4 w-4 cursor-pointer rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                                                aria-label="Seleccionar todos los informes"
-                                            />
-                                            <span></span>
-                                        </label>
-                                    </th>
+                                    <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600"></th>
                                 )}
                                 <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">#</th>
                                 <th className="border-b border-slate-200 px-1 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">Título</th>
@@ -193,27 +220,28 @@ export default function InformeList({
                                 </tr>
                             ))}
                         </tbody>
-                    </table>
+                        </table>
+                    </div>
+                    <div className="shrink-0 border-t border-slate-200 bg-slate-50/80 px-2 py-2 sm:px-3">
+                        <PaginationControls
+                            currentPage={effectiveCurrentPage}
+                            totalPages={totalPages}
+                            onPageChange={setCurrentPage}
+                            totalItems={filteredInformes.length}
+                            currentFrom={currentFrom}
+                            currentTo={currentTo}
+                            pageSize={pageSize}
+                            onPageSizeChange={(nextSize) => {
+                                setPageSize(nextSize);
+                                setCurrentPage(1);
+                            }}
+                            pageSizeOptions={PAGE_SIZE_OPTIONS}
+                        />
+                    </div>
                 </div>
 
-                <div className="max-h-[70vh] space-y-2 overflow-y-auto p-2 md:hidden">
-                    {isExportMode && (
-                        <div className="mb-2 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
-                            <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-emerald-800">
-                                <input
-                                    type="checkbox"
-                                    checked={areAllSelected}
-                                    onChange={() => onToggleSelectAll?.()}
-                                    className="h-4 w-4 cursor-pointer rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                                    aria-label="Seleccionar todos los informes"
-                                />
-                                Seleccionar todos
-                            </label>
-                            <span className="text-[11px] font-semibold text-emerald-700">
-                                {selectedInformeIds.length} seleccionado(s)
-                            </span>
-                        </div>
-                    )}
+                <div className="max-h-[70dvh] overflow-hidden md:hidden flex flex-col">
+                    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain touch-pan-y p-2">
                     {paginatedInformes.map((inf, index) => (
                         <article key={index} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5">
                             {isExportMode && (
@@ -245,23 +273,23 @@ export default function InformeList({
                             </button>
                         </article>
                     ))}
-                </div>
-
-                <div className="border-t border-slate-200 bg-slate-50/80 px-2 py-2 sm:px-3">
-                    <PaginationControls
-                        currentPage={effectiveCurrentPage}
-                        totalPages={totalPages}
-                        onPageChange={setCurrentPage}
-                        totalItems={informes.length}
-                        currentFrom={currentFrom}
-                        currentTo={currentTo}
-                        pageSize={pageSize}
-                        onPageSizeChange={(nextSize) => {
-                            setPageSize(nextSize);
-                            setCurrentPage(1);
-                        }}
-                        pageSizeOptions={PAGE_SIZE_OPTIONS}
-                    />
+                    </div>
+                    <div className="shrink-0 border-t border-slate-200 bg-slate-50/80 px-2 py-2 sm:px-3">
+                        <PaginationControls
+                            currentPage={effectiveCurrentPage}
+                            totalPages={totalPages}
+                            onPageChange={setCurrentPage}
+                            totalItems={filteredInformes.length}
+                            currentFrom={currentFrom}
+                            currentTo={currentTo}
+                            pageSize={pageSize}
+                            onPageSizeChange={(nextSize) => {
+                                setPageSize(nextSize);
+                                setCurrentPage(1);
+                            }}
+                            pageSizeOptions={PAGE_SIZE_OPTIONS}
+                        />
+                    </div>
                 </div>
             </div>
         </section>

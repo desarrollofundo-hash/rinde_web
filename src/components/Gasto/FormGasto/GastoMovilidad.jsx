@@ -315,7 +315,7 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
 
     return (
         <>
-            <form onSubmit={handleSubmitForm} className="mx-auto mt-4 w-full max-w-6xl space-y-3">
+            <form onSubmit={handleSubmitForm} className="mx-auto mt-4 w-full max-w-6xl space-y-3 pb-16 sm:pb-6">
 
 
                 <div className="grid grid-cols-1 items-stretch gap-2 lg:grid-cols-2">
@@ -613,14 +613,15 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
                     />
                 </section>
 
-
-                <button
-                    type="submit"
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-95 cursor-pointer disabled:cursor-not-allowed disabled:bg-emerald-400 disabled:text-slate-200"
-                >
-                    <Save size={17} aria-hidden="true" />
-                    Guardar
-                </button>
+                <div className="sticky bottom-0 z-10 border-t border-slate-200 bg-white/95 px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0">
+                    <button
+                        type="submit"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-95 cursor-pointer disabled:cursor-not-allowed disabled:bg-emerald-400 disabled:text-slate-200 sm:w-auto"
+                    >
+                        <Save size={17} aria-hidden="true" />
+                        Guardar
+                    </button>
+                </div>
 
                 <EvidenciaCropModal
                     isOpen={isPreviewOpen}

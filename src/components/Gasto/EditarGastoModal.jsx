@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { centerCrop, makeAspectCrop } from "react-image-crop";
 import { updateDetalleGasto } from "../../services/update/updateGasto";
 import { saveEvidenciaGasto } from "../../services/evidencia";
@@ -193,6 +194,7 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
     const [evidenciaCropShape, setEvidenciaCropShape] = useState("rect");
     const [isEvidenciaSaving, setIsEvidenciaSaving] = useState(false);
     const imageCropRef = useRef(null);
+    const modalRoot = typeof document !== "undefined" ? document.body : null;
     const [formData, setFormData] = useState({
         proveedor: "",
         glosa: "",
@@ -718,7 +720,7 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
 
     if (!isOpen || !gasto) return null;
 
-    return (
+    return modalRoot ? createPortal((
         <>
             <button
                 type="button"
@@ -727,10 +729,10 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                 onClick={onClose}
             />
 
-            <div className="fixed inset-0 z-50 flex justify-center items-end overflow-x-hidden p-0 sm:items-start sm:overflow-auto sm:p-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                <div className="flex w-full flex-col overflow-hidden border border-slate-200/80 bg-white shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] ring-1 ring-white/60 backdrop-blur-sm max-h-[95vh] sm:max-h-[90vh] rounded-t-2xl sm:rounded-[1.35rem] max-w-5xl">
+            <div className="fixed inset-0 z-50 flex items-start justify-center overflow-hidden p-0 sm:items-start sm:p-8">
+                <div className="flex h-[100dvh] w-full max-w-5xl flex-col overflow-hidden border border-slate-200/80 bg-white shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] ring-1 ring-white/60 backdrop-blur-sm sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-[1.35rem]">
                     {title && (
-                        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-blue-100 bg-linear-to-r from-blue-50 via-white to-indigo-50 px-4 py-2.5 sm:px-6 sm:py-3">
+                        <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-3 border-b border-blue-100 bg-linear-to-r from-blue-50 via-white to-indigo-50 px-4 py-2.5 sm:px-6 sm:py-3">
                             <div className="flex min-w-0 items-center gap-2.5">
                                 <span className="h-7 w-1 rounded-full bg-linear-to-b from-blue-600 via-blue-700 to-indigo-500 sm:h-9" />
                                 <h2 className="min-w-0 text-sm font-extrabold text-slate-800 sm:text-base">{title}</h2>
@@ -745,7 +747,7 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                         </div>
                     )}
 
-                    <div className="min-h-0 flex-1 overflow-y-auto bg-linear-to-b from-white to-slate-50/70 p-3 sm:p-5 lg:p-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-linear-to-b from-white to-slate-50/70 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-5 lg:p-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                         {error && <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
                         <form onSubmit={handleSubmit} className="space-y-3">
                             <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
@@ -905,7 +907,7 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                                 </aside>
                             </div>
 
-                            <div className="sticky bottom-0 -mx-3 border-t border-slate-200 bg-white/95 px-3 pt-2.5 pb-[calc(0.35rem+env(safe-area-inset-bottom))] backdrop-blur sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6">
+                            <div className="mt-2 border-t border-slate-200 bg-white/95 px-0 pt-2.5 pb-[calc(0.35rem+env(safe-area-inset-bottom))] backdrop-blur sm:sticky sm:bottom-0 sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6">
                                 {/* <div className="mb-2 text-xs font-semibold text-slate-500">
                         {isEditing ? "Modo edicion activo: puedes cambiar categoria y centro de costo." : "Modo lectura: presiona Editar para habilitar cambios."}
                     </div> */}
@@ -1026,5 +1028,5 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                 </div>
             </div>
         </>
-    );
+    ), modalRoot) : null;
 }

@@ -17,8 +17,8 @@ export default function Gastos({ subMenu, refreshToken = 0 }) {
     };
 
     return (
-        <div className="">
-            <div className="">
+        <div className="h-full min-h-full">
+            <div className="h-full min-h-full">
                 {renderSubmenuContent()}
             </div>
         </div>

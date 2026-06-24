@@ -755,8 +755,8 @@ export default function Informe() {
         ));
     };
 
-    const toggleSelectAllInformes = () => {
-        const allIds = (Array.isArray(informes) ? informes : [])
+    const toggleSelectAllInformes = (sourceInformes = informes) => {
+        const allIds = (Array.isArray(sourceInformes) ? sourceInformes : [])
             .map((inf) => String(inf?.idInf ?? inf?.idinf ?? inf?.id ?? ""))
             .filter(Boolean);
 
@@ -770,9 +770,18 @@ export default function Informe() {
         setSelectedInformeIds(allIds);
     };
 
+    const allInformeIds = (Array.isArray(informes) ? informes : [])
+        .map((inf) => String(inf?.idInf ?? inf?.idinf ?? inf?.id ?? ""))
+        .filter(Boolean);
+
+    const areAllInformesSelected =
+        allInformeIds.length > 0 &&
+        allInformeIds.every((id) => selectedInformeIds.includes(id));
+
     const cancelExportMode = () => {
         setIsExportMode(false);
         setSelectedInformeIds([]);
+        setToastConfig((current) => ({ ...current, isVisible: false }));
     };
 
     const exportSelectedInformesExcel = async () => {
@@ -906,6 +915,7 @@ export default function Informe() {
         if (!isExportMode) {
             setIsExportMode(true);
             setSelectedInformeIds([]);
+            showToast("Ya puedes marcar los informes que deseas exportar.", "info");
             return;
         }
 
@@ -913,8 +923,8 @@ export default function Informe() {
     };
 
     return (
-        <div className="min-h-screen bg-linear-to-b from-slate-50 via-cyan-50/30 to-white p-4 sm:p-6">
-            <div className="mx-auto w-full max-w-7xl space-y-5">
+        <div className="w-full min-h-0 overflow-x-hidden overscroll-y-contain px-2 pt-0 pb-4 sm:px-4 sm:pt-0 sm:pb-6 lg:px-6">
+            <div className="mx-auto w-full space-y-1">
                 {/* Loading overlay mientras se guarda */}
                 {isSaving && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
@@ -931,7 +941,10 @@ export default function Informe() {
                     onNewInforme={handleOpenModal}
                     isExportMode={isExportMode}
                     selectedCount={selectedInformeIds.length}
+                    areAllSelected={areAllInformesSelected}
+                    hasItems={allInformeIds.length > 0}
                     onExportClick={handleExportClick}
+                    onToggleSelectAll={toggleSelectAllInformes}
                     onCancelExport={cancelExportMode}
                 />
 

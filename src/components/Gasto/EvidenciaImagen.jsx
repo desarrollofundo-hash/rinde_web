@@ -19,7 +19,12 @@ function inferImageMimeType(candidate, contentType) {
 }
 
 export default function EvidenciaImagen({ gasto, fallbackObs = "", alt = "Evidencia del gasto", className = "", loading = "lazy", fallback = null, ...imgProps }) {
-    const candidates = useMemo(() => getEvidenceImageCandidates(gasto, fallbackObs), [gasto, fallbackObs]);
+    // DEBUG: log los candidatos generados para la evidencia del gasto
+    const candidates = useMemo(() => {
+        const c = getEvidenceImageCandidates(gasto, fallbackObs);
+        console.log('EvidenciaImagen - candidatos generados:', c);
+        return c;
+    }, [gasto, fallbackObs]);
     const [resolvedSrc, setResolvedSrc] = useState("");
     const objectUrlRef = useRef("");
 

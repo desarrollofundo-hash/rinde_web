@@ -98,22 +98,22 @@ export default function PaginationControls({
                     </p>
                 </div> */}
 
-                <div className="flex flex-wrap items-center justify-center gap-1.5">
+                <div className="flex items-center justify-start gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:justify-center">
                     {/* Prev */}
                     <button
                         onClick={handlePrev}
                         disabled={currentPage === 1}
-                        className="rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 disabled:opacity-40"
+                        className="shrink-0 rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 disabled:opacity-40"
                     >
                         ←
                     </button>
 
                     {/* Pages */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex shrink-0 items-center gap-1">
                         {pageNumbers.map((item, idx) => {
                             if (item === "...") {
                                 return (
-                                    <span key={idx} className="px-2 text-slate-400 text-sm">
+                                    <span key={idx} className="shrink-0 px-2 text-sm text-slate-400">
                                         …
                                     </span>
                                 );
@@ -126,7 +126,7 @@ export default function PaginationControls({
                                     key={item}
                                     onClick={() => onPageChange(item)}
                                     className={`
-                                    px-3 py-1.5 text-sm rounded-md transition
+                                        shrink-0 px-3 py-1.5 text-sm rounded-md transition
                                     ${isCurrent
                                             ? "bg-blue-600 text-white shadow-sm"
                                             : "text-slate-600 hover:bg-slate-100"}
@@ -142,7 +142,7 @@ export default function PaginationControls({
                     <button
                         onClick={handleNext}
                         disabled={currentPage === totalPages}
-                        className="rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 disabled:opacity-40"
+                        className="shrink-0 rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 disabled:opacity-40"
                     >
                         →
                     </button>
@@ -156,7 +156,7 @@ export default function PaginationControls({
                             placeholder="#"
                             onKeyDown={(e) => e.key === "Enter" && handleJump(e)}
                             onBlur={handleJump}
-                            className="w-14 rounded-md bg-slate-100 px-2 py-1 text-xs text-center outline-none focus:ring-1 focus:ring-blue-400"
+                            className="w-14 shrink-0 rounded-md bg-slate-100 px-2 py-1 text-xs text-center outline-none focus:ring-1 focus:ring-blue-400"
                         />
                     )}
 
@@ -165,7 +165,7 @@ export default function PaginationControls({
                         <select
                             value={pageSize}
                             onChange={handlePageSizeChange}
-                            className="rounded-md bg-slate-100 px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-400"
+                            className="shrink-0 rounded-md bg-slate-100 px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-400"
                         >
                             {pageSizeOptions.map((option) => (
                                 <option key={option} value={option}>

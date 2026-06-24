@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { getDropdownOptionsPolitica } from "../../services/politica";
 import GastoGeneral from "./FormGasto/GastoGeneral";
 import GastoMovilidad from "./FormGasto/GastoMovilidad";
@@ -13,10 +14,10 @@ import AnimatedList from "./AnimatedList";
 import { IconBroom } from "../../Icons/broom";
 import {
     ExportGastosToolbar,
-    ExportGastosSummary,
     ExportGastosBulkSelect,
 } from "./ExportGastosControls";
 import { IconEtiqueta } from "../../Icons/etiqueta";
+import Toast from "../shared/Toast";
 import {
     getWorkflowStatusBadgeClass,
 } from "../shared/workflowStatus";
@@ -40,6 +41,7 @@ export default function CrearGasto() {
     const [searchTerm, setSearchTerm] = useState("");
     const [isExportMode, setIsExportMode] = useState(false);
     const [selectedGastoIds, setSelectedGastoIds] = useState([]);
+    const [toastConfig, setToastConfig] = useState({ isVisible: false, message: "", type: "info" });
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(() => {
         const stored = Number(localStorage.getItem(PAGE_SIZE_STORAGE_KEY));
@@ -53,6 +55,7 @@ export default function CrearGasto() {
     const [previewGasto, setPreviewGasto] = useState(null);
     const [editGasto, setEditGasto] = useState(null);
     const [zoomSrc, setZoomSrc] = useState(null);
+    const modalRoot = typeof document !== "undefined" ? document.body : null;
     const isFetchingRef = useRef(false);
     const pendingForceRefreshRef = useRef(false);
     const lastFetchAtRef = useRef(0);
@@ -388,6 +391,17 @@ export default function CrearGasto() {
         return () => window.removeEventListener("keydown", onKeyDown);
     }, [previewGasto, showModal]);
 
+    useEffect(() => {
+        if (!showModal) return undefined;
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [showModal]);
+
     const handlePoliticaChange = (e) => {
         const politicaId = e.target.value;
         const politica = politicas.find((p) => String(p.id) === String(politicaId)) || null;
@@ -464,9 +478,22 @@ export default function CrearGasto() {
         setIsExportMode((prev) => {
             if (prev) {
                 setSelectedGastoIds([]);
+                setToastConfig((current) => ({ ...current, isVisible: false }));
+                return !prev;
             }
+
+            setToastConfig({
+                isVisible: true,
+                message: "Ya puedes marcar los gastos que deseas exportar.",
+                type: "info",
+            });
+
             return !prev;
         });
+    };
+
+    const closeToast = () => {
+        setToastConfig((prev) => ({ ...prev, isVisible: false }));
     };
 
     const toggleGastoSelection = (gasto) => {
@@ -633,7 +660,7 @@ export default function CrearGasto() {
         tipoGasto: "10%",
         total: "4%",
         moneda: "6%",
-        estado: "9%",
+        estado: "11%",
         fecha: "8%",
         dias: "4%",
         evidencia: "7%",
@@ -641,12 +668,9 @@ export default function CrearGasto() {
     };
 
     return (
-        <div className="mx-auto w-full space-y-1 px-2 sm:px-4 lg:px-6">
-            <div className="relative overflow-hidden rounded-2xl border border-blue-200/70 bg-white p-2 shadow-sm">
-
-                {/* DECORACIÓN SUTIL */}
-                <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-blue-200/30 blur-2xl"></div>
-
+        <>
+        <div className="mx-auto flex min-h-full w-full flex-col space-y-1 px-2 sm:px-4 lg:px-6">    
+            <div className="relative overflow-hidden rounded-2xl border bg-white border-blue-200/70 p-2 shadow-sm">
                 <div className="flex items-center justify-between gap-2">
 
                     {/* TEXTO */}
@@ -678,43 +702,40 @@ export default function CrearGasto() {
 
                 </div>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:p-2">
+            <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:p-2">
                 {/*  <div className="mb-3 flex flex-col gap-1 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
                     <h2 className="text-lg font-bold text-slate-800 sm:text-xl">Lista de gastos</h2>
                     <p className="text-xs text-slate-500 sm:text-sm">
                         Mostrando {currentFrom}-{currentTo} de {gastosFiltrados.length} (total {gastos.length})
                     </p>
                 </div> */}
-                <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-2">
+                <div className="mb-4 flex min-w-0 items-center gap-2">
                     <input
                         type="text"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Buscar por política, categoría, tipo de gasto, proveedor, total, fecha, estado o glosa"
-                        className="min-w-0 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                     />
 
                     <button
                         type="button"
                         title="Limpiar búsqueda"
                         onClick={() => setSearchTerm("")}
-                        className="shrink-0 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
+                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 cursor-pointer sm:h-auto sm:w-auto sm:px-3 sm:py-2.5"
                     >
                         <IconBroom className="h-5 w-5" />
                     </button>
 
-                    <ExportGastosToolbar
-                        isExportMode={isExportMode}
-                        selectedCount={selectedGastoIds.length}
-                        onExportClick={isExportMode ? exportSelectedGastos : toggleExportMode}
-                        onCancelClick={toggleExportMode}
-                    />
+                    <div className="flex shrink-0 items-center gap-2">
+                        <ExportGastosToolbar
+                            isExportMode={isExportMode}
+                            selectedCount={selectedGastoIds.length}
+                            onExportClick={isExportMode ? exportSelectedGastos : toggleExportMode}
+                            onCancelClick={toggleExportMode}
+                        />
+                    </div>
                 </div>
-
-                <ExportGastosSummary
-                    isExportMode={isExportMode}
-                    selectedCount={selectedGastoIds.length}
-                />
 
                 {loadingGastos && (
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600">
@@ -730,8 +751,8 @@ export default function CrearGasto() {
 
                 {!loadingGastos && gastosFiltrados.length > 0 && (
                     <>
-                        <div className="hidden overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm 2xl:block">
-                            <div className="max-h-[71vh] overflow-x-hidden overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                        <div className="hidden overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm 2xl:flex 2xl:max-h-[71vh] 2xl:flex-col">
+                            <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                                 <table className="w-full table-fixed border-separate border-spacing-0 bg-white">
                                     <colgroup>
                                         {isExportMode && <col style={{ width: desktopColumnWidths.seleccion }} />}
@@ -855,99 +876,115 @@ export default function CrearGasto() {
                                     </tbody>
                                 </table>
                             </div>
+                            <div className="shrink-0 border-t border-slate-200 bg-slate-50/80 px-2 py-2 sm:px-3">
+                                <PaginationControls
+                                    currentPage={currentPage}
+                                    totalPages={totalPages}
+                                    onPageChange={setCurrentPage}
+                                    totalItems={gastosFiltrados.length}
+                                    currentFrom={currentFrom}
+                                    currentTo={currentTo}
+                                    pageSize={pageSize}
+                                    onPageSizeChange={setPageSize}
+                                    pageSizeOptions={PAGE_SIZE_OPTIONS}
+                                />
+                            </div>
                         </div>
 
 
-                        <div className="2xl:hidden">
-                            <AnimatedList
-                                items={gastosPaginados}
-                                onItemSelect={(gasto) => handlePreview(gasto)}
-                                showGradients
-                                enableArrowNavigation
-                                displayScrollbar={false}
-                                className="w-full"
-                                getItemKey={(gasto, index) => String(gasto?.id || gasto?.idrend || index)}
-                                renderItem={(gasto) => (
-                                    <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
-                                        <div className="border-b border-slate-100 bg-white px-2.5 py-1 sm:px-4">
-                                            <div className="flex items-start justify-between gap-2">
-                                                <div className="min-w-0">
-                                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-black" title={gasto.proveedor || gasto.ruc}>
-                                                        {gasto.proveedor || gasto.rucEmisor || gasto.rucemisor || gasto.ruc}
-                                                    </p>
-                                                    <div className="mt-0.5 flex items-center gap-0.5">
-                                                        <IconEtiqueta className="h-3.5 w-3.5 shrink-0" />
-                                                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-700" title={gasto.categoria || "-"}>
-                                                            {gasto.categoria || "-"}
+                        <div className="2xl:hidden max-h-[71vh] overflow-hidden flex flex-col">
+                            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y">
+                                <AnimatedList
+                                    items={gastosPaginados}
+                                    onItemSelect={(gasto) => handlePreview(gasto)}
+                                    showGradients
+                                    enableArrowNavigation
+                                    displayScrollbar={false}
+                                    className="w-full"
+                                    getItemKey={(gasto, index) => String(gasto?.id || gasto?.idrend || index)}
+                                    renderItem={(gasto) => (
+                                        <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+                                            <div className="border-b border-slate-100 bg-white px-2.5 py-1 sm:px-4">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="min-w-0">
+                                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-black" title={gasto.proveedor || gasto.ruc}>
+                                                            {gasto.proveedor || gasto.rucEmisor || gasto.rucemisor || gasto.ruc}
                                                         </p>
+                                                        <div className="mt-0.5 flex items-center gap-0.5">
+                                                            <IconEtiqueta className="h-3.5 w-3.5 shrink-0" />
+                                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-700" title={gasto.categoria || "-"}>
+                                                                {gasto.categoria || "-"}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
+                                                        {isExportMode && (
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedGastoIds.includes(getGastoSelectionId(gasto))}
+                                                                onChange={() => toggleGastoSelection(gasto)}
+                                                                title="Seleccionar gasto"
+                                                                className="h-4 w-4 cursor-pointer accent-emerald-600"
+                                                            />
+                                                        )}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handlePreview(gasto)}
+                                                            title="Vista previa"
+                                                            aria-label="Vista previa"
+                                                            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100 cursor-pointer"
+                                                        >
+                                                            <IconEye className="h-3.5 w-3.5" />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleEdit(gasto)}
+                                                            title="Editar"
+                                                            aria-label="Editar"
+                                                            disabled={!isGastoEditable(gasto)}
+                                                            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+                                                        >
+                                                            <IconEdit className="h-3.5 w-3.5" />
+                                                        </button>
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
-                                                    {isExportMode && (
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={selectedGastoIds.includes(getGastoSelectionId(gasto))}
-                                                            onChange={() => toggleGastoSelection(gasto)}
-                                                            title="Seleccionar gasto"
-                                                            className="h-4 w-4 cursor-pointer accent-emerald-600"
-                                                        />
-                                                    )}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handlePreview(gasto)}
-                                                        title="Vista previa"
-                                                        aria-label="Vista previa"
-                                                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100 cursor-pointer"
-                                                    >
-                                                        <IconEye className="h-3.5 w-3.5" />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleEdit(gasto)}
-                                                        title="Editar"
-                                                        aria-label="Editar"
-                                                        disabled={!isGastoEditable(gasto)}
-                                                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
-                                                    >
-                                                        <IconEdit className="h-3.5 w-3.5" />
-                                                    </button>
+                                                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                                    <span className="inline-flex rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                                                        {gasto.fecha?.split("T")[0] || "-"}
+                                                    </span>
+                                                    <span className="inline-flex rounded-full border border-red-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-red-600">
+                                                        <p className="text-red-800">{getDiasTranscurridos(gasto)} Días</p>
+                                                    </span>
+
+                                                    <span className="inline-flex rounded-full border border-blue-400 bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-800">
+                                                        {gasto.total ?? "-"} {gasto.moneda || "-"}
+                                                    </span>
+
+                                                    <span className={`ml-auto inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${getEstadoStyle(gasto.estado)}`}>
+                                                        {normalizeEstadoLabel(gasto.estado || "Sin estado")}
+                                                    </span>
                                                 </div>
                                             </div>
-
-                                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                                                <span className="inline-flex rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-                                                    {gasto.fecha?.split("T")[0] || "-"}
-                                                </span>
-                                                <span className="inline-flex rounded-full border border-red-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-red-600">
-                                                    <p className="text-red-800">{getDiasTranscurridos(gasto)} Días</p>
-                                                </span>
-
-                                                <span className="inline-flex rounded-full border border-blue-400 bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-800">
-                                                    {gasto.total ?? "-"} {gasto.moneda || "-"}
-                                                </span>
-
-                                                <span className={`ml-auto inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${getEstadoStyle(gasto.estado)}`}>
-                                                    {normalizeEstadoLabel(gasto.estado || "Sin estado")}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </article>
-                                )}
-                            />
+                                        </article>
+                                    )}
+                                />
+                            </div>
+                            <div className="shrink-0 border-t border-slate-200 bg-slate-50/80 px-2 py-2 sm:px-3">
+                                <PaginationControls
+                                    currentPage={currentPage}
+                                    totalPages={totalPages}
+                                    onPageChange={setCurrentPage}
+                                    totalItems={gastosFiltrados.length}
+                                    currentFrom={currentFrom}
+                                    currentTo={currentTo}
+                                    pageSize={pageSize}
+                                    onPageSizeChange={setPageSize}
+                                    pageSizeOptions={PAGE_SIZE_OPTIONS}
+                                />
+                            </div>
                         </div>
-
-                        <PaginationControls
-                            currentPage={currentPage}
-                            totalPages={totalPages}
-                            onPageChange={setCurrentPage}
-                            totalItems={gastosFiltrados.length}
-                            currentFrom={currentFrom}
-                            currentTo={currentTo}
-                            pageSize={pageSize}
-                            onPageSizeChange={setPageSize}
-                            pageSizeOptions={PAGE_SIZE_OPTIONS}
-                        />
                     </>
                 )}
 
@@ -960,7 +997,7 @@ export default function CrearGasto() {
                 />
             </div>
 
-            {previewGasto && (
+            {previewGasto && modalRoot && createPortal((
                 <>
                     <button
                         type="button"
@@ -974,7 +1011,7 @@ export default function CrearGasto() {
                                 <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                                     <div className="flex flex-col gap-2 border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3">
                                         <div className="min-w-0">
-                                            {/* <p className="text-xs font-medium text-slate-400">Gasto</p> */}
+                                           
                                             <h3 className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-slate-800 sm:text-[15px]">
                                                 <span>Vista previa del Gasto</span>
 
@@ -1101,7 +1138,7 @@ export default function CrearGasto() {
                         </div>
                     </div>
                 </>
-            )}
+            ), modalRoot)}
             <ImageZoomLightbox src={zoomSrc} onClose={() => setZoomSrc(null)} />
 
             <EditarGastoModal
@@ -1119,25 +1156,25 @@ export default function CrearGasto() {
                         className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px]"
                         onClick={closeModal}
                     />
-                    <div className="fixed inset-0 z-50 flex justify-center items-end overflow-auto p-0 sm:items-start sm:p-8 overflow-x-hidden">
-                        <div className="flex w-full flex-col overflow-hidden border border-slate-200/80 bg-white shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] ring-1 ring-white/60 backdrop-blur-sm max-h-[95vh] sm:max-h-[88vh] rounded-t-2xl sm:rounded-[1.35rem] max-w-6xl p-3 sm:p-6">
-                            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-blue-100 bg-linear-to-r from-blue-50 via-white to-indigo-50 px-4 py-3 sm:px-6">
-                                <div className="flex min-w-0 items-center gap-3">
+                    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden p-0 sm:items-start sm:overflow-auto sm:p-8">
+                        <div className="flex h-dvh w-full max-w-6xl flex-col overflow-hidden border border-slate-200/80 bg-white shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] ring-1 ring-white/60 backdrop-blur-sm max-h-dvh sm:h-auto sm:max-h-[88vh] rounded-t-2xl sm:rounded-[1.35rem]">
+                            <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-2 border-b border-blue-100 bg-linear-to-r from-blue-50 via-white to-indigo-50 px-2.5 py-2.5 sm:gap-3 sm:px-6 sm:py-3">
+                                <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
                                     <span className="h-9 w-1 rounded-full bg-linear-to-b from-blue-600 via-blue-700 to-indigo-500" />
                                     <div className="min-w-0">
-                                        <h2 className="truncate text-base font-extrabold text-slate-800 sm:text-xl">Crear Nuevo Gasto</h2>
+                                        <h2 className="text-base font-extrabold leading-tight text-slate-800 sm:truncate sm:text-xl">Crear Nuevo Gasto</h2>
                                     </div>
                                 </div>
                                 <button
                                     type="button"
                                     onClick={closeModal}
-                                    className="cursor-pointer rounded-full border border-blue-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-900 sm:text-sm"
+                                    className="cursor-pointer shrink-0 rounded-full border border-blue-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-900 sm:px-3.5 sm:py-1.5 sm:text-sm"
                                 >
                                     Cerrar
                                 </button>
                             </div>
 
-                            <div className="min-h-0 flex-1 overflow-y-auto bg-linear-to-b from-white to-slate-50/70">
+                            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-linear-to-b from-white to-slate-50/70 p-3 pb-3 sm:p-6 sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
 
                                 {error && <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
@@ -1189,5 +1226,14 @@ export default function CrearGasto() {
 
 
         </div>
+
+        <Toast
+            message={toastConfig.message}
+            type={toastConfig.type}
+            isVisible={toastConfig.isVisible}
+            onClose={closeToast}
+            duration={2800}
+        />
+        </>
     );
 }

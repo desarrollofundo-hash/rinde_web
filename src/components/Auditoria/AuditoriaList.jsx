@@ -1,9 +1,10 @@
-import PaginationControls from "../Gasto/PaginationControls";
+import { useMemo, useState } from "react";
+import { IconBroom } from "../../Icons/broom";
 import { IconEye } from "../../Icons/preview";
+import PaginationControls from "../Gasto/PaginationControls";
 
 export default function AuditoriaList({
     auditorias = [],
-    paginatedAuditorias = [],
     isExportMode = false,
     selectedAuditoriaIds = [],
     getAuditoriaId,
@@ -13,9 +14,7 @@ export default function AuditoriaList({
     formatCurrency,
     getAuditoriaTotal,
     getAuditoriaCantidadGastos,
-    currentFrom,
     currentPage,
-    totalPages,
     onPageChange,
     pageSize,
     onPageSizeChange,
@@ -24,15 +23,87 @@ export default function AuditoriaList({
     onToggleAuditoriaSelection,
     onVerDetalles,
 }) {
+    const [searchTerm, setSearchTerm] = useState("");
+
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    const filteredAuditorias = useMemo(() => {
+        if (!normalizedSearch) return auditorias;
+
+        return auditorias.filter((auditoria) => {
+            const searchable = [
+                getAuditoriaId(auditoria),
+                auditoria?.idAd ?? auditoria?.id,
+                auditoria?.dni,
+                auditoria?.obs,
+                getEstadoLabel(auditoria),
+                formatDate(auditoria?.fecCre),
+                formatCurrency(getAuditoriaTotal(auditoria)),
+                getAuditoriaCantidadGastos(auditoria),
+            ]
+                .filter((value) => value !== undefined && value !== null)
+                .join(" ")
+                .toLowerCase();
+
+            return searchable.includes(normalizedSearch);
+        });
+    }, [
+        auditorias,
+        normalizedSearch,
+        getAuditoriaCantidadGastos,
+        getAuditoriaId,
+        getAuditoriaTotal,
+        getEstadoLabel,
+        formatCurrency,
+        formatDate,
+    ]);
+
+    const resolvedTotalPages = Math.max(1, Math.ceil(filteredAuditorias.length / pageSize));
+    const safePage = Math.min(currentPage, resolvedTotalPages);
+    const startIdx = (safePage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
+    const paginatedAuditorias = filteredAuditorias.slice(startIdx, endIdx);
+    const currentFrom = filteredAuditorias.length === 0 ? 0 : startIdx + 1;
+    const currentTo = Math.min(endIdx, filteredAuditorias.length);
+
     const areAllSelected =
-        auditorias.length > 0 &&
-        auditorias.every((a) => selectedAuditoriaIds.includes(getAuditoriaId(a)));
+        filteredAuditorias.length > 0 &&
+        filteredAuditorias.every((a) => selectedAuditoriaIds.includes(getAuditoriaId(a)));
 
     return (
         <section className="space-y-4">
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="hidden max-h-[70vh] overflow-auto md:block">
-                    <table className="w-full min-w-225 text-sm">
+                <div className="border-b border-slate-200 px-2 py-1.5 sm:px-3 sm:py-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                onPageChange(1);
+                            }}
+                            placeholder="Buscar por ID, DNI, estado, fecha, total u observación"
+                            className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        />
+
+                        <button
+                            type="button"
+                            title="Limpiar búsqueda"
+                            onClick={() => {
+                                setSearchTerm("");
+                                onPageChange(1);
+                            }}
+                            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 cursor-pointer sm:h-auto sm:w-auto sm:px-3 sm:py-2"
+                        >
+                            <IconBroom className="h-5 w-5" />
+                        </button>
+
+                    </div>
+                </div>
+
+                <div className="hidden max-h-[70dvh] overflow-hidden md:flex md:flex-col">
+                    <div className="min-h-0 flex-1 overflow-auto overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                        <table className="w-full min-w-225 text-sm">
                         <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur">
                             <tr>
                                 {isExportMode && (
@@ -41,7 +112,7 @@ export default function AuditoriaList({
                                             <input
                                                 type="checkbox"
                                                 checked={areAllSelected}
-                                                onChange={onToggleSelectAllAuditorias}
+                                                onChange={() => onToggleSelectAllAuditorias(filteredAuditorias)}
                                                 className="h-4 w-4 cursor-pointer rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                                                 aria-label="Seleccionar todas las auditorías"
                                             />
@@ -97,25 +168,25 @@ export default function AuditoriaList({
                                 </tr>
                             ))}
                         </tbody>
-                    </table>
+                        </table>
+                    </div>
+                    <div className="shrink-0 border-t border-slate-200 bg-slate-50/80 px-2 py-2 sm:px-3">
+                        <PaginationControls
+                            currentPage={currentPage}
+                            totalPages={resolvedTotalPages}
+                            onPageChange={onPageChange}
+                            totalItems={filteredAuditorias.length}
+                            currentFrom={currentFrom}
+                            currentTo={currentTo}
+                            pageSize={pageSize}
+                            onPageSizeChange={onPageSizeChange}
+                            pageSizeOptions={pageSizeOptions}
+                        />
+                    </div>
                 </div>
 
-                <div className="max-h-[70vh] space-y-2 overflow-y-auto p-2 md:hidden">
-                    {isExportMode && (
-                        <div className="mb-2 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
-                            <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-emerald-800">
-                                <input
-                                    type="checkbox"
-                                    checked={areAllSelected}
-                                    onChange={onToggleSelectAllAuditorias}
-                                    className="h-4 w-4 cursor-pointer rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                                    aria-label="Seleccionar todas las auditorías"
-                                />
-                                Seleccionar todos
-                            </label>
-                            <span className="text-[11px] font-semibold text-emerald-700">{selectedAuditoriaIds.length} seleccionado(s)</span>
-                        </div>
-                    )}
+                <div className="max-h-[70dvh] overflow-hidden md:hidden flex flex-col">
+                    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain touch-pan-y p-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                     {paginatedAuditorias.map((auditoria, index) => (
                         <article key={index} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5">
                             {isExportMode && (
@@ -153,20 +224,20 @@ export default function AuditoriaList({
                             </button>
                         </article>
                     ))}
-                </div>
-
-                <div className="border-t border-slate-200 bg-slate-50/80 px-2 py-2 sm:px-3">
-                    <PaginationControls
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        onPageChange={onPageChange}
-                        totalItems={auditorias.length}
-                        currentFrom={currentFrom}
-                        currentTo={(currentPage - 1) * pageSize + paginatedAuditorias.length}
-                        pageSize={pageSize}
-                        onPageSizeChange={onPageSizeChange}
-                        pageSizeOptions={pageSizeOptions}
-                    />
+                    </div>
+                    <div className="shrink-0 border-t border-slate-200 bg-slate-50/80 px-2 py-2 sm:px-3">
+                        <PaginationControls
+                            currentPage={currentPage}
+                            totalPages={resolvedTotalPages}
+                            onPageChange={onPageChange}
+                            totalItems={filteredAuditorias.length}
+                            currentFrom={currentFrom}
+                            currentTo={currentTo}
+                            pageSize={pageSize}
+                            onPageSizeChange={onPageSizeChange}
+                            pageSizeOptions={pageSizeOptions}
+                        />
+                    </div>
                 </div>
             </div>
         </section>

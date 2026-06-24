@@ -23,9 +23,11 @@ export function ExportGastosToolbar({
                     type="button"
                     title="Cancelar selección"
                     onClick={onCancelClick}
+                    aria-label="Cancelar selección"
                     className="shrink-0 whitespace-nowrap rounded-xl border border-rose-300 bg-white px-3 py-2.5 text-sm font-semibold text-rose-700 transition hover:border-rose-400 hover:bg-rose-50"
                 >
-                    Cancelar
+                    <span className="sm:hidden">X</span>
+                    <span className="hidden sm:inline">Cancelar</span>
                 </button>
             )}
         </>
@@ -55,7 +57,8 @@ export function ExportGastosBulkSelect({
     if (!isExportMode || !hasItems) return null;
 
     return (
-        <div className="mt-3 flex items-center justify-end">
+        <div></div>
+     /*    <div className="mt-3 flex items-center justify-end">
             <button
                 type="button"
                 onClick={onToggleSelectAllFiltered}
@@ -63,6 +66,6 @@ export function ExportGastosBulkSelect({
             >
                 {allFilteredSelected ? "Quitar selección de filtrados" : `Seleccionar filtrados (${filteredCount})`}
             </button>
-        </div>
+        </div> */
     );
 }

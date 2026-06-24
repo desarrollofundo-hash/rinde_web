@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
     getWorkflowStatusBadgeClass,
     getWorkflowStatusLabel,
     resolveWorkflowStatus,
 } from "../shared/workflowStatus";
 import { IconEye } from "../../Icons/preview";
+import { IconBroom } from "../../Icons/broom";
 import PaginationControls from "../Gasto/PaginationControls";
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -96,6 +97,7 @@ export default function RevisionList({
     onToggleSelectAll,
 }) {
     const [currentPage, setCurrentPage] = useState(1);
+    const [searchTerm, setSearchTerm] = useState("");
     const [pageSize, setPageSize] = useState(() => {
         const stored = Number(localStorage.getItem(PAGE_SIZE_STORAGE_KEY));
         return PAGE_SIZE_OPTIONS.includes(stored) ? stored : DEFAULT_PAGE_SIZE;
@@ -107,26 +109,75 @@ export default function RevisionList({
         setCurrentPage(1);
     };
 
-    const allRevisiones = Array.isArray(revisiones) ? revisiones : [];
-    const totalPages = Math.max(1, Math.ceil(allRevisiones.length / pageSize));
+    const allRevisiones = useMemo(() => (Array.isArray(revisiones) ? revisiones : []), [revisiones]);
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    const filteredRevisiones = useMemo(() => {
+        if (!normalizedSearch) return allRevisiones;
+
+        return allRevisiones.filter((revision) => {
+            const searchable = [
+                getRevisionId(revision),
+                revision?.idRev ?? revision?.id,
+                revision?.titulo ?? revision?.title,
+                getEstadoLabel(revision),
+                formatDate(revision?.fecCre),
+                formatCurrency(getRevisionTotal(revision)),
+                getRevisionCantidadGastos(revision),
+                revision?.gerencia,
+            ]
+                .filter((value) => value !== undefined && value !== null)
+                .join(" ")
+                .toLowerCase();
+
+            return searchable.includes(normalizedSearch);
+        });
+    }, [allRevisiones, normalizedSearch]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredRevisiones.length / pageSize));
     const safePage = Math.min(currentPage, totalPages);
     const startIdx = (safePage - 1) * pageSize;
     const endIdx = startIdx + pageSize;
-    const paginatedRevisiones = allRevisiones.slice(startIdx, endIdx);
-    const currentFrom = startIdx + 1;
-    const currentTo = Math.min(endIdx, allRevisiones.length);
+    const paginatedRevisiones = filteredRevisiones.slice(startIdx, endIdx);
+    const currentFrom = filteredRevisiones.length === 0 ? 0 : startIdx + 1;
+    const currentTo = Math.min(endIdx, filteredRevisiones.length);
 
     const areAllSelected =
-        allRevisiones.length > 0 &&
-        allRevisiones.every((r) => selectedRevisionIds.includes(String(getRevisionId(r))));
+        filteredRevisiones.length > 0 &&
+        filteredRevisiones.every((r) => selectedRevisionIds.includes(String(getRevisionId(r))));
 
     return (
         <section className="space-y-4">
-            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:p-2">
+                <div className="mb-4 flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setCurrentPage(1);
+                        }}
+                        placeholder="Buscar por titulo, estado, fecha o total"
+                        className="min-w-48 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    />
+
+                    <button
+                        type="button"
+                        title="Limpiar busqueda"
+                        onClick={() => {
+                            setSearchTerm("");
+                            setCurrentPage(1);
+                        }}
+                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 cursor-pointer sm:h-auto sm:w-auto sm:px-3 sm:py-2.5"
+                    >
+                        <IconBroom className="h-5 w-5" />
+                    </button>
+                </div>
 
                 {/* TABLA DESKTOP */}
-                <div className="hidden md:block max-h-[65vh] overflow-auto [scrollbar-width:thin]">
-                    <table className="w-full min-w-225 text-sm">
+                <div className="hidden max-h-[65dvh] overflow-hidden md:flex md:flex-col">
+                    <div className="min-h-0 flex-1 overflow-auto overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                        <table className="w-full min-w-225 text-sm">
                         <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur">
                             <tr>
                                 {isExportMode && (
@@ -191,28 +242,26 @@ export default function RevisionList({
                                 </tr>
                             ))}
                         </tbody>
-                    </table>
+                        </table>
+                    </div>
+                    <div className="shrink-0 border-t border-slate-200 bg-slate-50/80 px-2 py-2 sm:px-3">
+                        <PaginationControls
+                            currentPage={safePage}
+                            totalPages={totalPages}
+                            onPageChange={setCurrentPage}
+                            totalItems={filteredRevisiones.length}
+                            currentFrom={currentFrom}
+                            currentTo={currentTo}
+                            pageSize={pageSize}
+                            onPageSizeChange={handlePageSizeChange}
+                            pageSizeOptions={PAGE_SIZE_OPTIONS}
+                        />
+                    </div>
                 </div>
 
                 {/* TARJETAS MOBILE */}
-                <div className="space-y-2 p-2 md:hidden">
-                    {isExportMode && (
-                        <div className="mb-2 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
-                            <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-emerald-800">
-                                <input
-                                    type="checkbox"
-                                    checked={areAllSelected}
-                                    onChange={onToggleSelectAll}
-                                    className="h-4 w-4 cursor-pointer rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                                    aria-label="Seleccionar todas las revisiones"
-                                />
-                                Seleccionar todos
-                            </label>
-                            <span className="text-[11px] font-semibold text-emerald-700">
-                                {selectedRevisionIds.length} seleccionado(s)
-                            </span>
-                        </div>
-                    )}
+                <div className="max-h-[65dvh] overflow-hidden md:hidden flex flex-col">
+                    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain touch-pan-y p-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                     {paginatedRevisiones.map((revision, index) => (
                         <article key={index} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5">
                             {isExportMode && (
@@ -244,20 +293,22 @@ export default function RevisionList({
                             </button>
                         </article>
                     ))}
+                    </div>
+                    <div className="shrink-0 border-t border-slate-200 bg-slate-50/80 px-2 py-2 sm:px-3">
+                        <PaginationControls
+                            currentPage={safePage}
+                            totalPages={totalPages}
+                            onPageChange={setCurrentPage}
+                            totalItems={filteredRevisiones.length}
+                            currentFrom={currentFrom}
+                            currentTo={currentTo}
+                            pageSize={pageSize}
+                            onPageSizeChange={handlePageSizeChange}
+                            pageSizeOptions={PAGE_SIZE_OPTIONS}
+                        />
+                    </div>
                 </div>
             </div>
-
-            <PaginationControls
-                currentPage={safePage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-                totalItems={allRevisiones.length}
-                currentFrom={currentFrom}
-                currentTo={currentTo}
-                pageSize={pageSize}
-                onPageSizeChange={handlePageSizeChange}
-                pageSizeOptions={PAGE_SIZE_OPTIONS}
-            />
         </section>
     );
 }

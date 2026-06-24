@@ -865,7 +865,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
     const canCropImage = hasEvidencia && String(formData.evidencia?.type || "").startsWith("image/");
 
     return (
-        <form onSubmit={handleSubmit} className="mx-auto w-full max-w-6xl space-y-2 rounded-3xl  from-slate-50 via-white to-cyan-50 p-4 shadow-lg sm:p-6 lg:p-2">
+        <form onSubmit={handleSubmit} className="mx-auto w-full max-w-6xl space-y-2 rounded-3xl from-slate-50 via-white to-cyan-50 p-4 pb-16 shadow-lg sm:p-6 sm:pb-6 lg:p-2 lg:pb-2">
             {/*   <div className="rounded-2xl border border-slate-200 bg-white/80 p-2 shadow-sm sm:p-3">
                 <h2 className="text-2xl font-bold tracking-tight text-slate-800">Formulario de Gasto General</h2>
                 <p className="mt-1 text-sm text-slate-600">Completa los datos de rendición y guarda el comprobante.</p>
@@ -1201,11 +1201,11 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
             </section>
 
             {/* Botones */}
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="sticky bottom-0 z-10 flex flex-col-reverse gap-3 border-t border-slate-200 bg-white/95 px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur sm:static sm:flex-row sm:justify-end sm:border-0 sm:bg-transparent sm:p-0">
 
                 <button
                     type="submit"
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 cursor-pointer"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 cursor-pointer sm:w-auto"
                 >
                     <Save size={17} aria-hidden="true" />
                     Guardar

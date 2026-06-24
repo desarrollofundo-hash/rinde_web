@@ -1,7 +1,7 @@
 import API from "../api";
 
-const COMMON_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"];
-const IMAGE_EXTENSION_REGEX = /\.(png|jpg|jpeg|webp|gif|bmp)$/i;
+const COMMON_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".pdf", ".doc", ".docx", ".txt"];
+const IMAGE_EXTENSION_REGEX = /\.(png|jpg|jpeg|webp|gif|bmp|pdf|doc|docx|txt)$/i;
 const SUCCESS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MISS_CACHE_TTL_MS = 60 * 1000;
 const successCache = new Map();

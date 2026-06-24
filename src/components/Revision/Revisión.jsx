@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
     getListaRevision,
     getListaRevisionDetalle,
@@ -34,6 +35,9 @@ export default function Revision() {
     const [selectedRevisionIds, setSelectedRevisionIds] = useState([]);
     const [detalleRevision, setDetalleRevision] = useState(null);
     const [zoomSrc, setZoomSrc] = useState(null);
+    const [revisionModalOpenedAt, setRevisionModalOpenedAt] = useState(0);
+    const [detalleModalOpenedAt, setDetalleModalOpenedAt] = useState(0);
+    const scrollLockRef = useRef(null);
 
     const showToast = (message, type = "success") => {
         setToastConfig({ isVisible: true, message, type });
@@ -100,7 +104,7 @@ export default function Revision() {
                 match?.idarea,
             );
         } catch (e) {
-            
+
             return "0";
         }
     };
@@ -283,6 +287,7 @@ export default function Revision() {
     }, []);
 
     const handleVerDetalles = async (revision) => {
+        setRevisionModalOpenedAt(Date.now());
         setSelectedRevision(revision);
         setLoadingDetalles(true);
 
@@ -348,7 +353,15 @@ export default function Revision() {
                 };
             });
 
-            setDetalles(enrichedDetalles);
+            // Deduplicar por idrend para evitar gastos repetidos cuando la API retorna duplicados
+            const seenDetalle = new Set();
+            const detallesUnicos = enrichedDetalles.filter((d) => {
+                const id = getDetalleRendId(d);
+                if (!id || seenDetalle.has(id)) return false;
+                seenDetalle.add(id);
+                return true;
+            });
+            setDetalles(detallesUnicos);
         } catch (error) {
             /* console.error("❌ Error al obtener detalles:", error.message); */
             setDetalles([]);
@@ -362,6 +375,22 @@ export default function Revision() {
         setDetalles([]);
         setShowRejectModal(false);
         setRejectObs("");
+    };
+
+    const handleBackdropCloseRevision = () => {
+        if (Date.now() - revisionModalOpenedAt < 250) return;
+        handleCerrarDetalles();
+    };
+
+    const handleOpenDetalleRevision = (detalle) => {
+        setDetalleModalOpenedAt(Date.now());
+        setDetalleRevision(detalle);
+    };
+
+    const handleBackdropCloseDetalle = (e) => {
+        if (Date.now() - detalleModalOpenedAt < 250) return;
+        if (e.target !== e.currentTarget) return;
+        setDetalleRevision(null);
     };
 
     const normalizeEstadoActual = (revision) =>
@@ -602,9 +631,18 @@ export default function Revision() {
         setSelectedRevisionIds(allIds);
     };
 
+    const allRevisionIds = (Array.isArray(revisiones) ? revisiones : [])
+        .map((r) => String(getRevisionId(r)))
+        .filter((id) => id && id !== "0");
+
+    const areAllRevisionesSelected =
+        allRevisionIds.length > 0 &&
+        allRevisionIds.every((id) => selectedRevisionIds.includes(id));
+
     const cancelExportMode = () => {
         setIsExportMode(false);
         setSelectedRevisionIds([]);
+        setToastConfig((current) => ({ ...current, isVisible: false }));
     };
 
     const exportSelectedRevisionesExcel = async () => {
@@ -710,6 +748,7 @@ export default function Revision() {
         if (!isExportMode) {
             setIsExportMode(true);
             setSelectedRevisionIds([]);
+            showToast("Ya puedes marcar las revisiones que deseas exportar.", "info");
             return;
         }
 
@@ -720,13 +759,58 @@ export default function Revision() {
         fetchRevisiones();
     }, [fetchRevisiones]);
 
+    useEffect(() => {
+        if (!selectedRevision && !detalleRevision && !showRejectModal) return undefined;
+
+        const scrollY = window.scrollY || 0;
+        const previousBodyStyles = {
+            overflow: document.body.style.overflow,
+            position: document.body.style.position,
+            top: document.body.style.top,
+            left: document.body.style.left,
+            right: document.body.style.right,
+            width: document.body.style.width,
+        };
+        const previousHtmlOverflow = document.documentElement.style.overflow;
+
+        scrollLockRef.current = { scrollY, previousBodyStyles, previousHtmlOverflow };
+
+        document.body.style.overflow = "hidden";
+        document.body.style.position = "fixed";
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.left = "0";
+        document.body.style.right = "0";
+        document.body.style.width = "100%";
+        document.documentElement.style.overflow = "hidden";
+
+        return () => {
+            const lockState = scrollLockRef.current;
+            if (lockState) {
+                const { scrollY: savedScrollY, previousBodyStyles, previousHtmlOverflow } = lockState;
+                document.body.style.overflow = previousBodyStyles.overflow;
+                document.body.style.position = previousBodyStyles.position;
+                document.body.style.top = previousBodyStyles.top;
+                document.body.style.left = previousBodyStyles.left;
+                document.body.style.right = previousBodyStyles.right;
+                document.body.style.width = previousBodyStyles.width;
+                document.documentElement.style.overflow = previousHtmlOverflow;
+                window.scrollTo(0, savedScrollY);
+            }
+        };
+    }, [selectedRevision, detalleRevision, showRejectModal]);
+
+    const modalRoot = typeof document !== "undefined" ? document.body : null;
+
     return (
-        <div className="min-h-screen bg-linear-to-b from-slate-50 via-cyan-50/30 to-white p-4 sm:p-6">
-            <div className="mx-auto w-full max-w-7xl space-y-5">
+        <div className="w-full min-h-0 overflow-x-hidden overscroll-y-contain px-2 pt-0 pb-4 sm:px-4 sm:pt-0 sm:pb-6 lg:px-6">
+            <div className="mx-auto w-full space-y-1">
                 <RevisionHeader
                     isExportMode={isExportMode}
                     selectedCount={selectedRevisionIds.length}
+                    areAllSelected={areAllRevisionesSelected}
+                    hasItems={allRevisionIds.length > 0}
                     onExportClick={handleExportClick}
+                    onToggleSelectAll={toggleSelectAllRevisiones}
                     onCancelExport={cancelExportMode}
                 />
 
@@ -755,12 +839,12 @@ export default function Revision() {
                 )}
 
                 {/* MODAL DETALLE DE GASTO INDIVIDUAL */}
-                {detalleRevision && (
+                {detalleRevision && modalRoot && createPortal((
                     <div
-                        className="fixed inset-0 z-60 flex items-end bg-black/50 sm:items-center sm:p-4"
-                        onClick={(e) => { if (e.target === e.currentTarget) setDetalleRevision(null); }}
+                        className="fixed inset-0 z-60 flex items-end overflow-hidden bg-black/50 sm:items-center sm:p-4"
+                        onClick={handleBackdropCloseDetalle}
                     >
-                        <div className="relative z-10 flex w-full max-h-[85dvh] flex-col rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:mx-auto sm:max-w-md sm:rounded-2xl">
+                        <div className="relative z-10 flex w-full max-h-[90dvh] min-h-0 flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:mx-auto sm:max-w-md sm:rounded-2xl">
                             {/* Header */}
                             <div className="flex items-center justify-between rounded-t-3xl border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-4 py-2.5 sm:rounded-t-2xl">
                                 <div className="min-w-0">
@@ -793,7 +877,7 @@ export default function Revision() {
                             </div>
 
                             {/* Body */}
-                            <div className="max-h-[60vh] overflow-y-auto p-5 space-y-5">
+                            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 space-y-5">
                                 {/* Evidencia */}
                                 <div>
                                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Evidencia</p>
@@ -905,34 +989,25 @@ export default function Revision() {
                                 </dl>
                             </div>
 
-                            {/* Footer */}
-                            {/*  <div className="shrink-0 border-t bg-slate-50 px-5 py-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setDetalleRevision(null)}
-                                    className="w-full rounded-xl bg-slate-800 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 cursor-pointer  "
-                                >
-                                    Cerrar
-                                </button>
-                            </div> */}
+
                         </div>
                     </div>
-                )}
+                ), modalRoot)}
 
                 <ImageZoomLightbox src={zoomSrc} onClose={() => setZoomSrc(null)} />
 
                 {/* MODAL DE DETALLES */}
-                {selectedRevision && (
-                    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4">
+                {selectedRevision && modalRoot && createPortal((
+                    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/50 sm:items-center sm:p-4">
                         {/* Backdrop */}
                         <button
                             type="button"
                             aria-label="Cerrar modal"
                             className="absolute inset-0"
-                            onClick={handleCerrarDetalles}
+                            onClick={handleBackdropCloseRevision}
                         />
 
-                        <div className="relative z-10 flex w-full flex-col rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:max-w-2xl sm:rounded-2xl" style={{ maxHeight: "90dvh" }}>
+                        <div className="relative z-10 flex max-h-[90dvh] w-full min-h-0 flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:max-w-2xl sm:rounded-2xl">
                             {/* Header */}
                             <div className="sticky top-0 rounded-t-3xl border-b border-blue-100 bg-linear-to-r from-blue-50 via-white to-indigo-50 sm:rounded-t-2xl">
                                 {/* Título + botón cerrar */}
@@ -1000,7 +1075,7 @@ export default function Revision() {
                             </div>
 
                             {/* Body */}
-                            <div className="flex-1 overflow-y-auto">
+                            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                                 {loadingDetalles ? (
                                     <div className="flex flex-col items-center justify-center py-12 gap-3">
                                         <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-cyan-600" />
@@ -1016,7 +1091,7 @@ export default function Revision() {
                                                 <button
                                                     key={idx}
                                                     type="button"
-                                                    onClick={() => setDetalleRevision(detalle)}
+                                                    onClick={() => handleOpenDetalleRevision(detalle)}
                                                     className="flex w-full items-center gap-3 bg-white px-3 py-2.5 text-left transition hover:bg-slate-50 cursor-pointer"
                                                 >
                                                     <div className="min-w-0 flex-1">
@@ -1122,7 +1197,7 @@ export default function Revision() {
                             </div>
                         )}
                     </div>
-                )}
+                ), modalRoot)}
 
                 <Toast
                     message={toastConfig.message}

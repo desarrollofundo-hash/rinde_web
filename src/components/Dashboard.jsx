@@ -204,24 +204,25 @@ export default function Dashboard() {
     };
 
     return (
-        <div className="relative flex h-screen max-h-screen overflow-hidden bg-[#f4f8ff]">
+        <div className="relative flex h-dvh max-h-dvh overflow-hidden overscroll-none bg-[#f4f8ff]">
             <BackgroundRippleEffect rows={7} cols={10} className="pointer-events-none opacity-90" />
             <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-slate-50/70 via-blue-50/55 to-cyan-50/40" />
             <div className="pointer-events-none absolute -top-28 -right-30 h-72 w-72 rounded-full bg-sky-300/35 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-30 -left-30 h-72 w-72 rounded-full bg-blue-300/30 blur-3xl" />
 
-            <div className="fixed left-0 right-0 top-0 z-30 border-b border-blue-200/60 bg-white/95 px-3 py-3 shadow-sm backdrop-blur-xl lg:hidden">
-                <div className="flex items-center justify-between gap-2">
-                    <button
-                        type="button"
-                        onClick={() => setIsMobileMenuOpen(true)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 shadow-xs"
-                    >
-                        <span className="inline-block h-2 w-2 rounded-full bg-blue-700" />
-                        Menú
-                    </button>
-
-                </div>
+            <div className="fixed left-3 top-[calc(env(safe-area-inset-top)+0.35rem)] z-30 lg:hidden">
+                <button
+                    type="button"
+                    aria-label="Abrir menú"
+                    onClick={() => setIsMobileMenuOpen(true)}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-blue-200/80 bg-white/88 text-blue-800 shadow-lg shadow-blue-200/40 backdrop-blur-xl"
+                >
+                    <span className="inline-flex flex-col gap-1" aria-hidden="true">
+                        <span className="block h-0.5 w-5 rounded-full bg-blue-700" />
+                        <span className="block h-0.5 w-5 rounded-full bg-blue-700" />
+                        <span className="block h-0.5 w-5 rounded-full bg-blue-700" />
+                    </span>
+                </button>
             </div>
 
             {isMobileMenuOpen && (
@@ -407,8 +408,8 @@ export default function Dashboard() {
                 </div>
             </aside >
 
-            <main className="relative z-10 min-w-0 flex-1 overflow-x-hidden overflow-y-auto pt-[calc(3.75rem+env(safe-area-inset-top))] lg:px-3 lg:py-3 lg:pt-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                <div className="w-full rounded-3xl border border-white/60 bg-white/45 shadow-[0_8px_36px_rgba(15,23,42,0.08)] backdrop-blur-md" key={String(empresa?.id ?? empresa?.ruc ?? "no-company")}>
+            <main className="relative z-10 box-border w-0 min-w-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-[#f3f6fb] px-2 pb-2 pt-[calc(env(safe-area-inset-top)+4rem)] sm:px-3 sm:pb-3 lg:px-3 lg:py-3 lg:pt-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                <div className="w-full max-w-full overflow-hidden" key={String(empresa?.id ?? empresa?.ruc ?? "no-company")}>
                     {renderContent()}
                 </div>
             </main>

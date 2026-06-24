@@ -1,7 +1,6 @@
 import axios from "axios";
 
 const API = axios.create({
-    /* baseURL: import.meta.env.VITE_PROD_BASE_URL, */
     baseURL: import.meta.env.VITE_QA_BASE_URL,
     timeout: 30000,
     headers: {
@@ -20,5 +19,23 @@ API.interceptors.request.use((config) => {
 
     return config;
 });
+
+// Interceptor para capturar errores
+API.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        console.error("Error en la solicitud HTTPS:", error);
+        return Promise.reject(error);
+    }
+);
+
+// Interceptor para registrar detalles adicionales de errores
+API.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        console.error("Detalles del error:", error.toJSON());
+        return Promise.reject(error);
+    }
+);
 
 export default API;
