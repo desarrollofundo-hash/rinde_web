@@ -42,7 +42,7 @@ export async function saveRendicionRevision(revisionData) {
             try {
                 data = JSON.parse(data);
             } catch (e) {
-                console.error("❌ Error parseando JSON:", e);
+               /*  console.error("❌ Error parseando JSON:", e); */
                 throw new Error("Respuesta inválida del servidor");
             }
         }

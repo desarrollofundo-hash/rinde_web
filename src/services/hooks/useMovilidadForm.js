@@ -419,7 +419,7 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
         try {
             await loadCategorias(politicaNombre);
         } catch (error) {
-            console.error("Error cargando categorias por politica:", error);
+          /*   console.error("Error cargando categorias por politica:", error); */
             setCategorias([]);
         }
     }, [loadCategorias, politicas]);
@@ -449,7 +449,7 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
         });
 
         Promise.resolve().then(() => loadCategorias(politicaNombre)).catch((error) => {
-            console.error("Error cargando categorias por politica seleccionada en movilidad:", error);
+        /*     console.error("Error cargando categorias por politica seleccionada en movilidad:", error); */
             setCategorias([]);
         });
     }, [loadCategorias, politicas, selectedPolitica]);
@@ -504,7 +504,7 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
                     }));
                 }
             } catch (error) {
-                console.error("No se pudo autocompletar razon social por RUC en movilidad:", error);
+             /*    console.error("No se pudo autocompletar razon social por RUC en movilidad:", error); */
             }
         }
 
@@ -534,7 +534,7 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
                 }));
             }
         } catch (error) {
-            console.error("Error validando RUC emisor en movilidad:", error);
+           /*  console.error("Error validando RUC emisor en movilidad:", error); */
         }
     }, [formData.rucEmisor]);
 
@@ -609,7 +609,7 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
             { label: "Fecha", value: formData.fecha },
             { label: "Total", value: formData.total },
             { label: "Moneda", value: formData.moneda },
-            { label: "Glosa o Nota", value: formData.glosa },
+            { label: "Glosa", value: formData.glosa },
         ];
 
         const requiredPlanillaFields = [
@@ -706,8 +706,8 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
             });
             return true;
         } catch (error) {
-            console.error("Error guardando movilidad:", error);
-            // Extraer mensaje del servidor si está disponible
+/*             console.error("Error guardando movilidad:", error);
+ */            // Extraer mensaje del servidor si está disponible
             let errorMsg = "No se pudo guardar el gasto";
 
             if (error?.message) {
@@ -773,7 +773,7 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
 
                 await Promise.all([categoriasPromise, centrosCostoPromise]);
             } catch (error) {
-                console.error("Error cargando dropdowns de movilidad:", error);
+               /*  console.error("Error cargando dropdowns de movilidad:", error); */
             }
         };
 

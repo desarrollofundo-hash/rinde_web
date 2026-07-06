@@ -447,7 +447,7 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
             setNewEvidenciaPreviewUrl(newPreview);
             setIsEvidenciaCropMode(false);
         } catch (cropError) {
-            console.error("❌ Error recortando imagen:", cropError);
+          /*   console.error("❌ Error recortando imagen:", cropError); */
             alert("No se pudo recortar la imagen");
         }
     };
@@ -692,8 +692,8 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
 
             onClose();
         } catch (submitError) {
-            console.error("❌ Error al guardar:", submitError);
-            setError(submitError?.message || "No se pudo actualizar el gasto");
+          /*   console.error("❌ Error al guardar:", submitError);
+            setError(submitError?.message || "No se pudo actualizar el gasto"); */
         } finally {
             setIsSaving(false);
         }

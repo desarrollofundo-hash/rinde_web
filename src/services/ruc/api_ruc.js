@@ -62,7 +62,7 @@ export async function getApiRuc({ ruc }) {
             throw new Error(`Error del servidor: ${response.status}`);
         }
     } catch (error) {
-        console.error("❌ Error consultando RUC:", error);
+/*         console.error("❌ Error consultando RUC:", error); */
 
         // 🔥 manejo de errores tipo Flutter
         if (error.response) {
@@ -76,7 +76,7 @@ export async function getApiRuc({ ruc }) {
                 else if (data?.error) serverMessage = data.error;
                 else if (typeof data === "string") serverMessage = data;
             } catch (e) {
-                console.error("❌ Error procesando respuesta del servidor:", e);
+              /*   console.error("❌ Error procesando respuesta del servidor:", e); */
             }
 
             const rawBody = JSON.stringify(error.response.data || "");

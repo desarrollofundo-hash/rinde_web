@@ -34,7 +34,7 @@ export async function getListaAuditoria({
             try {
                 data = JSON.parse(data);
             } catch (e) {
-                console.error("❌ Error parseando JSON:", e);
+               /*  console.error("❌ Error parseando JSON:", e); */
                 throw new Error("Respuesta inválida del servidor");
             }
         }
@@ -99,8 +99,8 @@ export async function getListaAuditoria({
     } catch (error) {
         console.error("❌ ERROR en getListaAuditoria:", error?.message);
         if (error?.response) {
-            console.error("📄 Response status:", error.response.status);
-            console.error("📄 Response body:", error.response.data);
+           /*  console.error("📄 Response status:", error.response.status);
+            console.error("📄 Response body:", error.response.data); */
         }
         throw error;
     }

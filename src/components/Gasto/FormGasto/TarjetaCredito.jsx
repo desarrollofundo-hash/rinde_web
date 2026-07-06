@@ -142,7 +142,7 @@ export default function TarjetaCredito() {
             <div className="mt-4">
                 <textarea
                     name="glosa"
-                    placeholder="Glosa o Nota"
+                    placeholder="Glosa"
                     className="border p-2 rounded w-full"
                     onChange={handleChange}
                 />

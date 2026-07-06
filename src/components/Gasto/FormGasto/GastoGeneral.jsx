@@ -621,8 +621,8 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
 
 
         if (!userId) {
-            console.error("❌ No se ha encontrado el usuario en el localStorage o no tiene ID.");
-            showToast("Error de autenticación. Por favor, inicie sesión de nuevo.", "error");
+        /*     console.error("❌ No se ha encontrado el usuario en el localStorage o no tiene ID.");
+            showToast("Error de autenticación. Por favor, inicie sesión de nuevo.", "error"); */
             return;
         }
 
@@ -1189,7 +1189,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
 
             {/* Glosa */}
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <label className={`${labelClass} mb-1 block`}>Glosa o Nota</label>
+                <label className={`${labelClass} mb-1 block`}>Glosa:</label>
                 <textarea
                     name="glosa"
                     type="text"

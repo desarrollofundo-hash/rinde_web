@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { getListaAuditoria, getListaAuditoriaDetalle } from "../../services";
 import { GetCompany } from "../../services/company";
 import {
+  saveRendicionAuditoria,
+  saveRendicionAuditoriaDetalle,
   saveRendicionRevision,
   saveRendicionRevisionDetalle,
 } from "../../services";
@@ -15,6 +17,8 @@ import {
 import Toast from "../shared/Toast";
 import { downloadExcelXml } from "../../lib/exportExcel";
 import { IconEye } from "../../Icons/preview";
+import { IconEdit } from "../../Icons/edit";
+import { IconSend } from "../../Icons/send";
 import EvidenciaImagen from "../Gasto/EvidenciaImagen";
 import ImageZoomLightbox from "../Gasto/ImageZoomLightbox";
 import AuditoriaHeader from "./AuditoriaHeader";
@@ -48,6 +52,14 @@ export default function Auditoria() {
     open: false,
     detalle: null,
   });
+  const [isEditAuditoriaOpen, setIsEditAuditoriaOpen] = useState(false);
+  const [detallesSeleccionadosEdit, setDetallesSeleccionadosEdit] = useState(
+    {},
+  );
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [rejectComentario, setRejectComentario] = useState("");
+  const [rejectError, setRejectError] = useState("");
+  const [rejectingDetalles, setRejectingDetalles] = useState(false);
   const [zoomSrc, setZoomSrc] = useState(null);
   const modalRoot = typeof document !== "undefined" ? document.body : null;
 
@@ -76,7 +88,7 @@ export default function Auditoria() {
     Number(userData?.id ?? userData?.usecod ?? userData?.idUser ?? 0);
 
   const resolveUserCode = (userData) =>
-    String(userData?.usecod ?? userData?.id ?? userData?.idUser ?? "");
+    String(userData?.usecod  ?? "");
 
   const resolveCompanyRuc = (companyData) =>
     String(companyData?.ruc ?? companyData?.RUC ?? companyData?.numRuc ?? "");
@@ -143,6 +155,17 @@ export default function Auditoria() {
         detalle?.idrend,
         detalle?.idRendicion,
         detalle?.idrendicion,
+        detalle?.id,
+      ),
+    );
+
+  const getDetalleEditId = (detalle) =>
+    String(
+      firstDefined(
+        detalle?.idInfDet,
+        detalle?.idinfdet,
+        detalle?.idRend,
+        detalle?.idrend,
         detalle?.id,
       ),
     );
@@ -360,8 +383,8 @@ export default function Auditoria() {
       });
 
       setAuditorias(uniqueAuditorias);
-    } catch (error) {
-      console.error("❌ Error:", error.message);
+    } catch {
+      /* console.error("❌ Error:", error.message); */
       setAuditorias([]);
     } finally {
       setLoading(false);
@@ -457,8 +480,8 @@ export default function Auditoria() {
         return true;
       });
       setDetalles(detallesUnicos);
-    } catch (error) {
-      console.error("❌ Error al obtener detalles:", error.message);
+    } catch {
+      /* console.error("❌ Error al obtener detalles:", error.message); */
       setDetalles([]);
     } finally {
       setLoadingDetalles(false);
@@ -468,6 +491,341 @@ export default function Auditoria() {
   const handleCerrarDetalles = () => {
     setSelectedAuditoria(null);
     setDetalles([]);
+    setIsEditAuditoriaOpen(false);
+    setDetallesSeleccionadosEdit({});
+    setIsRejectDialogOpen(false);
+    setRejectComentario("");
+    setRejectError("");
+  };
+
+  const handleAbrirEditarAuditoria = () => {
+    const initialSelection = {};
+
+    (Array.isArray(detalles) ? detalles : []).forEach((detalle) => {
+      const id = getDetalleEditId(detalle);
+      if (id) initialSelection[id] = false;
+    });
+
+    setDetallesSeleccionadosEdit(initialSelection);
+    setIsEditAuditoriaOpen(true);
+  };
+
+  const handleCerrarEditarAuditoria = () => {
+    setIsEditAuditoriaOpen(false);
+    setDetallesSeleccionadosEdit({});
+    setIsRejectDialogOpen(false);
+    setRejectComentario("");
+    setRejectError("");
+  };
+
+  const toggleDetalleSeleccionEdit = (detalle) => {
+    const id = getDetalleEditId(detalle);
+    if (!id) return;
+
+    setDetallesSeleccionadosEdit((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const detalleIdsEdit = (Array.isArray(detalles) ? detalles : [])
+    .map((detalle) => getDetalleEditId(detalle))
+    .filter(Boolean);
+
+  const todosMarcadosEdit =
+    detalleIdsEdit.length > 0 &&
+    detalleIdsEdit.every((id) => detallesSeleccionadosEdit[id] === true);
+
+  const toggleTodosDetallesEdit = () => {
+    if (detalleIdsEdit.length === 0) return;
+
+    const nextValue = !todosMarcadosEdit;
+    const next = {};
+    detalleIdsEdit.forEach((id) => {
+      next[id] = nextValue;
+    });
+    setDetallesSeleccionadosEdit(next);
+  };
+
+  const detallesSeleccionadosCount = detalleIdsEdit.reduce(
+    (acc, id) => acc + (detallesSeleccionadosEdit[id] ? 1 : 0),
+    0,
+  );
+
+  const totalSeleccionadoEdit = (Array.isArray(detalles) ? detalles : []).reduce(
+    (acc, detalle) => {
+      const id = getDetalleEditId(detalle);
+      if (!id || !detallesSeleccionadosEdit[id]) return acc;
+      return acc + getDetalleMonto(detalle);
+    },
+    0,
+  );
+
+  const handleAbrirMotivoRechazo = () => {
+    if (detallesSeleccionadosCount <= 0) return;
+    setRejectComentario("");
+    setRejectError("");
+    setIsRejectDialogOpen(true);
+  };
+
+  const handleRechazarSeleccionados = async () => {
+    const comentario = rejectComentario.trim();
+
+    if (comentario.length < 5) {
+      setRejectError("Debe escribir al menos 5 caracteres");
+      return;
+    }
+
+    const selectedItems = (Array.isArray(detalles) ? detalles : []).filter(
+      (detalle) => {
+        const id = getDetalleEditId(detalle);
+        return id && detallesSeleccionadosEdit[id] === true;
+      },
+    );
+
+    if (selectedItems.length === 0) {
+      setRejectError("Selecciona al menos un gasto para rechazar");
+      return;
+    }
+
+    try {
+      setRejectingDetalles(true);
+
+      const userRaw = localStorage.getItem("user");
+      const companyRaw = localStorage.getItem("company");
+      const userData = userRaw ? JSON.parse(userRaw) : null;
+      const companyData = companyRaw ? JSON.parse(companyRaw) : null;
+      const fallbackUserId = Number(
+        resolveUserCode(userData) || resolveUserId(userData) || 0,
+      );
+      const fallbackRuc = resolveCompanyRuc(companyData);
+      const nowIso = new Date().toISOString();
+
+      for (const gasto of selectedItems) {
+        const payloadDetalle = {
+          idAd: Number(
+            firstDefined(
+              gasto?.idAd,
+              gasto?.idad,
+              selectedAuditoria?.idAd,
+              selectedAuditoria?.idad,
+              0,
+            ),
+          ),
+          idInf: Number(
+            firstDefined(
+              gasto?.idInf,
+              gasto?.idinf,
+              selectedAuditoria?.idInf,
+              selectedAuditoria?.idinf,
+              selectedAuditoria?.idInforme,
+              0,
+            ),
+          ),
+          idInfDet: Number(
+            firstDefined(
+              gasto?.idInfDet,
+              gasto?.idinfdet,
+              gasto?.idAdDet,
+              gasto?.idaddet,
+              0,
+            ),
+          ),
+          idRend: Number(firstDefined(gasto?.idRend, gasto?.idrend, 0)),
+          idUser: Number(
+            firstDefined(
+              gasto?.idUser,
+              gasto?.iduser,
+              selectedAuditoria?.idUser,
+              fallbackUserId,
+            ),
+          ),
+          dni: String(
+            firstDefined(
+              gasto?.dni,
+              selectedAuditoria?.dni,
+              userData?.dni,
+              userData?.usedoc,
+              "",
+            ),
+          ),
+          ruc: String(
+            firstDefined(
+              gasto?.ruc,
+              gasto?.RUC,
+              selectedAuditoria?.ruc,
+              selectedAuditoria?.RUC,
+              fallbackRuc,
+            ),
+          ),
+          obs: comentario,
+          estadoActual: "RECHAZADO",
+          estado: String(firstDefined(gasto?.estado, "S")),
+          fecCre: String(firstDefined(gasto?.fecCre, gasto?.feccre, nowIso)),
+          useReg: Number(firstDefined(gasto?.useReg, gasto?.usereg, 0)),
+          hostname: "WEB",
+          fecEdit: nowIso,
+          useEdit: Number(
+            firstDefined(gasto?.idUser, gasto?.iduser, fallbackUserId, 0),
+          ),
+          useElim: 0,
+        };
+
+        const ok = await saveRendicionAuditoriaDetalle(payloadDetalle);
+        if (ok !== true) {
+          throw new Error("No se pudo guardar el rechazo de uno o más gastos");
+        }
+      }
+
+      const selectedIds = new Set(
+        selectedItems.map((detalle) => getDetalleEditId(detalle)),
+      );
+
+      const detallesActualizados = (Array.isArray(detalles) ? detalles : []).map(
+        (detalle) => {
+          const id = getDetalleEditId(detalle);
+          if (!id || !selectedIds.has(id)) return detalle;
+          return {
+            ...detalle,
+            estadoActual: "RECHAZADO",
+            obs: comentario,
+          };
+        },
+      );
+
+      setDetalles((prev) =>
+        prev.map((detalle) => {
+          const id = getDetalleEditId(detalle);
+          if (!id || !selectedIds.has(id)) return detalle;
+          return {
+            ...detalle,
+            estadoActual: "RECHAZADO",
+            obs: comentario,
+          };
+        }),
+      );
+
+      setDetalleModal((prev) => {
+        if (!prev?.open || !prev?.detalle) return prev;
+        const currentId = getDetalleEditId(prev.detalle);
+        if (!currentId || !selectedIds.has(currentId)) return prev;
+        return {
+          ...prev,
+          detalle: {
+            ...prev.detalle,
+            estadoActual: "RECHAZADO",
+            obs: comentario,
+          },
+        };
+      });
+
+      const todosDetallesRechazados =
+        detallesActualizados.length > 0 &&
+        detallesActualizados.every(
+          (detalle) => normalizeEstadoActual(detalle) === "RECHAZADO",
+        );
+
+      if (todosDetallesRechazados && selectedAuditoria) {
+        const payloadAuditoria = {
+          idAd: Number(
+            firstDefined(
+              selectedAuditoria?.idAd,
+              selectedAuditoria?.idad,
+              selectedAuditoria?.id,
+              0,
+            ),
+          ),
+          idInf: Number(
+            firstDefined(
+              selectedAuditoria?.idInf,
+              selectedAuditoria?.idinf,
+              selectedAuditoria?.idInforme,
+              0,
+            ),
+          ),
+          idUser: Number(
+            firstDefined(
+              selectedAuditoria?.idUser,
+              selectedAuditoria?.iduser,
+              fallbackUserId,
+            ),
+          ),
+          dni: String(
+            firstDefined(
+              selectedAuditoria?.dni,
+              userData?.dni,
+              userData?.usedoc,
+              "",
+            ),
+          ),
+          ruc: String(
+            firstDefined(
+              selectedAuditoria?.ruc,
+              selectedAuditoria?.RUC,
+              fallbackRuc,
+            ),
+          ),
+          area: String(firstDefined(selectedAuditoria?.area, "0")),
+          obs: String(firstDefined(selectedAuditoria?.obs, comentario)),
+          estadoActual: "RECHAZADO",
+          estado: String(firstDefined(selectedAuditoria?.estado, "S")),
+          fecCre: String(
+            firstDefined(
+              selectedAuditoria?.fecCre,
+              selectedAuditoria?.feccre,
+              nowIso,
+            ),
+          ),
+          useReg: Number(
+            firstDefined(
+              selectedAuditoria?.useReg,
+              selectedAuditoria?.usereg,
+              fallbackUserId,
+            ),
+          ),
+          hostname: "WEB",
+          fecEdit: nowIso,
+          useEdit: fallbackUserId,
+          useElim: 0,
+        };
+
+        try {
+          await saveRendicionAuditoria(payloadAuditoria);
+        } catch {
+          showToast(
+            "Los detalles se rechazaron, pero no se pudo actualizar la cabecera de auditoría",
+            "warning",
+          );
+        }
+
+        setSelectedAuditoria((prev) =>
+          prev ? { ...prev, estadoActual: "RECHAZADO", estado: "S" } : prev,
+        );
+
+        const selectedAuditoriaId = getAuditoriaId(selectedAuditoria);
+        if (selectedAuditoriaId) {
+          setAuditorias((prev) =>
+            prev.map((auditoria) =>
+              getAuditoriaId(auditoria) === selectedAuditoriaId
+                ? { ...auditoria, estadoActual: "RECHAZADO", estado: "S" }
+                : auditoria,
+            ),
+          );
+        }
+      }
+
+      showToast(`Gastos rechazados (${selectedItems.length})`, "success");
+      setIsRejectDialogOpen(false);
+      handleCerrarEditarAuditoria();
+      window.dispatchEvent(new CustomEvent("auditoria:updated"));
+    } catch (error) {
+      showToast(
+        `Error al rechazar gastos: ${error?.message || "Inténtalo nuevamente"}`,
+        "error",
+      );
+    } finally {
+      setRejectingDetalles(false);
+    }
   };
 
   const normalizeEstadoActual = (auditoria) =>
@@ -518,7 +876,8 @@ export default function Auditoria() {
 
       const idUser = Number(
         resolveUserCode(userData) || resolveUserId(userData) || 0,
-      );
+        );
+        
       const ruc = resolveCompanyRuc(companyData);
       const nowIso = new Date().toISOString();
       const idAd = Number(
@@ -600,7 +959,8 @@ export default function Auditoria() {
           useReg: idUser,
           hostname: "WEB",
           fecEdit: nowIso,
-          useEdit: idUser,
+          /* useEdit: idUser, */
+          useEdit: 0,
           useElim: 0,
         };
 
@@ -624,12 +984,12 @@ export default function Auditoria() {
       showToast(`Enviado a revisión correctamente. ID: ${idRev}`, "success");
       handleCerrarDetalles();
       window.dispatchEvent(new CustomEvent("revision:updated"));
-    } catch (error) {
-      console.error("❌ Error enviando a revisión:", error);
+    } catch {
+      /* console.error("❌ Error enviando a revisión:", error);
       showToast(
         `Error al enviar a revisión: ${error?.message || "Inténtalo nuevamente"}`,
         "error",
-      );
+      ); */
     } finally {
       setSendingRevision(false);
     }
@@ -1376,7 +1736,8 @@ export default function Auditoria() {
                             ),
                           },
                           {
-                            label: "Observación",
+                            /*  label: "Observación", */
+                            label: "Glosa",
                             value: firstDefined(
                               detalleModal.detalle?.obs,
                               detalleModal.detalle?.observacion,
@@ -1645,24 +2006,233 @@ export default function Auditoria() {
                   )}
                 </div>
 
-                <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 text-right space-x-2">
+                <div className="border-t border-slate-200 bg-slate-50 px-4 py-4 sm:px-6">
+                  <div className="flex flex-row gap-2 sm:justify-end">
+                    <button
+                      onClick={handleEnviarRevision}
+                      disabled={
+                        sendingRevision ||
+                        isEnvioRevisionBloqueado(selectedAuditoria)
+                      }
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white transition hover:bg-indigo-800 disabled:bg-slate-400 sm:flex-none sm:w-auto sm:px-6 cursor-pointer"
+                    >
+                      <IconSend className="h-4 w-4 shrink-0" />
+                      <span className="hidden sm:inline">
+                        {sendingRevision
+                          ? "Enviando..."
+                          : getEnviarRevisionLabel(selectedAuditoria)}
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={handleAbrirEditarAuditoria}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 sm:flex-none sm:w-auto sm:px-6 cursor-pointer"
+                    >
+                      <IconEdit className="h-4 w-4 shrink-0" />
+                      <span className="hidden sm:inline">Editar</span>
+                    </button>
+
+                    {/*   <button
+                      onClick={handleCerrarDetalles}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 sm:flex-none sm:w-auto sm:px-5 cursor-pointer"
+                    >
+                      <span className="hidden sm:inline">Cerrar</span>
+                      <span className="sm:hidden">✕</span>
+                    </button> */}
+                  </div>
+                </div>
+              </div>
+            </div>,
+            modalRoot,
+          )}
+
+        {isEditAuditoriaOpen &&
+          selectedAuditoria &&
+          modalRoot &&
+          createPortal(
+            <div className="fixed inset-0 z-70 flex items-center justify-center bg-black/60 p-4">
+              <div className="flex max-h-[86dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3 sm:px-6">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-800 sm:text-lg">
+                      Editar auditoría
+                    </h2>
+                    <p className="text-xs text-slate-600 sm:text-sm">
+                      Política:{" "}
+                      {firstDefined(
+                        selectedAuditoria?.politica,
+                        selectedAuditoria?.pol,
+                        "General",
+                      )}
+                    </p>
+                  </div>
                   <button
-                    onClick={handleEnviarRevision}
-                    disabled={
-                      sendingRevision ||
-                      isEnvioRevisionBloqueado(selectedAuditoria)
-                    }
-                    className="rounded-lg bg-indigo-600 hover:bg-indigo-800 disabled:bg-slate-400 text-white font-semibold py-2 px-6 transition cursor-pointer"
+                    type="button"
+                    onClick={handleCerrarEditarAuditoria}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
                   >
-                    {sendingRevision
-                      ? "Enviando..."
-                      : getEnviarRevisionLabel(selectedAuditoria)}
+                    ✕
+                  </button>
+                </div>
+
+                <div className="border-b border-slate-100 px-4 py-3 sm:px-6">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={toggleTodosDetallesEdit}
+                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold transition cursor-pointer ${
+                        todosMarcadosEdit
+                          ? "border-cyan-600 bg-cyan-600 text-white"
+                          : "border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                    >
+                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-current text-[10px] leading-none">
+                        {todosMarcadosEdit ? "✓" : "-"}
+                      </span>
+                      Todos
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleAbrirMotivoRechazo}
+                      disabled={
+                        detallesSeleccionadosCount <= 0 || rejectingDetalles
+                      }
+                      className="ml-auto rounded-md bg-red-600 px-4 py-1.5 text-sm font-semibold text-white transition enabled:hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-300 cursor-pointer"
+                    >
+                      RECHAZAR
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-6">
+                  {detalles.length === 0 ? (
+                    <div className="py-10 text-center text-sm text-slate-500">
+                      No hay detalles disponibles
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {detalles.map((detalle, idx) => {
+                        const id = getDetalleEditId(detalle) || String(idx);
+                        const isSelected = Boolean(
+                          detallesSeleccionadosEdit[id],
+                        );
+                        const estadoDetalle = resolveWorkflowStatus(
+                          detalle,
+                          "PENDIENTE",
+                        );
+
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => toggleDetalleSeleccionEdit(detalle)}
+                            className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition cursor-pointer ${
+                              isSelected
+                                ? "border-cyan-500 bg-cyan-50"
+                                : "border-slate-200 bg-white hover:bg-slate-50"
+                            }`}
+                          >
+                            <span
+                              className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs font-bold ${
+                                isSelected
+                                  ? "border-cyan-600 bg-cyan-600 text-white"
+                                  : "border-slate-300 text-transparent"
+                              }`}
+                            >
+                              ✓
+                            </span>
+
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-slate-800">
+                                {getDetalleEmpresa(detalle)}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {firstDefined(
+                                  detalle?.categoria,
+                                  detalle?.cat,
+                                  "Sin categoría",
+                                )}{" "}
+                                · {getDetalleFecha(detalle)}
+                              </p>
+                            </div>
+
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-slate-800">
+                                {getDetalleMonto(detalle).toFixed(2)} PEN
+                              </p>
+                              <span
+                                className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${getWorkflowStatusBadgeClass(estadoDetalle, true)}`}
+                              >
+                                {getWorkflowStatusLabel(estadoDetalle)}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-slate-200 bg-white px-4 py-4 sm:px-6">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-semibold text-slate-700">
+                      Seleccionados ({detallesSeleccionadosCount})
+                    </span>
+                    <span className="text-base font-bold text-cyan-700">
+                      {totalSeleccionadoEdit.toFixed(2)} PEN
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>,
+            modalRoot,
+          )}
+
+        {isRejectDialogOpen &&
+          modalRoot &&
+          createPortal(
+            <div className="fixed inset-0 z-80 flex items-center justify-center bg-black/60 p-4">
+              <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-4 shadow-2xl">
+                <h3 className="text-sm font-bold text-slate-800 sm:text-base">
+                  MOTIVO DE RECHAZO
+                </h3>
+
+                <textarea
+                  value={rejectComentario}
+                  onChange={(e) => {
+                    setRejectComentario(e.target.value);
+                    if (rejectError) setRejectError("");
+                  }}
+                  rows={4}
+                  className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+                  placeholder="Ejemplo: la factura 1728 es rechazada porque ..."
+                />
+
+                {rejectError ? (
+                  <p className="mt-2 text-xs font-medium text-red-600">
+                    {rejectError}
+                  </p>
+                ) : null}
+
+                <div className="mt-4 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsRejectDialogOpen(false);
+                      setRejectError("");
+                    }}
+                    className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
+                  >
+                    Cancelar
                   </button>
                   <button
-                    onClick={handleCerrarDetalles}
-                    className="rounded-lg bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-6 transition cursor-pointer"
+                    type="button"
+                    onClick={handleRechazarSeleccionados}
+                    disabled={rejectingDetalles}
+                    className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white transition enabled:hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                   >
-                    Cerrar
+                    {rejectingDetalles ? "Guardando..." : "Aceptar"}
                   </button>
                 </div>
               </div>

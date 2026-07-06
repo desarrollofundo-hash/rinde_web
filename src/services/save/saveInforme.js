@@ -125,9 +125,9 @@ export async function saveRendicionInforme(informeData) {
         }
 
         if (!idInf) {
-            console.error("❌ CRÍTICO: No se pudo extraer idInf de ningún lugar");
+       /*      console.error("❌ CRÍTICO: No se pudo extraer idInf de ningún lugar");
             console.error("   - Data:", data);
-            console.error("   - Headers:", response.headers);
+            console.error("   - Headers:", response.headers); */
             throw new Error(`No se pudo obtener idInf. Response: ${JSON.stringify(data)}`);
         }
 
@@ -143,11 +143,11 @@ export async function saveRendicionInforme(informeData) {
         }
 
         if (error.response) {
-            console.error("❌ Error backend informe:", error.response.data);
+            /* console.error("❌ Error backend informe:", error.response.data); */
             throw new Error(`Error ${error.response.status}: ${JSON.stringify(error.response.data)}`);
         }
 
-        console.error("💥 Error no manejado al guardar informe:", error);
+    /*     console.error("💥 Error no manejado al guardar informe:", error); */
         throw error;
     }
 }

@@ -34,8 +34,8 @@ export const GetRolUsuario = async ({
             throw new Error(`Error del servidor: ${response.status}`);
         }
     } catch (error) {
-        console.error("❌ Error en cargar compañias:", error);
-
+/*         console.error("❌ Error en cargar compañias:", error);
+ */
         // Manejo parecido a Flutter
         if (error.code === "ECONNABORTED") {
             throw new Error("Tiempo de espera agotado");

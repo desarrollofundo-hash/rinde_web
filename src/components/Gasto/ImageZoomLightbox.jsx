@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * Lightbox con zoom para imágenes.
@@ -10,6 +11,7 @@ export default function ImageZoomLightbox({ src, onClose }) {
     const [scale, setScale] = useState(1);
     const [pos, setPos] = useState({ x: 0, y: 0 });
     const dragRef = useRef({ isDragging: false, startX: 0, startY: 0, originX: 0, originY: 0 });
+    const portalTarget = typeof document !== "undefined" ? document.body : null;
 
     if (!src) return null;
 
@@ -50,9 +52,11 @@ export default function ImageZoomLightbox({ src, onClose }) {
         e.currentTarget.style.cursor = scale > 1 ? "grab" : "zoom-in";
     };
 
-    return (
+    if (!portalTarget) return null;
+
+    return createPortal(
         <div
-            className="fixed inset-0 z-70 flex items-center justify-center bg-black/90"
+            className="fixed inset-0 z-100 flex items-center justify-center bg-black/90"
             onClick={handleBackdropClick}
             onWheel={handleWheel}
             style={{ touchAction: "none" }}
@@ -117,6 +121,8 @@ export default function ImageZoomLightbox({ src, onClose }) {
                     transition: "transform 0.15s ease",
                     maxWidth: "90vw",
                     maxHeight: "90vh",
+                    backgroundColor: "#ffffff",
+                    borderRadius: "0.75rem",
                     cursor: scale > 1 ? "grab" : "zoom-in",
                     userSelect: "none",
                 }}
@@ -125,6 +131,7 @@ export default function ImageZoomLightbox({ src, onClose }) {
                 onMouseUp={handleMouseUp}
                 onMouseLeave={() => { dragRef.current.isDragging = false; }}
             />
-        </div>
+        </div>,
+        portalTarget,
     );
 }

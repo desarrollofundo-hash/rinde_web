@@ -1,6 +1,6 @@
 import React from "react";
 
-const Send = (props) => {
+export const IconSend = (props) => {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -16,4 +16,4 @@ const Send = (props) => {
   );
 };
 
-export default Send;
+export default IconSend;

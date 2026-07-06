@@ -29,7 +29,7 @@ export async function getListaRevision({ id, idrev, gerencia, ruc }) {
       try {
         data = JSON.parse(data);
       } catch (e) {
-        console.error("❌ Error parseando JSON:", e);
+       /*  console.error("❌ Error parseando JSON:", e); */
         throw new Error("Respuesta inválida del servidor");
       }
     }
@@ -98,10 +98,10 @@ export async function getListaRevision({ id, idrev, gerencia, ruc }) {
 
     return bestResult.filter((item) => item && typeof item === "object");
   } catch (error) {
-    console.error("❌ ERROR en getListaRevision:", error?.message);
+ /*    console.error("❌ ERROR en getListaRevision:", error?.message); */
     if (error?.response) {
-      console.error("📄 Response status:", error.response.status);
-      console.error("📄 Response body:", error.response.data);
+     /*  console.error("📄 Response status:", error.response.status); */
+    /*   console.error("📄 Response body:", error.response.data); */
     }
     throw error;
   }

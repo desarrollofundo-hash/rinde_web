@@ -40,8 +40,8 @@ export const loginCredencial = async ({
             throw new Error(`Error del servidor: ${response.status}`);
         }
     } catch (error) {
-        console.error("❌ Error en login:", error);
-
+/*         console.error("❌ Error en login:", error);
+ */
         // Manejo parecido a Flutter
         if (error.code === "ECONNABORTED") {
             throw new Error("Tiempo de espera agotado");

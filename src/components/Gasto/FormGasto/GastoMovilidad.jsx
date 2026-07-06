@@ -294,7 +294,7 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
             setEvidenciaPreviewUrl(newPreview);
             setIsCropMode(false);
         } catch (error) {
-            console.error("Error recortando imagen en movilidad:", error);
+            /* console.error("Error recortando imagen en movilidad:", error); */
             alert("No se pudo recortar la imagen");
         }
     };
@@ -602,7 +602,7 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
                 <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
                     <div className="mb-3 flex items-center gap-2.5">
                         <span className="h-5 w-1 rounded-full bg-slate-400" />
-                        <label className="text-base font-bold text-slate-800">Glosa o Nota</label>
+                        <label className="text-base font-bold text-slate-800">Glosa:</label>
                     </div>
                     <textarea
                         name="glosa"

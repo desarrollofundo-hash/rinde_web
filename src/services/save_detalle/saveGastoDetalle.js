@@ -39,7 +39,7 @@ export const saveDetalleGasto = async (informeDetalleData) => {
             const body = JSON.stringify(response.data);
 
             if (body.includes("Error") || body.includes("error")) {
-                console.error("❌ Error en respuesta del servidor:", body);
+               /*  console.error("❌ Error en respuesta del servidor:", body); */
                 throw new Error("Error del servidor: " + body);
             }
 

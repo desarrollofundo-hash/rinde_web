@@ -23,7 +23,7 @@ export default function Company() {
                 setEmpresas(data);
             } catch (err) {
                 setError(err.message);
-                console.error(err);
+                /* console.error(err); */
             } finally {
                 setLoaded(true);
             }

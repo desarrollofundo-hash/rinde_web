@@ -1,7 +1,7 @@
 import API from "../api";
 
-const COMMON_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".pdf", ".doc", ".docx", ".txt"];
-const IMAGE_EXTENSION_REGEX = /\.(png|jpg|jpeg|webp|gif|bmp|pdf|doc|docx|txt)$/i;
+const COMMON_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".pdf"];
+const IMAGE_EXTENSION_REGEX = /\.(png|jpg|jpeg|webp|pdf)$/i;
 const SUCCESS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MISS_CACHE_TTL_MS = 60 * 1000;
 const successCache = new Map();
@@ -201,7 +201,7 @@ export async function obtenerImagenBytesDesdeServidor(url, timeoutMs = 15000) {
 
     const requestPromise = (async () => {
         try {
-            console.debug("🖼️ Intentando descargar evidencia:", target);
+            /* console.debug("🖼️ Intentando descargar evidencia:", target); */
             const response = await API.get(target, {
                 responseType: "arraybuffer",
                 timeout: timeoutMs,
@@ -230,7 +230,7 @@ export async function obtenerImagenBytesDesdeServidor(url, timeoutMs = 15000) {
         } catch (_error) {
             const status = _error?.response?.status;
             if (status) {
-                console.debug(`❌ Evidencia no disponible (${status}):`, target);
+              /*   console.debug(`❌ Evidencia no disponible (${status}):`, target); */
             }
             missCache.set(target, { cachedAt: Date.now() });
             return null;

@@ -48,11 +48,11 @@ export async function saveRendicionInformeDetalle(informeDetalleData) {
         }
 
         if (error.response) {
-            console.error("❌ Error backend detalle informe:", error.response.data);
+          /*   console.error("❌ Error backend detalle informe:", error.response.data); */
             throw new Error(`Error ${error.response.status}: ${JSON.stringify(error.response.data)}`);
         }
 
-        console.error("💥 Error no manejado al guardar detalle informe:", error);
+      /*   console.error("💥 Error no manejado al guardar detalle informe:", error); */
         throw new Error(`Error inesperado al guardar detalle informe: ${error.message}`);
     }
 }

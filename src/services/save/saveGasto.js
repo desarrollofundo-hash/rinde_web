@@ -124,21 +124,21 @@ export async function saveRendicionGasto(facturaData) {
         return idRend;
 
     } catch (error) {
-        console.error("❌ Error guardando gasto:");
+   /*      console.error("❌ Error guardando gasto:"); */
 
         if (error.response) {
-            console.error("📄 Response:", error.response.data);
+            /* console.error("📄 Response:", error.response.data); */
             throw new Error(
                 `Error ${error.response.status}: ${JSON.stringify(error.response.data)}`
             );
         }
 
         if (error.request) {
-            console.error("📡 Sin respuesta del servidor");
-            throw new Error("No hay respuesta del servidor");
+/*             console.error("📡 Sin respuesta del servidor");
+ */            throw new Error("No hay respuesta del servidor");
         }
 
-        console.error("⚠️ Error:", error.message);
+      /*   console.error("⚠️ Error:", error.message); */
         throw error;
     }
 }

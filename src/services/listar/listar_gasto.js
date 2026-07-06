@@ -76,7 +76,7 @@ export async function getListaGastos({
             try {
                 data = JSON.parse(data);
             } catch (e) {
-                console.error("❌ Error parseando JSON:", e);
+              /*   console.error("❌ Error parseando JSON:", e); */
                 throw new Error("Respuesta inválida del servidor");
             }
         }
@@ -168,87 +168,83 @@ export async function getListaGastos({
             );
 
             return {
-                ...item,
-                id: item.id,
-                idrend: item.idrend,
-                descripcion: item.descripcion,
-                total: item.total,
-                fecha: item.fecha,
-                fechaRegistro: firstDefined(
-                    item.fechaRegistro,
-                    item.fecRegistro,
-                    item.fecregistro,
-                    item.fecCre,
-                    item.feccre,
-                    item.fechaCreacion,
-                    item.createdAt,
-                ),
-                estado: firstDefined(
-                    item.estadoActual,
-                    item.estadoactual,
-                    item.EstadoActual,
-                    item.estado,
-                    item.nomEstado,
-                    item.estadoRend,
-                    item.estadorend,
-                ),
-                igv: item.igv,
-                serie: item.serie || item.nroserie || item.serieComprobante || item.serieComprobanteElectronico,
-                numero: item.numero || item.nro || item.num || item.nrodoc || item.correlativo,
-                politica: firstDefined(item.politica),
-                categoria: firstDefined(item.categoria),
-                proveedor: firstDefined(item.proveedor),
-                centroCosto: firstDefined(
-                    item.centroCosto,
-                    item.centro_costo,
-                    item.consumidor,
-                    item.idCuenta,
-                    item.idcuenta,
-                    item.nomCentroCosto,
-                ),
-                rucEmisor: firstDefined(
-                    item.rucEmisor,
-                    item.ruc,
-                    item.rucProveedor,
-                    item.ruc_emisor,
-                ),
-                rucCliente: firstDefined(
-                    item.rucCliente,
-                    item.ruccliente,
-                    item.ruc_cliente,
-                ),
-                tipoComprobante: firstDefined(
-                    item.tipoComprobante,
-                    item.tipocomprobante,
-                    item.tipoCombrobante,
-                    item.tipocombrobante,
-                    item.tipo_comprobante,
-                    item.comprobante,
-                    item.tipo,
-                    item.nomTipoComprobante,
-                    item.nomtipocomprobante,
-                    item.nomComprobante,
-                    item.nomcomprobante,
-                    item.idTipoComprobante,
-                    item.idtipocomprobante,
-                    item.id_tipo_comprobante,
-                    item.tipcom,
-                ),
-                glosa: resolveGlosa(item),
-                moneda: item.moneda,
-                tipogasto: String(tipoGastoValue || ""),
-                motivoViaje: firstDefined(
-                    item.motivoViaje,
-                    item.motivo_viaje,
-                    item.viajeMotivo,
-                    item.motivo,
-                    item.MotivoViaje,
-                    item.motivoviaje,
-                    item.MOTIVOVIAJE,
-                ),
-                evidenciaPath: String(evidenciaPath || ""),
-                evidenciaFileName: String(evidenciaFileName || ""),
-
+              ...item,
+              id: item.id,
+              idrend: item.idrend,
+              descripcion: item.descripcion,
+              total: item.total,
+              fecha: item.fecha,
+              fechaRegistro: firstDefined(
+                item.fechaRegistro,
+                item.fecRegistro,
+                item.fecregistro,
+                item.fecCre,
+                item.feccre,
+                item.fechaCreacion,
+                item.createdAt,
+              ),
+              estado: firstDefined(
+                item.estadoActual,
+                item.estadoactual,
+                item.EstadoActual,
+                item.estado,
+                item.nomEstado,
+                item.estadoRend,
+                item.estadorend,
+              ),
+              igv: item.igv,
+              serie:
+                item.serie ||
+                item.nroserie ||
+                item.serieComprobante ||
+                item.serieComprobanteElectronico,
+              numero:
+                item.numero ||
+                item.nro ||
+                item.num ||
+                item.nrodoc ||
+                item.correlativo,
+              politica: firstDefined(item.politica),
+              categoria: firstDefined(item.categoria),
+              proveedor: firstDefined(item.proveedor),
+              centroCosto: firstDefined(
+                item.centroCosto,
+                item.centro_costo,
+                item.consumidor,
+                item.idCuenta,
+                item.idcuenta,
+                item.nomCentroCosto,
+              ),
+              rucEmisor: firstDefined(
+                item.rucEmisor,
+                item.ruc,
+                item.rucProveedor,
+                item.ruc_emisor,
+              ),
+              rucCliente: firstDefined(
+                item.rucCliente,
+                item.ruccliente,
+                item.ruc_cliente,
+              ),
+              tipocomprobante: firstDefined(
+          item.tipocomprobante
+              ),
+              glosa: resolveGlosa(item),
+              moneda: item.moneda,
+              tipogasto: String(tipoGastoValue || ""),
+              motivoViaje: firstDefined(
+                item.motivoViaje,
+                item.motivo_viaje,
+                item.viajeMotivo,
+                item.motivo,
+                item.MotivoViaje,
+                item.motivoviaje,
+                item.MOTIVOVIAJE,
+              ),
+              evidenciaPath: String(evidenciaPath || ""),
+              evidenciaFileName: String(evidenciaFileName || ""),
+              motivoRechazo: firstDefined(item.motivorechazo),
+              rechazoRev: firstDefined(item.rechazoRev),
             };
         });
 
@@ -259,7 +255,7 @@ export async function getListaGastos({
     } catch (error) {
         // 🌐 ERROR DEL SERVIDOR
         if (error.response) {
-            console.error("🌐 Error HTTP:", error.response.status);
+         /*    console.error("🌐 Error HTTP:", error.response.status); */
 
             let message = error.response.statusText;
 
@@ -282,7 +278,7 @@ export async function getListaGastos({
         }
 
         // 💥 OTROS
-        console.error("💥 Error:", error.message);
+        /* console.error("💥 Error:", error.message); */
         throw new Error(error.message);
     }
 }

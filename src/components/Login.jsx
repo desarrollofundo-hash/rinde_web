@@ -154,7 +154,7 @@ export default function Login() {
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label htmlFor="usuario" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Usuario:</label>
+                            <label htmlFor="usuario" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">DNI:</label>
                             <input
                                 id="usuario"
                                 type="text"
@@ -185,7 +185,7 @@ export default function Login() {
                                     onClick={() => setShowPassword((prev) => !prev)}
                                     disabled={loading}
                                     aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                                    className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 transition hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 transition hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                                 >
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>

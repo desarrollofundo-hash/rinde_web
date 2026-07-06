@@ -24,8 +24,8 @@ API.interceptors.request.use((config) => {
 API.interceptors.response.use(
     (response) => response,
     (error) => {
-        console.error("Error en la solicitud HTTPS:", error);
-        return Promise.reject(error);
+       /*  console.error("Error en la solicitud HTTPS:", error);
+        return Promise.reject(error); */
     }
 );
 
@@ -33,8 +33,8 @@ API.interceptors.response.use(
 API.interceptors.response.use(
     (response) => response,
     (error) => {
-        console.error("Detalles del error:", error.toJSON());
-        return Promise.reject(error);
+     /*    console.error("Detalles del error:", error.toJSON());
+        return Promise.reject(error); */
     }
 );
 

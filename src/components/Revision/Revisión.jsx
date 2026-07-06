@@ -14,6 +14,8 @@ import {
 import Toast from "../shared/Toast";
 import { downloadExcelXml } from "../../lib/exportExcel";
 import { IconEye } from "../../Icons/preview";
+import { IconClose } from "../../Icons/close";
+import { IconSend } from "../../Icons/send";
 import EvidenciaImagen from "../Gasto/EvidenciaImagen";
 import ImageZoomLightbox from "../Gasto/ImageZoomLightbox";
 import { IconDown } from "../../Icons/down";
@@ -51,14 +53,14 @@ export default function Revision() {
         Number(userData?.id ?? userData?.usecod ?? userData?.idUser ?? 0);
 
     const resolveUserCode = (userData) =>
-        String(userData?.usecod ?? userData?.id ?? userData?.idUser ?? "");
+        String(userData?.usecod  ?? "");
 
     const resolveCompanyRuc = (companyData) =>
         String(companyData?.ruc ?? companyData?.RUC ?? companyData?.numRuc ?? "");
 
     const isContabilidadGerencia = (value) => {
         const normalized = String(value ?? "").trim().toUpperCase();
-        return normalized.includes("CONTABILIDAD");
+        return normalized.includes("RECLUT");
     };
 
     const firstValidGerencia = (...values) => {
@@ -152,6 +154,8 @@ export default function Revision() {
                 detalle?.id,
             )
         );
+
+
 
     const getDetalleCategoria = (detalle) =>
         String(
@@ -259,13 +263,17 @@ export default function Revision() {
                 throw new Error("No hay empresa seleccionada");
             }
 
-            const userCode = resolveUserCode(userData);
             const companyRuc = resolveCompanyRuc(companyData);
-            let gerencia = resolveGerencia(userData, companyData);
-
-            if (!gerencia || gerencia === "0") {
-                gerencia = await resolveGerenciaFromCompanyList(userCode, companyRuc);
-            }
+            // Equivalente a CompanyService().currentUserGerencia en Flutter.
+            // companyData no siempre tiene currentUserGerencia, el backend lo envía
+            // como "gerencia". Se respetan los mismos fallbacks que el modelo Flutter.
+            const gerencia = String(
+                companyData?.currentUserGerencia ??
+                companyData?.gerencia ??
+                userData?.currentUserGerencia ??
+                userData?.gerencia ??
+                "0"
+            );
 
             const data = await getListaRevision({
                 id: "1",
@@ -348,8 +356,9 @@ export default function Revision() {
                     descripcion: firstDefined(detalle?.descripcion, detalle?.desc),
                     total: firstDefined(detalle?.total, detalle?.monto, detalle?.valor),
                     monto: firstDefined(detalle?.monto, detalle?.total, detalle?.valor),
-                    tipoComprobante: firstDefined(detalle?.tipoComprobante, detalle?.tipocomprobante),
+                    tipocomprobante: firstDefined( detalle?.tipocomprobante),
                     fecha: firstDefined(detalle?.fecha, detalle?.fecCre),
+                    glosa: firstDefined(detalle?.obs),
                 };
             });
 
@@ -384,6 +393,7 @@ export default function Revision() {
 
     const handleOpenDetalleRevision = (detalle) => {
         setDetalleModalOpenedAt(Date.now());
+       /*  console.log("🔍 detalleRevision completo:", JSON.stringify(detalle, null, 2)); */
         setDetalleRevision(detalle);
     };
 
@@ -444,8 +454,8 @@ export default function Revision() {
                     useEdit: userCode,
                     useElim: 0,
                 };
-                /* 
-                                console.log(`📤 Enviando detalle (idRev: ${detallePayload.idRev}):`, detallePayload); */
+                 
+                                console.log(`📤 Enviando detalle (idRev: ${detallePayload.idRev}):`, detallePayload); 
 
                 const guardado = await saveRendicionRevisionDetalle(detallePayload);
                 if (!guardado) {
@@ -694,7 +704,7 @@ export default function Revision() {
                         "TipoGasto": String(firstDefined(det?.tipogasto, det?.tipoGasto, det?.tipo_gasto, "")),
                         "Ruc": String(firstDefined(det?.ruc, det?.RUC, revision?.ruc, revision?.RUC, "")),
                         "Proveedor": String(firstDefined(det?.proveedor, det?.empresa, det?.razonSocial, det?.razonsocial, det?.rucEmisor, "")),
-                        "TipoCombrobante": String(firstDefined(det?.tipoCombrobante, det?.tipocombrobante, det?.tipoComprobante, det?.tipocomprobante, "")),
+                        "tipocomprobante": String(firstDefined( det?.tipocomprobante , "")),
                         "Serie": String(firstDefined(det?.serie, det?.serieComprobante, det?.nroserie, "")),
                         "Numero": String(firstDefined(det?.numero, det?.nroComprobante, det?.nro, det?.num, det?.nrodoc, "")),
                         "IGV": parseAmount(firstDefined(det?.igv, det?.tax, det?.impuesto, 0)),
@@ -705,7 +715,7 @@ export default function Revision() {
                         "DesEmp": String(firstDefined(det?.desEmp, det?.desemp, det?.empresa, det?.proveedor, "")),
                         "Gerencia": String(firstDefined(det?.gerencia, revision?.gerencia, "")),
                         "Area": String(firstDefined(det?.area, revision?.area, "")),
-                        "Consumidor": String(firstDefined(det?.consumidor, det?.centroCosto, det?.centrocosto, det?.nomCentroCosto, "")),
+                        "Consumidor": String(firstDefined(det?.consumidor, "")),
                         "Placa": String(firstDefined(det?.placa, det?.placaVehiculo, det?.placavehiculo, "")),
                         "EstadoActual": String(firstDefined(det?.estadoActual, det?.estadoactual, det?.estado, revision?.estadoActual, revision?.estadoactual, "")),
                         "Glosa": String(firstDefined(det?.glosa, det?.nota, det?.obs, det?.observacion, det?.observaciones, revision?.obs, "")),
@@ -802,411 +812,670 @@ export default function Revision() {
     const modalRoot = typeof document !== "undefined" ? document.body : null;
 
     return (
-        <div className="w-full min-h-0 overflow-x-hidden overscroll-y-contain px-2 pt-0 pb-4 sm:px-4 sm:pt-0 sm:pb-6 lg:px-6">
-            <div className="mx-auto w-full space-y-1">
-                <RevisionHeader
-                    isExportMode={isExportMode}
-                    selectedCount={selectedRevisionIds.length}
-                    areAllSelected={areAllRevisionesSelected}
-                    hasItems={allRevisionIds.length > 0}
-                    onExportClick={handleExportClick}
-                    onToggleSelectAll={toggleSelectAllRevisiones}
-                    onCancelExport={cancelExportMode}
-                />
+      <div className="w-full min-h-0 overflow-x-hidden overscroll-y-contain px-2 pt-0 pb-4 sm:px-4 sm:pt-0 sm:pb-6 lg:px-6">
+        <div className="mx-auto w-full space-y-1">
+          <RevisionHeader
+            isExportMode={isExportMode}
+            selectedCount={selectedRevisionIds.length}
+            areAllSelected={areAllRevisionesSelected}
+            hasItems={allRevisionIds.length > 0}
+            onExportClick={handleExportClick}
+            onToggleSelectAll={toggleSelectAllRevisiones}
+            onCancelExport={cancelExportMode}
+          />
 
-                {loading && (
-                    <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-                        <p className="text-slate-600">Cargando revisiones...</p>
-                    </div>
-                )}
+          {loading && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+              <p className="text-slate-600">Cargando revisiones...</p>
+            </div>
+          )}
 
-                {!loading && revisiones.length === 0 && (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
-                        <p className="text-base font-semibold text-slate-700">No hay revisiones disponibles</p>
-                        <p className="mt-1 text-sm text-slate-500">Crea tu primera revisión para empezar.</p>
-                    </div>
-                )}
+          {!loading && revisiones.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
+              <p className="text-base font-semibold text-slate-700">
+                No hay revisiones disponibles
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Crea tu primera revisión para empezar.
+              </p>
+            </div>
+          )}
 
-                {!loading && revisiones.length > 0 && (
-                    <RevisionList
-                        revisiones={revisiones}
-                        onVerDetalles={handleVerDetalles}
-                        isExportMode={isExportMode}
-                        selectedRevisionIds={selectedRevisionIds}
-                        onToggleRevisionSelection={toggleRevisionSelection}
-                        onToggleSelectAll={toggleSelectAllRevisiones}
-                    />
-                )}
+          {!loading && revisiones.length > 0 && (
+            <RevisionList
+              revisiones={revisiones}
+              onVerDetalles={handleVerDetalles}
+              isExportMode={isExportMode}
+              selectedRevisionIds={selectedRevisionIds}
+              onToggleRevisionSelection={toggleRevisionSelection}
+              onToggleSelectAll={toggleSelectAllRevisiones}
+            />
+          )}
 
-                {/* MODAL DETALLE DE GASTO INDIVIDUAL */}
-                {detalleRevision && modalRoot && createPortal((
-                    <div
-                        className="fixed inset-0 z-60 flex items-end overflow-hidden bg-black/50 sm:items-center sm:p-4"
-                        onClick={handleBackdropCloseDetalle}
-                    >
-                        <div className="relative z-10 flex w-full max-h-[90dvh] min-h-0 flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:mx-auto sm:max-w-md sm:rounded-2xl">
-                            {/* Header */}
-                            <div className="flex items-center justify-between rounded-t-3xl border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-4 py-2.5 sm:rounded-t-2xl">
-                                <div className="min-w-0">
-                                    <h3 className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-slate-800 sm:text-base">
-                                        <span>Detalle del Gasto</span>
-                                        <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 sm:text-[11px]">
-                                            #{getDetalleRendId(detalleRevision) || "-"}
-                                        </span>
-                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold sm:text-[11px] ${getEstadoBadgeClass(detalleRevision)}`}>
-                                            {getEstadoLabel(detalleRevision)}
-                                        </span>
-                                    </h3>
-                                    {/*    <p className="text-xs text-slate-500 mt-0.5">
+          {/* MODAL DETALLE DE GASTO INDIVIDUAL */}
+          {detalleRevision &&
+            modalRoot &&
+            createPortal(
+              <div
+                className="fixed inset-0 z-60 flex items-end overflow-hidden bg-black/50 sm:items-center sm:p-4"
+                onClick={handleBackdropCloseDetalle}
+              >
+                <div className="relative z-10 flex w-full max-h-[90dvh] min-h-0 flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:mx-auto sm:max-w-md sm:rounded-2xl">
+                  {/* Header */}
+                  <div className="flex items-center justify-between rounded-t-3xl border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-4 py-2.5 sm:rounded-t-2xl">
+                    <div className="min-w-0">
+                      <h3 className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-slate-800 sm:text-base">
+                        <span>Detalle del Gasto</span>
+                        <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 sm:text-[11px]">
+                          #{getDetalleRendId(detalleRevision) || "-"}
+                        </span>
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold sm:text-[11px] ${getEstadoBadgeClass(detalleRevision)}`}
+                        >
+                          {getEstadoLabel(detalleRevision)}
+                        </span>
+                      </h3>
+                      {/*    <p className="text-xs text-slate-500 mt-0.5">
                                         <span className="font-semibold text-slate-600">Fecha:</span> {getDetalleFecha(detalleRevision)}
                                     </p> */}
 
-                                    {/*       <div className="mt-1.5">
+                      {/*       <div className="mt-1.5">
                                         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getEstadoBadgeClass(detalleRevision)}`}>
                                             {getEstadoLabel(detalleRevision)}
                                         </span>
                                     </div> */}
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setDetalleRevision(null)}
-                                    className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                </button>
-                            </div>
-
-                            {/* Body */}
-                            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 space-y-5">
-                                {/* Evidencia */}
-                                <div>
-                                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Evidencia</p>
-                                    <EvidenciaImagen
-                                        gasto={detalleRevision}
-                                        alt="Evidencia del gasto"
-                                        className="w-full cursor-zoom-in rounded-xl border border-slate-200 object-contain shadow-sm transition hover:opacity-90"
-                                        style={{ maxHeight: "220px" }}
-                                        onClick={(e) => setZoomSrc(e.currentTarget.src)}
-                                        fallback={
-                                            <div className="flex h-28 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50">
-                                                <p className="text-xs text-slate-400">Sin evidencia adjunta</p>
-                                            </div>
-                                        }
-                                    />
-                                </div>
-
-                                {/* Datos Generales */}
-                                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                                    <h2 className="col-span-2 text-sm font-bold text-slate-800 border-b border-slate-100 pb-1">Datos Generales del Gasto</h2>
-                                    {[
-                                        ["Política", firstDefined(detalleRevision?.politica, detalleRevision?.pol, detalleRevision?.nomPolitica, "-")],
-                                        ["Centro de Costo", firstDefined(detalleRevision?.consumidor, detalleRevision?.centroCosto, detalleRevision?.centrocosto, detalleRevision?.nomCentroCosto, "-")],
-                                        ["Tipo de Gasto", firstDefined(detalleRevision?.tipoGasto, detalleRevision?.tipogasto, detalleRevision?.nomTipoGasto, "-")],
-                                        ["Categoría", getDetalleCategoria(detalleRevision)],
-                                        ["RUC Emisor", firstDefined(detalleRevision?.rucEmisor, detalleRevision?.rucemisor, detalleRevision?.ruc, "-")],
-                                        ["Razón Social", getDetalleProveedor(detalleRevision)],
-                                        ["RUC Cliente", firstDefined(detalleRevision?.rucCliente, detalleRevision?.ruccliente, detalleRevision?.rucCli, "-")],
-                                        ["Placa", firstDefined(detalleRevision?.placa, detalleRevision?.placaVehiculo, "-")],
-                                    ].map(([label, value]) => (
-                                        <div key={label} className="col-span-1">
-                                            <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
-                                            <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
-                                        </div>
-                                    ))}
-                                </dl>
-
-                                {/* Monto */}
-                                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                                    <h2 className="col-span-2 text-sm font-bold text-slate-800 border-b border-slate-100 pb-1">Monto del Gasto</h2>
-                                    {[
-                                        ["Total", `S/ ${getDetalleMonto(detalleRevision).toFixed(2)}`],
-                                        ["IGV", firstDefined(detalleRevision?.igv, detalleRevision?.tax, detalleRevision?.impuesto, "-")],
-                                    ].map(([label, value]) => (
-                                        <div key={label} className="col-span-1">
-                                            <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
-                                            <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
-                                        </div>
-                                    ))}
-                                </dl>
-
-                                {/* Factura */}
-                                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                                    <h2 className="col-span-2 text-sm font-bold text-slate-800 border-b border-slate-100 pb-1">Datos de la Factura</h2>
-                                    {(isPlanillaMovilidadDetalle(detalleRevision)
-                                        ? [
-                                            ["Tipo Comprobante", firstDefined(detalleRevision?.tipoCombrobante, detalleRevision?.tipoComprobante, detalleRevision?.tipocomprobante, detalleRevision?.nomTipoComprobante, detalleRevision?.comprobante, "-")],
-                                            ["Fecha Emisión", getDetalleFecha(detalleRevision)],
-                                            ["Serie", firstDefined(detalleRevision?.serie, detalleRevision?.serieComprobante, detalleRevision?.nroserie, "-")],
-                                            ["Número", firstDefined(detalleRevision?.numero, detalleRevision?.nroComprobante, detalleRevision?.nro, detalleRevision?.num, detalleRevision?.nrodoc, "-")],
-                                            ["Total", `S/ ${getDetalleMonto(detalleRevision).toFixed(2)}`],
-                                            ["LUGAR ORIGEN", firstDefined(detalleRevision?.lugarOrigen, detalleRevision?.lugarorigen, detalleRevision?.origen, detalleRevision?.puntoOrigen, detalleRevision?.desde) || "-"],
-                                            ["LUGAR DESTINO", firstDefined(detalleRevision?.lugarDestino, detalleRevision?.lugardestino, detalleRevision?.destino, detalleRevision?.puntoDestino, detalleRevision?.hasta) || "-"],
-                                            ["TIPO MOVILIDAD", firstDefined(detalleRevision?.tipoMovilidad, detalleRevision?.tipomovilidad, detalleRevision?.tipo_movilidad, detalleRevision?.movilidad, detalleRevision?.transporte, detalleRevision?.medioTransporte, detalleRevision?.medio_transporte) || "-"],
-                                            ["Motivo Viaje", firstDefined(detalleRevision?.motivoViaje, detalleRevision?.motivo_viaje, detalleRevision?.motivo, detalleRevision?.glosa, "-")],
-                                        ]
-                                        : [
-                                            ["Tipo Comprobante", firstDefined(detalleRevision?.tipoCombrobante, detalleRevision?.tipoComprobante, detalleRevision?.tipocomprobante, detalleRevision?.nomTipoComprobante, detalleRevision?.comprobante, "-")],
-                                            ["Fecha Emisión", getDetalleFecha(detalleRevision)],
-                                            ["Serie", firstDefined(detalleRevision?.serie, detalleRevision?.serieComprobante, "-")],
-                                            ["Número", firstDefined(detalleRevision?.numero, detalleRevision?.nroComprobante, detalleRevision?.nro, "-")],
-                                            ["Total", `S/ ${getDetalleMonto(detalleRevision).toFixed(2)}`],
-                                        ])
-                                        .map(([label, value]) => (
-                                            <div key={label} className="col-span-1">
-                                                <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
-                                                <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
-                                            </div>
-                                        ))}
-                                </dl>
-
-                                {/* Observación */}
-                                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                                    <h2 className="col-span-2 text-sm font-bold text-slate-800 border-b border-slate-100 pb-1">Observación</h2>
-                                    {[
-                                        ["Nota:", firstDefined(
-                                            detalleRevision?.nota,
-                                            detalleRevision?.Nota,
-                                            detalleRevision?.obs,
-                                            detalleRevision?.observacion,
-                                            detalleRevision?.observaciones,
-                                            detalleRevision?.glosa,
-                                            detalleRevision?.descripcion,
-                                            detalleRevision?.desc,
-                                            detalleRevision?.motivo,
-                                            selectedRevision?.nota,
-                                            selectedRevision?.Nota,
-                                            selectedRevision?.obs,
-                                            selectedRevision?.observacion,
-                                            selectedRevision?.descripcion,
-                                            selectedRevision?.glosa,
-                                        )],
-                                    ].map(([label, value]) => (
-                                        <div key={label} className="col-span-2">
-                                            <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt>
-                                            <dd className="mt-0.5 font-medium text-slate-700">{value ?? "-"}</dd>
-                                        </div>
-                                    ))}
-                                </dl>
-                            </div>
-
-
-                        </div>
                     </div>
-                ), modalRoot)}
-
-                <ImageZoomLightbox src={zoomSrc} onClose={() => setZoomSrc(null)} />
-
-                {/* MODAL DE DETALLES */}
-                {selectedRevision && modalRoot && createPortal((
-                    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/50 sm:items-center sm:p-4">
-                        {/* Backdrop */}
-                        <button
-                            type="button"
-                            aria-label="Cerrar modal"
-                            className="absolute inset-0"
-                            onClick={handleBackdropCloseRevision}
+                    <button
+                      type="button"
+                      onClick={() => setDetalleRevision(null)}
+                      className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M6 18L18 6M6 6l12 12"
                         />
+                      </svg>
+                    </button>
+                  </div>
 
-                        <div className="relative z-10 flex max-h-[90dvh] w-full min-h-0 flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:max-w-2xl sm:rounded-2xl">
-                            {/* Header */}
-                            <div className="sticky top-0 rounded-t-3xl border-b border-blue-100 bg-linear-to-r from-blue-50 via-white to-indigo-50 sm:rounded-t-2xl">
-                                {/* Título + botón cerrar */}
-                                <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-2.5 sm:px-6 sm:py-3">
-                                    <div className="flex min-w-0 items-center gap-2.5">
-                                        <span className="h-7 w-1 rounded-full bg-linear-to-b from-blue-600 via-blue-700 to-indigo-500 sm:h-9" />
-                                        <h2 className="min-w-0 text-sm font-extrabold text-slate-800 sm:text-base">
-                                            <span className="flex flex-wrap items-center gap-1.5">
-                                                <span>Detalle de Revisión</span>
-                                                <span className="text-slate-300">·</span>
-                                                <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 sm:text-xs"># ID Rev: {getRevisionId(selectedRevision) || "-"}</span>
-                                                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold sm:text-xs ${getEstadoBadgeClass(selectedRevision)}`}>
-                                                    {getEstadoLabel(selectedRevision)}
-                                                </span>
-                                            </span>
-                                        </h2>
-                                    </div>
-                                    <button
+                  {/* Body */}
+                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 space-y-5">
+                    {/* Evidencia */}
+                    <div>
+                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                        Evidencia
+                      </p>
+                      <EvidenciaImagen
+                        gasto={detalleRevision}
+                        alt="Evidencia del gasto"
+                        className="w-full cursor-zoom-in rounded-xl border border-slate-200 object-contain shadow-sm transition hover:opacity-90"
+                        style={{ maxHeight: "220px" }}
+                        onClick={(e) => setZoomSrc(e.currentTarget.src)}
+                        fallback={
+                          <div className="flex h-28 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50">
+                            <p className="text-xs text-slate-400">
+                              Sin evidencia adjunta
+                            </p>
+                          </div>
+                        }
+                      />
+                    </div>
+
+                    {/* Datos Generales */}
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                      <h2 className="col-span-2 text-sm font-bold text-slate-800 border-b border-slate-100 pb-1">
+                        Datos Generales del Gasto
+                      </h2>
+                      {[
+                        [
+                          "Política",
+                          firstDefined(
+                            detalleRevision?.politica,
+                            detalleRevision?.pol,
+                            detalleRevision?.nomPolitica,
+                            "-",
+                          ),
+                        ],
+                        [
+                          "Centro de Costo",
+                          firstDefined(detalleRevision?.consumidor,"--"),
+                        ],
+                        [
+                          "Tipo de Gasto",
+                          firstDefined(
+                            detalleRevision?.tipoGasto,
+                            detalleRevision?.tipogasto,
+                            detalleRevision?.nomTipoGasto,
+                            "-",
+                          ),
+                        ],
+                        ["Categoría", getDetalleCategoria(detalleRevision)],
+                        [
+                          "RUC Emisor",
+                          firstDefined(
+                            detalleRevision?.rucEmisor,
+                            detalleRevision?.rucemisor,
+                            detalleRevision?.ruc,
+                            "-",
+                          ),
+                        ],
+                        ["Razón Social", getDetalleProveedor(detalleRevision)],
+                        [
+                          "RUC Cliente",
+                          firstDefined(
+                            detalleRevision?.rucCliente,
+                            detalleRevision?.ruccliente,
+                            detalleRevision?.rucCli,
+                            "-",
+                          ),
+                        ],
+                        [
+                          "Placa",
+                          firstDefined(
+                            detalleRevision?.placa,
+                            detalleRevision?.placaVehiculo,
+                            "-",
+                          ),
+                        ],
+                      ].map(([label, value]) => (
+                        <div key={label} className="col-span-1">
+                          <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            {label}
+                          </dt>
+                          <dd className="mt-0.5 font-medium text-slate-700">
+                            {value ?? "-"}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+
+                    {/* Monto */}
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                      <h2 className="col-span-2 text-sm font-bold text-slate-800 border-b border-slate-100 pb-1">
+                        Monto del Gasto
+                      </h2>
+                      {[
+                        [
+                          "Total",
+                          `S/ ${getDetalleMonto(detalleRevision).toFixed(2)}`,
+                        ],
+                        [
+                          "IGV",
+                          firstDefined(
+                            detalleRevision?.igv,
+                            detalleRevision?.tax,
+                            detalleRevision?.impuesto,
+                            "-",
+                          ),
+                        ],
+                      ].map(([label, value]) => (
+                        <div key={label} className="col-span-1">
+                          <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            {label}
+                          </dt>
+                          <dd className="mt-0.5 font-medium text-slate-700">
+                            {value ?? "-"}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+
+                    {/* Factura */}
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                      <h2 className="col-span-2 text-sm font-bold text-slate-800 border-b border-slate-100 pb-1">
+                        Datos de la Factura
+                      </h2>
+                      {(isPlanillaMovilidadDetalle(detalleRevision)
+                        ? [
+                            [
+                              "Tipo Comprobante",
+                              firstDefined(detalleRevision?.tipocomprobante, "-"),
+                            ],
+                            ["Fecha Emisión", getDetalleFecha(detalleRevision)],
+                            [
+                              "Serie",
+                              firstDefined(
+                                detalleRevision?.serie,
+                                detalleRevision?.serieComprobante,
+                                detalleRevision?.nroserie,
+                                "-",
+                              ),
+                            ],
+                            [
+                              "Número",
+                              firstDefined(
+                                detalleRevision?.numero,
+                                detalleRevision?.nroComprobante,
+                                detalleRevision?.nro,
+                                detalleRevision?.num,
+                                detalleRevision?.nrodoc,
+                                "-",
+                              ),
+                            ],
+                            [
+                              "Total",
+                              `S/ ${getDetalleMonto(detalleRevision).toFixed(2)}`,
+                            ],
+                            [
+                              "LUGAR ORIGEN",
+                              firstDefined(
+                                detalleRevision?.lugarOrigen,
+                                detalleRevision?.lugarorigen,
+                                detalleRevision?.origen,
+                                detalleRevision?.puntoOrigen,
+                                detalleRevision?.desde,
+                              ) || "-",
+                            ],
+                            [
+                              "LUGAR DESTINO",
+                              firstDefined(
+                                detalleRevision?.lugarDestino,
+                                detalleRevision?.lugardestino,
+                                detalleRevision?.destino,
+                                detalleRevision?.puntoDestino,
+                                detalleRevision?.hasta,
+                              ) || "-",
+                            ],
+                            [
+                              "TIPO MOVILIDAD",
+                              firstDefined(
+                                detalleRevision?.tipoMovilidad,
+                                detalleRevision?.tipomovilidad,
+                                detalleRevision?.tipo_movilidad,
+                                detalleRevision?.movilidad,
+                                detalleRevision?.transporte,
+                                detalleRevision?.medioTransporte,
+                                detalleRevision?.medio_transporte,
+                              ) || "-",
+                            ],
+                            [
+                              "Motivo Viaje",
+                              firstDefined(
+                                detalleRevision?.motivoviaje,"-",
+                              ),
+                            ],
+                          ]
+                        : [
+                            [
+                              "Tipo Comprobante",
+                              firstDefined( detalleRevision?.tipocomprobante,"-",
+                              ),
+                            ],
+                            ["Fecha Emisión", getDetalleFecha(detalleRevision)],
+                            [
+                              "Serie",
+                              firstDefined(
+                                detalleRevision?.serie,
+                                detalleRevision?.serieComprobante,
+                                "-",
+                              ),
+                            ],
+                            [
+                              "Número",
+                              firstDefined(
+                                detalleRevision?.numero,
+                                detalleRevision?.nroComprobante,
+                                detalleRevision?.nro,
+                                "-",
+                              ),
+                            ],
+                            [
+                              "Total",
+                              `S/ ${getDetalleMonto(detalleRevision).toFixed(2)}`,
+                            ],
+                          ]
+                      ).map(([label, value]) => (
+                        <div key={label} className="col-span-1">
+                          <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            {label}
+                          </dt>
+                          <dd className="mt-0.5 font-medium text-slate-700">
+                            {value ?? "-"}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+
+                    {/* Observación */}
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                      <h2 className="col-span-2 text-sm font-bold text-slate-800 border-b border-slate-100 pb-1">
+                        Observación
+                      </h2>
+                      {[
+                        [
+                          "Nota:",
+                          firstDefined(        
+                            detalleRevision?.glosa,
+                          ),
+                        ],
+                      ].map(([label, value]) => (
+                        <div key={label} className="col-span-2">
+                          <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            {label}
+                          </dt>
+                          <dd className="mt-0.5 font-medium text-slate-700">
+                            {value ?? "-"}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                </div>
+              </div>,
+              modalRoot,
+            )}
+
+          <ImageZoomLightbox src={zoomSrc} onClose={() => setZoomSrc(null)} />
+
+          {/* MODAL DE DETALLES */}
+          {selectedRevision &&
+            modalRoot &&
+            createPortal(
+              <div className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/50 sm:items-center sm:p-4">
+                {/* Backdrop */}
+                <button
+                  type="button"
+                  aria-label="Cerrar modal"
+                  className="absolute inset-0"
+                  onClick={handleBackdropCloseRevision}
+                />
+
+                <div className="relative z-10 flex max-h-[90dvh] w-full min-h-0 flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:max-w-2xl sm:rounded-2xl">
+                  {/* Header */}
+                  <div className="sticky top-0 rounded-t-3xl border-b border-blue-100 bg-linear-to-r from-blue-50 via-white to-indigo-50 sm:rounded-t-2xl">
+                    {/* Título + botón cerrar */}
+                    <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-2.5 sm:px-6 sm:py-3">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <span className="h-7 w-1 rounded-full bg-linear-to-b from-blue-600 via-blue-700 to-indigo-500 sm:h-9" />
+                        <h2 className="min-w-0 text-sm font-extrabold text-slate-800 sm:text-base">
+                          <span className="flex flex-wrap items-center gap-1.5">
+                            <span>Detalle de Revisión</span>
+                            <span className="text-slate-300">·</span>
+                            <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 sm:text-xs">
+                              # ID Rev: {getRevisionId(selectedRevision) || "-"}
+                            </span>
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold sm:text-xs ${getEstadoBadgeClass(selectedRevision)}`}
+                            >
+                              {getEstadoLabel(selectedRevision)}
+                            </span>
+                          </span>
+                        </h2>
+                      </div>
+                      {/*     <button
                                         onClick={handleCerrarDetalles}
                                         className="cursor-pointer rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-900 sm:px-3.5 sm:py-1.5 sm:text-sm"
                                     >
                                         Cerrar
-                                    </button>
-                                </div>
+                                    </button> */}
+                      <button
+                        type="button"
+                        onClick={handleCerrarDetalles}
+                        aria-label="Cerrar detalles de revisión"
+                        title="Cerrar"
+                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-bold leading-none text-slate-600 shadow-sm transition hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/60 focus-visible:ring-offset-2 cursor-pointer sm:h-9 sm:w-9 sm:text-lg"
+                      >
+                        ✕
+                      </button>
+                    </div>
 
-                                {/* Resumen compacto */}
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-2 px-4 pb-4 sm:grid-cols-4 sm:px-6">
-                                    <div>
-                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Rendidor</p>
-                                        <p className="mt-0.5 text-xs font-medium text-slate-700 truncate">{selectedRevision?.usuario}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Auditor</p>
-                                        <p className="mt-0.5 text-xs font-medium text-slate-700 truncate">{selectedRevision?.usuarioAuditor}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Gerencia</p>
-                                        <p className="mt-0.5 text-xs font-medium text-slate-700 truncate">{selectedRevision?.gerencia}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Fecha</p>
-                                        <p className="mt-0.5 text-xs font-medium text-slate-700">{formatDate(firstDefined(selectedRevision?.fecCre, selectedRevision?.feccre, ""))}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Total</p>
-                                        <p className="mt-0.5 text-xs font-semibold text-slate-800">S/ {detalles.reduce((acc, d) => acc + getDetalleMonto(d), 0).toFixed(2)}</p>
-                                    </div>
-                                    {/*    <div>
+                    {/* Resumen compacto */}
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 px-4 pb-4 sm:grid-cols-4 sm:px-6">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          Rendidor:
+                        </p>
+                        <p className="mt-0.5 text-xs font-medium text-slate-700 truncate">
+                          {selectedRevision?.usuario}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          Auditor:
+                        </p>
+                        <p className="mt-0.5 text-xs font-medium text-slate-700 truncate">
+                          {selectedRevision?.usuarioAuditor}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          Aprobador:
+                        </p>
+                        <p className="mt-0.5 text-xs font-medium text-slate-700 truncate">
+                          {firstDefined(selectedRevision?.aprobador, "-")}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          Gerencia:
+                        </p>
+                        <p className="mt-0.5 text-xs font-medium text-slate-700 truncate">
+                          {selectedRevision?.gerencia}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          Fecha:
+                        </p>
+                        <p className="mt-0.5 text-xs font-medium text-slate-700">
+                          {formatDate(
+                            firstDefined(
+                              selectedRevision?.fecCre,
+                              selectedRevision?.feccre,
+                              "",
+                            ),
+                          )}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          Total:
+                        </p>
+                        <p className="mt-0.5 text-xs font-semibold text-slate-800">
+                          S/{" "}
+                          {detalles
+                            .reduce((acc, d) => acc + getDetalleMonto(d), 0)
+                            .toFixed(2)}
+                        </p>
+                      </div>
+                      {/*    <div>
                                         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">ID Revisión</p>
                                         <p className="mt-0.5 text-xs font-mono text-slate-700">{getRevisionId(selectedRevision) || "-"}</p>
                                     </div> */}
-                                    <div>
-                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Política</p>
-                                        <p className="mt-0.5 text-xs font-medium text-slate-700 truncate">{firstDefined(selectedRevision?.politica, selectedRevision?.pol, selectedRevision?.nomPolitica, "-")}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Cant. Gastos</p>
-                                        <p className="mt-0.5 text-xs font-medium text-slate-700">{detalles.length}</p>
-                                    </div>
-                                    <div>
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          Política:
+                        </p>
+                        <p className="mt-0.5 text-xs font-medium text-slate-700 truncate">
+                          {firstDefined(
+                            selectedRevision?.politica,
+                            selectedRevision?.pol,
+                            selectedRevision?.nomPolitica,
+                            "-",
+                          )}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          Cant. Gastos
+                        </p>
+                        <p className="mt-0.5 text-xs font-medium text-slate-700">
+                          {detalles.length}
+                        </p>
+                      </div>
+                      {/*  <div>
                                         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Observación</p>
                                         <p className="mt-0.5 text-xs font-medium text-slate-700 truncate">{firstDefined(selectedRevision?.obs, selectedRevision?.descripcion, selectedRevision?.glosa, "-")}</p>
-                                    </div>
+                                    </div> */}
+                    </div>
+                  </div>
+
+                  {/* Body */}
+                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                    {loadingDetalles ? (
+                      <div className="flex flex-col items-center justify-center py-12 gap-3">
+                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-cyan-600" />
+                        <p className="text-sm text-slate-500">
+                          Cargando detalles...
+                        </p>
+                      </div>
+                    ) : detalles.length > 0 ? (
+                      <div className="p-4 sm:p-5">
+                        <h3 className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
+                          Gastos de la revisión ({detalles.length})
+                        </h3>
+                        <div className="divide-y divide-slate-100 rounded-xl border border-slate-200/80 [scrollbar-width:thin]">
+                          {detalles.map((detalle, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => handleOpenDetalleRevision(detalle)}
+                              className="flex w-full items-center gap-3 bg-white px-3 py-2.5 text-left transition hover:bg-slate-50 cursor-pointer"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] font-semibold text-slate-400">
+                                    #{getDetalleRendId(detalle) || "-"}
+                                  </span>
+                                  <span className="truncate text-xs font-semibold text-slate-700">
+                                    {getDetalleProveedor(detalle)}
+                                  </span>
                                 </div>
-                            </div>
+                                <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                                  <span>{getDetalleCategoria(detalle)}</span>
+                                  <span className="text-slate-300">·</span>
+                                  <span>{getDetalleFecha(detalle)}</span>
+                                </div>
+                              </div>
+                              <span className="shrink-0 text-xs font-bold text-cyan-700">
+                                S/ {getDetalleMonto(detalle).toFixed(2)}
+                              </span>
+                              <IconEye className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-12 gap-2">
+                        <p className="text-sm font-semibold text-slate-600">
+                          Sin detalles
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          No hay gastos registrados en esta revisión.
+                        </p>
+                      </div>
+                    )}
+                  </div>
 
-                            {/* Body */}
-                            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-                                {loadingDetalles ? (
-                                    <div className="flex flex-col items-center justify-center py-12 gap-3">
-                                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-cyan-600" />
-                                        <p className="text-sm text-slate-500">Cargando detalles...</p>
-                                    </div>
-                                ) : detalles.length > 0 ? (
-                                    <div className="p-4 sm:p-5">
-                                        <h3 className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
-                                            Gastos de la revisión ({detalles.length})
-                                        </h3>
-                                        <div className="divide-y divide-slate-100 rounded-xl border border-slate-200/80 [scrollbar-width:thin]">
-                                            {detalles.map((detalle, idx) => (
-                                                <button
-                                                    key={idx}
-                                                    type="button"
-                                                    onClick={() => handleOpenDetalleRevision(detalle)}
-                                                    className="flex w-full items-center gap-3 bg-white px-3 py-2.5 text-left transition hover:bg-slate-50 cursor-pointer"
-                                                >
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-[11px] font-semibold text-slate-400">#{getDetalleRendId(detalle) || "-"}</span>
-                                                            <span className="truncate text-xs font-semibold text-slate-700">{getDetalleProveedor(detalle)}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                                                            <span>{getDetalleCategoria(detalle)}</span>
-                                                            <span className="text-slate-300">·</span>
-                                                            <span>{getDetalleFecha(detalle)}</span>
-                                                        </div>
-                                                    </div>
-                                                    <span className="shrink-0 text-xs font-bold text-cyan-700">
-                                                        S/ {getDetalleMonto(detalle).toFixed(2)}
-                                                    </span>
-                                                    <IconEye className="h-3.5 w-3.5 shrink-0 text-slate-300" />
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center py-12 gap-2">
-                                        <p className="text-sm font-semibold text-slate-600">Sin detalles</p>
-                                        <p className="text-xs text-slate-400">No hay gastos registrados en esta revisión.</p>
-                                    </div>
-                                )}
-                            </div>
+                  {/* Footer — botones */}
+                  <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 sm:px-6 sm:py-4">
+                    <div className="flex flex-row gap-2 sm:justify-end">
+                      {/*BOTON APROBAR REVISION */}
+                      <button
+                        onClick={handleAprobar}
+                        disabled={
+                          sendingDecision ||
+                          isRevisionDecisionBloqueada(selectedRevision)
+                        }
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:w-auto sm:px-5 cursor-pointer"
+                      >
+                        <IconUp className="h-4 w-4 shrink-0" />
+                        <span className="hidden sm:inline">
+                          {sendingDecision ? "Procesando..." : "Aprobar"}
+                        </span>
+                      </button>
 
-                            {/* Footer — botones */}
-                            <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 sm:px-6 sm:py-4">
-                                <div className="flex flex-row gap-2 sm:justify-end">
-                                    {/*BOTON APROBAR REVISION */}
-                                    <button
-                                        onClick={handleAprobar}
-                                        disabled={sendingDecision || isRevisionDecisionBloqueada(selectedRevision)}
-                                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:w-auto sm:px-5 cursor-pointer"
-                                    >
-                                        <IconUp className="h-4 w-4 shrink-0" />
-                                        <span className="hidden sm:inline">{sendingDecision ? "Procesando..." : "Aprobar"}</span>
-                                    </button>
-
-                                    {/*RECHAZAR */}
-                                    <button
-                                        onClick={openDesaprobarModal}
-                                        disabled={sendingDecision || isRevisionDecisionBloqueada(selectedRevision)}
-                                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:w-auto sm:px-5 cursor-pointer"
-                                    >
-                                        <IconDown className="h-4 w-4 shrink-0" />
-                                        <span className="hidden sm:inline">Rechazar</span>
-                                    </button>
-                                    {/*RECHAZAR */}
-                                    <button
+                      {/*RECHAZAR */}
+                      <button
+                        onClick={openDesaprobarModal}
+                        disabled={
+                          sendingDecision ||
+                          isRevisionDecisionBloqueada(selectedRevision)
+                        }
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:w-auto sm:px-5 cursor-pointer"
+                      >
+                        <IconDown className="h-4 w-4 shrink-0" />
+                        <span className="hidden sm:inline">Rechazar</span>
+                      </button>
+                      {/*RECHAZAR */}
+                      {/*   <button
                                         onClick={handleCerrarDetalles}
                                         className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 sm:flex-none sm:w-auto sm:px-5 cursor-pointer"
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        <IconClose className="h-4 w-4 shrink-0 sm:hidden" />
                                         <span className="hidden sm:inline">Cerrar</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Modal de desaprobación */}
-                        {showRejectModal && (
-                            <div className="fixed inset-0 z-60 flex items-end justify-center sm:items-center sm:p-4">
-                                <button
-                                    type="button"
-                                    aria-label="Cerrar modal de desaprobación"
-                                    className="absolute inset-0 bg-black/40"
-                                    onClick={() => setShowRejectModal(false)}
-                                />
-                                <div className="relative z-10 w-full rounded-t-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:max-w-lg sm:rounded-2xl">
-                                    <h3 className="text-base font-bold text-slate-800 sm:text-lg">Motivo de rechazo</h3>
-                                    <p className="mt-1 text-xs text-slate-500 sm:text-sm">Este motivo se enviará en el campo obs.</p>
-
-                                    <textarea
-                                        value={rejectObs}
-                                        onChange={(e) => setRejectObs(e.target.value)}
-                                        rows={4}
-                                        placeholder="Escribe el motivo de rechazo..."
-                                        className="mt-3 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200"
-                                    />
-
-                                    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowRejectModal(false)}
-                                            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 sm:w-auto sm:px-4 sm:py-2 cursor-pointer"
-                                        >
-                                            Cancelar
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={handleEnviarDesaprobacion}
-                                            disabled={sendingDecision}
-                                            className="w-full rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 sm:w-auto sm:px-4 sm:py-2 cursor-pointer"
-                                        >
-                                            {sendingDecision ? "Enviando..." : "Enviar rechazo"}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                                    </button> */}
                     </div>
-                ), modalRoot)}
+                  </div>
+                </div>
 
-                <Toast
-                    message={toastConfig.message}
-                    type={toastConfig.type}
-                    isVisible={toastConfig.isVisible}
-                    onClose={closeToast}
-                    duration={3000}
-                />
-            </div>
+                {/* Modal de desaprobación */}
+                {showRejectModal && (
+                  <div className="fixed inset-0 z-60 flex items-end justify-center sm:items-center sm:p-4">
+                    <button
+                      type="button"
+                      aria-label="Cerrar modal de desaprobación"
+                      className="absolute inset-0 bg-black/40"
+                      onClick={() => setShowRejectModal(false)}
+                    />
+                    <div className="relative z-10 w-full rounded-t-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:max-w-lg sm:rounded-2xl">
+                      <h3 className="text-base font-bold text-slate-800 sm:text-lg">
+                        Motivo de rechazo
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+                        Este motivo se enviará en el campo obs.
+                      </p>
+
+                      <textarea
+                        value={rejectObs}
+                        onChange={(e) => setRejectObs(e.target.value)}
+                        rows={4}
+                        placeholder="Escribe el motivo de rechazo..."
+                        className="mt-3 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200"
+                      />
+
+                      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setShowRejectModal(false)}
+                          className="w-full rounded-xl border border-slate-300 bg-white py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 sm:w-auto sm:px-4 sm:py-2 cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleEnviarDesaprobacion}
+                          disabled={sendingDecision}
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 sm:w-auto sm:px-4 sm:py-2 cursor-pointer"
+                        >
+                          <IconSend className="h-4 w-4 shrink-0" />
+                          {sendingDecision ? "Enviando..." : "Enviar rechazo"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>,
+              modalRoot,
+            )}
+
+          <Toast
+            message={toastConfig.message}
+            type={toastConfig.type}
+            isVisible={toastConfig.isVisible}
+            onClose={closeToast}
+            duration={3000}
+          />
         </div>
+      </div>
     );
 }

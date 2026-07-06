@@ -14,7 +14,7 @@ export const getDropdownOptionsTipoMovilidad = async () => {
         return data;
 
     } catch (error) {
-        console.error("❌ Error tipos movilidad:", error);
-        return [];
+/*         console.error("❌ Error tipos movilidad:", error);
+ */        return [];
     }
 };

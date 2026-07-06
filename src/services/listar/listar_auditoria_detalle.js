@@ -44,8 +44,8 @@ export async function getListaAuditoriaDetalle({
             try {
                 data = JSON.parse(data);
             } catch (e) {
-                console.error("❌ Error parseando JSON:", e);
-                throw new Error("Respuesta inválida del servidor");
+              /*   console.error("❌ Error parseando JSON:", e);
+                throw new Error("Respuesta inválida del servidor"); */
             }
         }
 

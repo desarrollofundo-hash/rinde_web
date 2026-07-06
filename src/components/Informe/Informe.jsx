@@ -491,7 +491,7 @@ export default function Informe() {
             showToast(`Enviado a auditoría correctamente. ID: ${idAd}`, "success");
             setIsVistaPreviaOpen(false);
         } catch (error) {
-            console.error("❌ Error enviando a auditoría:", error);
+          /*   console.error("❌ Error enviando a auditoría:", error); */
             showToast(`Error al enviar a auditoría: ${error?.message || "Inténtalo nuevamente"}`, "error");
         }
     };
