@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 //IMPORTS DE COMPONENTES
 import Gastos from "./Gastos";
@@ -48,6 +48,8 @@ export default function Dashboard() {
     const [activeGastoSubmenu, setActiveGastoSubmenu] = useState("Nuevo Gasto");
     const [gastoRefreshToken, setGastoRefreshToken] = useState(0);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isDesktopSidebarExpanded, setIsDesktopSidebarExpanded] = useState(false);
+    const sidebarRef = useRef(null);
     /* console.log(JSON.parse(localStorage.getItem("user"))); */
 
     const [empresa, setEmpresa] = useState(() => {
@@ -72,6 +74,22 @@ export default function Dashboard() {
     const [empresasDisponibles, setEmpresasDisponibles] = useState([]);
     const [loadingEmpresas, setLoadingEmpresas] = useState(false);
     const [companyError, setCompanyError] = useState("");
+    const isDesktopSidebarCollapsed = !isDesktopSidebarExpanded;
+    const userDisplayName = usuario?.usenam || "No encontrado";
+    const companyDisplayName = empresa ? (empresa.empresa || empresa.nombre || empresa.name) : "No seleccionada";
+
+    const getInitials = (value, fallback = "--") => {
+        if (!value || typeof value !== "string") return fallback;
+
+        const words = value.trim().split(/\s+/).filter(Boolean);
+        if (words.length === 0) return fallback;
+        if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+
+        return `${words[0][0] || ""}${words[1][0] || ""}`.toUpperCase();
+    };
+
+    const userInitials = getInitials(userDisplayName, "US");
+    const companyInitials = getInitials(companyDisplayName, "EM");
 
     //LLAMADA DE SUB MENUS
     const gastoSubmenus = ["Nuevo Gasto"];
@@ -95,6 +113,29 @@ export default function Dashboard() {
             document.body.style.overflow = previousOverflow;
         };
     }, [isMobileMenuOpen]);
+
+    useEffect(() => {
+        const mediaQuery = window.matchMedia("(min-width: 1024px)");
+
+        const syncDesktopSidebarState = (event) => {
+            if (!event.matches) {
+                setIsDesktopSidebarExpanded(true);
+                return;
+            }
+
+            setIsDesktopSidebarExpanded(false);
+        };
+
+        syncDesktopSidebarState(mediaQuery);
+
+        if (typeof mediaQuery.addEventListener === "function") {
+            mediaQuery.addEventListener("change", syncDesktopSidebarState);
+            return () => mediaQuery.removeEventListener("change", syncDesktopSidebarState);
+        }
+
+        mediaQuery.addListener(syncDesktopSidebarState);
+        return () => mediaQuery.removeListener(syncDesktopSidebarState);
+    }, []);
 
     const handleSelectTab = (tab) => {
         setIsMobileMenuOpen(false);
@@ -204,215 +245,290 @@ export default function Dashboard() {
     };
 
     return (
-        <div className="relative flex h-dvh max-h-dvh overflow-hidden overscroll-none bg-[#f4f8ff]">
-            <BackgroundRippleEffect rows={7} cols={10} className="pointer-events-none opacity-90" />
-            <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-slate-50/70 via-blue-50/55 to-cyan-50/40" />
-            <div className="pointer-events-none absolute -top-28 -right-30 h-72 w-72 rounded-full bg-sky-300/35 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-30 -left-30 h-72 w-72 rounded-full bg-blue-300/30 blur-3xl" />
+      <div className="relative flex h-dvh max-h-dvh overflow-hidden overscroll-none bg-[#f4f8ff]">
+        <BackgroundRippleEffect
+          rows={7}
+          cols={10}
+          className="pointer-events-none opacity-90"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-slate-50/70 via-blue-50/55 to-cyan-50/40" />
+        <div className="pointer-events-none absolute -top-28 -right-30 h-72 w-72 rounded-full bg-sky-300/35 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-30 -left-30 h-72 w-72 rounded-full bg-blue-300/30 blur-3xl" />
 
-            <div className="fixed left-3 top-[calc(env(safe-area-inset-top)+0.35rem)] z-30 lg:hidden">
-                <button
-                    type="button"
-                    aria-label="Abrir menú"
-                    onClick={() => setIsMobileMenuOpen(true)}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-blue-200/80 bg-white/88 text-blue-800 shadow-lg shadow-blue-200/40 backdrop-blur-xl"
-                >
-                    <span className="inline-flex flex-col gap-1" aria-hidden="true">
-                        <span className="block h-0.5 w-5 rounded-full bg-blue-700" />
-                        <span className="block h-0.5 w-5 rounded-full bg-blue-700" />
-                        <span className="block h-0.5 w-5 rounded-full bg-blue-700" />
-                    </span>
-                </button>
+        <div className="fixed left-3 top-[calc(env(safe-area-inset-top)+0.35rem)] z-30 lg:hidden">
+          <button
+            type="button"
+            aria-label="Abrir menú"
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-blue-200/80 bg-white/88 text-blue-800 shadow-lg shadow-blue-200/40 backdrop-blur-xl"
+          >
+            <span className="inline-flex flex-col gap-1" aria-hidden="true">
+              <span className="block h-0.5 w-5 rounded-full bg-blue-700" />
+              <span className="block h-0.5 w-5 rounded-full bg-blue-700" />
+              <span className="block h-0.5 w-5 rounded-full bg-blue-700" />
+            </span>
+          </button>
+        </div>
+
+        {isMobileMenuOpen && (
+          <button
+            type="button"
+            aria-label="Cerrar menú"
+            className="fixed inset-0 z-40 bg-slate-900/45 backdrop-blur-[1px] lg:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+
+        <aside
+          ref={sidebarRef}
+          onMouseEnter={() => setIsDesktopSidebarExpanded(true)}
+          onMouseLeave={() => setIsDesktopSidebarExpanded(false)}
+          onFocusCapture={() => setIsDesktopSidebarExpanded(true)}
+          onBlurCapture={(event) => {
+            if (!sidebarRef.current?.contains(event.relatedTarget)) {
+              setIsDesktopSidebarExpanded(false);
+            }
+          }}
+          className={`fixed left-0 top-0 z-50 flex h-full w-[86vw] max-w-76 flex-col border-r border-blue-200/70 bg-white/90 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-2xl backdrop-blur-xl transition-transform duration-300 sm:p-4 lg:static lg:z-auto lg:translate-x-0 lg:shadow-none ${
+            isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+          } ${isDesktopSidebarCollapsed ? "lg:w-20" : "lg:w-70"} lg:overflow-hidden lg:transition-[width] lg:duration-300 lg:ease-out`}
+        >
+          {/* Tarjeta de perfil */}
+          <div
+            className={`mb-5 rounded-2xl border border-blue-100/90 bg-linear-to-br from-blue-50 via-white to-slate-50 shadow-sm transition-all duration-300 ${isDesktopSidebarCollapsed ? "p-2.5" : "p-4"}`}
+          >
+            {/* Usuario */}
+            <div
+              className={`flex items-center gap-3 ${isDesktopSidebarCollapsed ? "lg:justify-center" : ""}`}
+            >
+              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                {userInitials}
+              </span>
+
+              <div
+                className={`min-w-0 flex-1 ${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  Usuario:
+                </p>
+                <p className="wrap-break-word text-sm font-semibold leading-5 text-slate-800">
+                  {userDisplayName}
+                </p>
+              </div>
             </div>
 
-            {isMobileMenuOpen && (
+            <div
+              className={`my-3 border-t border-blue-100 ${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
+            />
+
+            {/* Empresa */}
+            <div
+              className={`flex items-center gap-3 ${isDesktopSidebarCollapsed ? "lg:justify-center" : ""}`}
+            >
+              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-700">
+                {companyInitials}
+              </span>
+
+              <div
+                className={`min-w-0 flex-1 ${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  Empresa:
+                </p>
+                <p className="line-clamp-2 text-sm font-semibold leading-5 text-slate-800">
+                  {companyDisplayName}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div
+            className={`mb-4 flex items-center ${isDesktopSidebarCollapsed ? "lg:justify-center" : "justify-between"}`}
+          >
+            <h2
+              className={`text-sm font-bold uppercase tracking-[0.14em] text-slate-600 ${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
+            >
+              Navegación
+            </h2>
+            {/* <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="rounded-lg border border-blue-200 bg-white px-2 py-1 text-xs font-semibold text-blue-700 shadow-xs lg:hidden"
+            >
+              Cerrar
+            </button> */}
+          </div>
+
+          <nav className="space-y-1 overflow-y-auto pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            {allowedTabs.map((tab) => (
+              <div key={tab} className="rounded-xl">
                 <button
-                    type="button"
-                    aria-label="Cerrar menú"
-                    className="fixed inset-0 z-40 bg-slate-900/45 backdrop-blur-[1px] lg:hidden"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                />
+                  type="button"
+                  onClick={() => handleSelectTab(tab)}
+                  className={`group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${
+                    activeTab === tab
+                      ? "bg-linear-to-r from-blue-700 to-blue-600 text-white shadow-lg shadow-blue-200/70"
+                      : "border border-transparent text-slate-700 hover:border-blue-200/70 hover:bg-blue-50/80"
+                  } ${isDesktopSidebarCollapsed ? "lg:justify-center lg:px-2" : ""}`}
+                >
+                  <span
+                    className={`${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
+                  >
+                    {tab}
+                  </span>
+                  <span
+                    className={`hidden rounded-full px-2 py-0.5 text-xs font-bold leading-none lg:inline-flex ${isDesktopSidebarCollapsed ? "lg:opacity-100" : "lg:opacity-0"}`}
+                  >
+                    {tab.charAt(0)}
+                  </span>
+                  <span
+                    className={`h-2 w-2 rounded-full transition ${activeTab === tab ? "bg-blue-100" : "bg-slate-300 group-hover:bg-blue-300"} ${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
+                  />
+                </button>
+
+                {tab === "Gastos" && activeTab === "Gastos" && (
+                  <div
+                    className={`mt-1 space-y-1 pl-2 ${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
+                  >
+                    {gastoSubmenus.map((submenu) => (
+                      <button
+                        key={submenu}
+                        type="button"
+                        onClick={() => handleSelectGastoSubmenu(submenu)}
+                        className={`block w-full rounded-lg px-3 py-1.5 text-left text-xs font-medium transition ${
+                          activeGastoSubmenu === submenu
+                            ? "bg-blue-100 text-blue-900"
+                            : "text-slate-600 hover:bg-blue-50"
+                        }`}
+                      >
+                        {submenu}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </nav>
+
+          <div className="mt-auto space-y-3 border-t border-blue-200/70 pt-4">
+            <MovingBorderButton
+              type="button"
+              onClick={handleChangeCompany}
+              containerClassName="w-full h-12"
+              borderRadius="0.85rem"
+              className={`group inline-flex w-full items-center rounded-[0.8rem] border border-blue-700/30 bg-linear-to-r from-blue-700 to-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:from-blue-800 hover:to-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 cursor-pointer ${isDesktopSidebarCollapsed ? "justify-center lg:px-2" : "justify-between"}`}
+            >
+              <IconCompany className="h-5 w-5" />
+              <span
+                className={`${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
+              >
+                {isCompanySelectorOpen
+                  ? "Ocultar empresas"
+                  : "Cambiar de empresa"}
+              </span>
+              <span
+                className={`text-base leading-none transition-transform ${isCompanySelectorOpen ? "rotate-180" : ""} ${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
+              >
+                ▾
+              </span>
+            </MovingBorderButton>
+
+            {isCompanySelectorOpen && !isDesktopSidebarCollapsed && (
+              <div className="rounded-2xl border border-blue-200/80 bg-white/95 p-2.5 shadow-md backdrop-blur-sm">
+                <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  Selecciona empresa
+                </p>
+
+                {loadingEmpresas && (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-600">
+                    Cargando empresas...
+                  </div>
+                )}
+
+                {companyError && !loadingEmpresas && (
+                  <p className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-xs text-red-600">
+                    {companyError}
+                  </p>
+                )}
+
+                {!loadingEmpresas &&
+                  !companyError &&
+                  empresasDisponibles.length === 0 && (
+                    <p className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-600">
+                      No hay empresas disponibles.
+                    </p>
+                  )}
+
+                {!loadingEmpresas &&
+                  !companyError &&
+                  empresasDisponibles.length > 0 && (
+                    <div className="max-h-44 space-y-1 overflow-y-auto pr-1 lg:max-h-56 [scrollbar-width:thin]">
+                      {empresasDisponibles.map((item) => {
+                        const itemId = String(item?.id ?? "");
+                        const currentId = String(empresa?.id ?? "");
+                        const isCurrent =
+                          itemId && currentId && itemId === currentId;
+
+                        return (
+                          <button
+                            key={item?.id}
+                            type="button"
+                            onClick={() => handleSelectCompany(item)}
+                            disabled={isCurrent}
+                            className={`w-full rounded-xl border px-2.5 py-2.5 text-left transition ${
+                              isCurrent
+                                ? "cursor-not-allowed border-emerald-200 bg-emerald-50/90 text-emerald-800"
+                                : "border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50 active:scale-[0.99]"
+                            }`}
+                          >
+                            <p className="text-xs font-semibold leading-4">
+                              {item?.empresa ||
+                                item?.nombre ||
+                                "Empresa sin nombre"}
+                            </p>
+                            <div className="mt-0.5 flex items-center justify-between gap-2">
+                              <p className="truncate text-[11px] text-slate-500">
+                                RUC: {item?.ruc || "-"}
+                              </p>
+                              {isCurrent && (
+                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                                  actual
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+              </div>
             )}
 
-            <aside
-                className={`fixed left-0 top-0 z-50 flex h-full w-[86vw] max-w-76 flex-col border-r border-blue-200/70 bg-white/90 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-2xl backdrop-blur-xl transition-transform duration-300 sm:p-4 lg:static lg:z-auto lg:w-70 lg:translate-x-0 lg:shadow-none ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-                    }`}
+            <button
+              type="button"
+              onClick={handleLogout}
+              className={`inline-flex w-full items-center justify-center rounded-xl border border-red-500/20 bg-red-600 px-3.5 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 cursor-pointer ${isDesktopSidebarCollapsed ? "lg:px-2" : ""}`}
             >
-                {/* Tarjeta de perfil */}
-                <div className="mb-5 rounded-2xl border border-blue-100/90 bg-linear-to-br from-blue-50 via-white to-slate-50 p-4 shadow-sm">
-                    {/* Usuario */}
-                    <div className="flex items-center gap-3">
+              <IconLogout
+                className={`h-5 w-5 text-white [&_path]:stroke-white ${isDesktopSidebarCollapsed ? "lg:mr-0" : "mr-1"}`}
+              />
+              <span
+                className={`${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
+              >
+                Cerrar sesión
+              </span>
+            </button>
+          </div>
+        </aside>
 
-                        <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                Usuario
-                            </p>
-                            <p className="truncate text-sm font-semibold text-slate-800">
-                                {usuario ? usuario.usenam : "No encontrado"}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="my-3 border-t border-blue-100" />
-
-                    {/* Empresa */}
-                    <div className="flex items-center gap-3">
-
-                        <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                Empresa
-                            </p>
-                            <p className="truncate text-sm font-semibold text-slate-800">
-                                {empresa ? (empresa.empresa || empresa.nombre || empresa.name) : "No seleccionada"}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-
-
-                <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-sm font-bold uppercase tracking-[0.14em] text-slate-600">Navegación</h2>
-                    <button
-                        type="button"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className="rounded-lg border border-blue-200 bg-white px-2 py-1 text-xs font-semibold text-blue-700 shadow-xs lg:hidden"
-                    >
-                        Cerrar
-                    </button>
-                </div>
-
-                <nav className="space-y-1 overflow-y-auto pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                    {allowedTabs.map((tab) => (
-                        <div key={tab} className="rounded-xl">
-                            <button
-                                type="button"
-                                onClick={() => handleSelectTab(tab)}
-                                className={`group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${activeTab === tab
-                                    ? "bg-linear-to-r from-blue-700 to-blue-600 text-white shadow-lg shadow-blue-200/70"
-                                    : "border border-transparent text-slate-700 hover:border-blue-200/70 hover:bg-blue-50/80"
-                                    }`}
-                            >
-                                <span>{tab}</span>
-                                <span className={`h-2 w-2 rounded-full transition ${activeTab === tab ? "bg-blue-100" : "bg-slate-300 group-hover:bg-blue-300"}`} />
-                            </button>
-
-                            {tab === "Gastos" && activeTab === "Gastos" && (
-                                <div className="mt-1 space-y-1 pl-2">
-                                    {gastoSubmenus.map((submenu) => (
-                                        <button
-                                            key={submenu}
-                                            type="button"
-                                            onClick={() => handleSelectGastoSubmenu(submenu)}
-                                            className={`block w-full rounded-lg px-3 py-1.5 text-left text-xs font-medium transition ${activeGastoSubmenu === submenu
-                                                ? "bg-blue-100 text-blue-900"
-                                                : "text-slate-600 hover:bg-blue-50"
-                                                }`}
-                                        >
-                                            {submenu}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </nav>
-
-                <div className="mt-auto space-y-3 border-t border-blue-200/70 pt-4">
-                    <MovingBorderButton
-                        type="button"
-                        onClick={handleChangeCompany}
-                        containerClassName="w-full h-12"
-                        borderRadius="0.85rem"
-                        className="group inline-flex w-full items-center justify-between rounded-[0.8rem] border border-blue-700/30 bg-linear-to-r from-blue-700 to-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:from-blue-800 hover:to-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 cursor-pointer"
-                    >
-                        <IconCompany className="h-5 w-5" />
-                        <span>{isCompanySelectorOpen ? "Ocultar empresas" : "Cambiar de empresa"}</span>
-                        <span className={`text-base leading-none transition-transform ${isCompanySelectorOpen ? "rotate-180" : ""}`}>
-                            ▾
-                        </span>
-                    </MovingBorderButton>
-
-                    {isCompanySelectorOpen && (
-                        <div className="rounded-2xl border border-blue-200/80 bg-white/95 p-2.5 shadow-md backdrop-blur-sm">
-                            <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                                Selecciona empresa
-                            </p>
-
-                            {loadingEmpresas && (
-                                <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-600">
-                                    Cargando empresas...
-                                </div>
-                            )}
-
-                            {companyError && !loadingEmpresas && (
-                                <p className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-xs text-red-600">
-                                    {companyError}
-                                </p>
-                            )}
-
-                            {!loadingEmpresas && !companyError && empresasDisponibles.length === 0 && (
-                                <p className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-600">
-                                    No hay empresas disponibles.
-                                </p>
-                            )}
-
-                            {!loadingEmpresas && !companyError && empresasDisponibles.length > 0 && (
-                                <div className="max-h-44 space-y-1 overflow-y-auto pr-1 lg:max-h-56 [scrollbar-width:thin]">
-                                    {empresasDisponibles.map((item) => {
-                                        const itemId = String(item?.id ?? "");
-                                        const currentId = String(empresa?.id ?? "");
-                                        const isCurrent = itemId && currentId && itemId === currentId;
-
-                                        return (
-                                            <button
-                                                key={item?.id}
-                                                type="button"
-                                                onClick={() => handleSelectCompany(item)}
-                                                disabled={isCurrent}
-                                                className={`w-full rounded-xl border px-2.5 py-2.5 text-left transition ${isCurrent
-                                                    ? "cursor-not-allowed border-emerald-200 bg-emerald-50/90 text-emerald-800"
-                                                    : "border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50 active:scale-[0.99]"
-                                                    }`}
-                                            >
-                                                <p className="text-xs font-semibold leading-4">
-                                                    {item?.empresa || item?.nombre || "Empresa sin nombre"}
-                                                </p>
-                                                <div className="mt-0.5 flex items-center justify-between gap-2">
-                                                    <p className="truncate text-[11px] text-slate-500">
-                                                        RUC: {item?.ruc || "-"}
-                                                    </p>
-                                                    {isCurrent && (
-                                                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                                                            actual
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-
-                    <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="inline-flex w-full items-center justify-center rounded-xl border border-red-500/20 bg-red-600 px-3.5 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 cursor-pointer"
-                    >
-                        <IconLogout className="mr-1 h-5 w-5 text-white [&_path]:stroke-white" />
-                        Cerrar sesión
-                    </button>
-                </div>
-            </aside >
-
-            <main className="relative z-10 box-border w-0 min-w-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-[#f3f6fb] px-2 pb-2 pt-[calc(env(safe-area-inset-top)+4rem)] sm:px-3 sm:pb-3 lg:px-3 lg:py-3 lg:pt-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                <div className="w-full max-w-full overflow-hidden" key={String(empresa?.id ?? empresa?.ruc ?? "no-company")}>
-                    {renderContent()}
-                </div>
-            </main>
-        </div >
+        <main className="relative z-10 box-border w-0 min-w-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-[#f3f6fb] px-2 pb-2 pt-[calc(env(safe-area-inset-top)+4rem)] sm:px-3 sm:pb-3 lg:px-3 lg:py-3 lg:pt-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div
+            className="w-full max-w-full overflow-hidden"
+            key={String(empresa?.id ?? empresa?.ruc ?? "no-company")}
+          >
+            {renderContent()}
+          </div>
+        </main>
+      </div>
     );
 }

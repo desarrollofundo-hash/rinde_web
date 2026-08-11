@@ -16,6 +16,17 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        assetFileNames: (assetInfo) => {
+          const name = assetInfo.names?.[0] ?? assetInfo.name ?? "";
+          if (name.endsWith(".mjs")) return "assets/[name]-[hash].js";
+          return "assets/[name]-[hash][extname]";
+        },
+      },
+    },
+  },
   server: {
     hmr: {
       overlay: false,

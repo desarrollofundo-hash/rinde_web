@@ -12,6 +12,7 @@ import ImageZoomLightbox from "./ImageZoomLightbox";
 import PaginationControls from "./PaginationControls";
 import AnimatedList from "./AnimatedList";
 import { IconBroom } from "../../Icons/broom";
+import { IconClose } from "../../Icons/close";
 import {
   ExportGastosToolbar,
   ExportGastosBulkSelect,
@@ -79,7 +80,7 @@ export default function CrearGasto() {
   const getGlosaOrNota = useCallback(
     (gasto) =>
       firstDefined(
-        gasto?.glosa,
+        gasto?.obs,
   
       ),
     [firstDefined],
@@ -340,8 +341,8 @@ export default function CrearGasto() {
         const userData = userRaw ? JSON.parse(userRaw) : null;
         const companyData = companyRaw ? JSON.parse(companyRaw) : null;
 
-        /* console.log("👤 USER COMPLETO:", userData);
-                    console.log("🏢 EMPRESA ACTUAL:", companyData); */
+         /* console.log("👤 USER COMPLETO:", userData);
+                    console.log("🏢 EMPRESA ACTUAL:", companyData);  */
 
         if (!userData || !companyData) {
           throw new Error("Falta usuario o empresa");
@@ -369,8 +370,8 @@ export default function CrearGasto() {
           user: resolvedUserId,
           ruc: resolvedRuc,
         });
-        /* 
-                                console.log("📌 RUC ENVIADO:", companyData.ruc);
+        
+                        /*         console.log("📌 RUC ENVIADO:", companyData.ruc);
                                 console.log("📥 GASTOS:", data); */
 
         const merged = (Array.isArray(data) ? data : []).map((g) =>
@@ -733,6 +734,8 @@ export default function CrearGasto() {
       String(getDiasTranscurridos(gasto)),
       gasto.estado,
       getGlosaOrNota(gasto),
+      gasto.moneda,
+      gasto.idrend,
     ]
       .filter(Boolean)
       .join(" ")
@@ -772,28 +775,26 @@ export default function CrearGasto() {
   // Ajusta estos porcentajes para reducir/ensanchar columnas del modo tabla (desktop).
   const desktopColumnWidths = {
     seleccion: "4%",
+    id: "4%",
     proveedor: "20%",
     categoria: "11%",
     tipoGasto: "10%",
     total: "4%",
-    moneda: "6%",
+    moneda: "4%",
     estado: "11%",
-    fecha: "8%",
+    fecha: "6%",
     dias: "4%",
     evidencia: "7%",
-    acciones: "10%",
+    acciones: "6%",
   };
 
   return (
     <>
       <div className="mx-auto flex min-h-full w-full flex-col space-y-1 px-2 sm:px-4 lg:px-6">
-        <div className="relative overflow-hidden rounded-2xl border bg-white border-blue-200/70 p-2 shadow-sm">
+        <div className="relative overflow-hidden rounded-2xl border p-2 bg-white border-blue-200/70  shadow-sm">
           <div className="flex items-center justify-between gap-2">
             {/* TEXTO */}
             <div className="min-w-0">
-              {/*  <h1 className="truncate text-base font-semibold text-slate-800 sm:text-xl">
-                  Gestión de gastos
-                </h1> */}
               <h1 className="truncate text-base font-semibold text-slate-800 sm:text-xl">
                 Gastos
               </h1>
@@ -810,7 +811,8 @@ export default function CrearGasto() {
             </button>
           </div>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:p-2">
+        <div className="flex min-h-0 flex-1 flex-col p-2 sm:p-2">
+          {/*    <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:p-2"> */}
           {/*  <div className="mb-3 flex flex-col gap-1 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
                     <h2 className="text-lg font-bold text-slate-800 sm:text-xl">Lista de gastos</h2>
                     <p className="text-xs text-slate-500 sm:text-sm">
@@ -818,15 +820,28 @@ export default function CrearGasto() {
                     </p>
                 </div> */}
           <div className="mb-4 flex min-w-0 items-center gap-2">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por política, categoría, tipo de gasto, proveedor, total, fecha, estado o glosa"
-              className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-            />
+            <div className="relative min-w-0 flex-1">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por ID, política, categoría, tipo de gasto, proveedor, total, fecha, estado o glosa"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 pr-10 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+              />
 
-            <button
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  aria-label="Limpiar búsqueda"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/*    <button
               type="button"
               title="Limpiar búsqueda"
               onClick={() => setSearchTerm("")}
@@ -834,7 +849,7 @@ export default function CrearGasto() {
             >
               <IconBroom className="h-5 w-5" />
             </button>
-
+ */}
             <div className="flex shrink-0 items-center gap-2">
               <ExportGastosToolbar
                 isExportMode={isExportMode}
@@ -855,7 +870,8 @@ export default function CrearGasto() {
 
           {!loadingGastos && gastosFiltrados.length === 0 && (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-              No se encontraron resultados con ese criterio de búsqueda.
+              Crea tu primer gasto haciendo clic en el botón{" "}
+              <span className="font-bold  ">"＋ Nuevo" </span>
             </div>
           )}
 
@@ -868,6 +884,7 @@ export default function CrearGasto() {
                       {isExportMode && (
                         <col style={{ width: desktopColumnWidths.seleccion }} />
                       )}
+                      <col style={{ width: desktopColumnWidths.id }} />
                       <col style={{ width: desktopColumnWidths.proveedor }} />
                       <col style={{ width: desktopColumnWidths.categoria }} />
                       <col style={{ width: desktopColumnWidths.tipoGasto }} />
@@ -892,7 +909,9 @@ export default function CrearGasto() {
                             />
                           </th>
                         )}
-
+                        <th className="border-b border-slate-200 px-1 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
+                          ID
+                        </th>
                         <th className="border-b border-slate-200 px-1 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
                           Proveedor
                         </th>
@@ -945,7 +964,9 @@ export default function CrearGasto() {
                               />
                             </td>
                           )}
-
+                          <td className="border-b border-slate-100 px-2 py-1 text-center text-sm font-semibold text-slate-800">
+                            {gasto.idrend ?? "-"}
+                          </td>
                           <td className="border-b border-slate-100 px-2 py-1 text-left text-sm font-semibold text-slate-800">
                             <p className="truncate" title={gasto.ruc || "-"}>
                               {gasto.proveedor ||
@@ -1187,6 +1208,7 @@ export default function CrearGasto() {
                 className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px]"
                 onClick={closePreview}
               />
+
               <div className="fixed inset-0 z-50 flex items-center justify-center overflow-auto p-4">
                 <div className="flex w-full max-w-2xl flex-col overflow-hidden bg-transparent shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] backdrop-blur-sm max-h-[88vh] rounded-2xl p-0 sm:rounded-[1.35rem]">
                   <div className="min-h-0 flex-1 overflow-y-auto bg-linear-to-b from-white to-slate-50/70">
@@ -1194,7 +1216,7 @@ export default function CrearGasto() {
                       <div className="flex flex-col gap-2 border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3">
                         <div className="min-w-0">
                           <h3 className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-slate-800 sm:text-[15px]">
-                            <span>Vista previa del Gasto</span>
+                            <span>Vista previa:</span>
 
                             <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">
                               # Id : {getGastoIdRend(previewGasto) || "-"}
@@ -1208,6 +1230,10 @@ export default function CrearGasto() {
                               )}
                             </span>
                           </h3>
+                          <IconClose
+                            className="absolute right-3 top-3 h-6 w-6 cursor-pointer rounded-full p-1 text-slate-400 transition-all duration-200 hover:scale-110 hover:bg-red-100 hover:text-red-600 sm:right-4 sm:top-4"
+                            onClick={closePreview}
+                          />
                         </div>
                         {/*   <div className="shrink-0 text-left sm:text-right">
                                             <p className="text-sm font-semibold text-cyan-700 sm:text-[15px]">
@@ -1255,70 +1281,29 @@ export default function CrearGasto() {
                             ],
                             [
                               "Centro de Costo:",
-                              firstDefined(
-                                previewGasto?.consumidor,
-                                previewGasto?.centroCosto,
-                                previewGasto?.centrocosto,
-                                previewGasto?.nomCentroCosto,
-                                "-",
-                              ),
+                              firstDefined(previewGasto?.consumidor, "-"),
                             ],
                             [
                               "Tipo de Gasto:",
-                              firstDefined(
-                                previewGasto?.tipoGasto,
-                                previewGasto?.tipogasto,
-                                previewGasto?.nomTipoGasto,
-                                "-",
-                              ),
+                              firstDefined(previewGasto?.tipogasto, "-"),
                             ],
                             [
                               "Categoría:",
-                              firstDefined(
-                                previewGasto?.categoria,
-                                previewGasto?.cat,
-                                "-",
-                              ),
+                              firstDefined(previewGasto?.categoria, "-"),
                             ],
                             [
                               "RUC Emisor:",
-                              firstDefined(
-                                previewGasto?.rucEmisor,
-                                previewGasto?.rucemisor,
-                                previewGasto?.ruc,
-                                "-",
-                              ),
+                              firstDefined(previewGasto?.ruc, "-"),
                             ],
                             [
                               "Razón Social:",
-                              firstDefined(
-                                previewGasto?.proveedor,
-                                previewGasto?.empresa,
-                                previewGasto?.razonSocial,
-                                previewGasto?.razonsocial,
-                                previewGasto?.ruccliente,
-                                "-",
-                              ),
+                              firstDefined(previewGasto?.proveedor, "-"),
                             ],
                             [
                               "RUC Cliente:",
-                              firstDefined(
-                                previewGasto?.rucCliente,
-                                previewGasto?.ruccliente,
-                                previewGasto?.rucCli,
-                                "-",
-                              ),
+                              firstDefined(previewGasto?.ruccliente, "-"),
                             ],
-                            [
-                              "Placa:",
-                              firstDefined(
-                                previewGasto?.placa,
-                                previewGasto?.placaVehiculo,
-                                previewGasto?.vehiculoPlaca,
-                                previewGasto?.nroPlaca,
-                                "-",
-                              ),
-                            ],
+                            ["Placa:", firstDefined(previewGasto?.placa, "-")],
                           ].map(([label, value]) => (
                             <div key={label} className="col-span-1">
                               <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
@@ -1336,25 +1321,8 @@ export default function CrearGasto() {
                             Monto del Gasto
                           </h2>
                           {[
-                            [
-                              "Total:",
-                              firstDefined(
-                                previewGasto?.total,
-                                previewGasto?.monto,
-                                previewGasto?.importe,
-                                previewGasto?.valor,
-                                "-",
-                              ),
-                            ],
-                            [
-                              "IGV:",
-                              firstDefined(
-                                previewGasto?.igv,
-                                previewGasto?.tax,
-                                previewGasto?.impuesto,
-                                "-",
-                              ),
-                            ],
+                            ["Total:", firstDefined(previewGasto?.total, "-")],
+                            ["IGV:", firstDefined(previewGasto?.igv, "-")],
                           ].map(([label, value]) => (
                             <div key={label} className="col-span-1">
                               <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
@@ -1373,87 +1341,19 @@ export default function CrearGasto() {
                           </h2>
                           {(isMovilidadGasto(previewGasto)
                             ? [
-                                [
-                                  "Tipo Comprobante:",
-                                  getTipoComprobante(previewGasto) || "-",
-                                ],
-                                [
-                                  "Fecha Emisión:",
-                                  previewGasto.fecha?.split("T")[0] || "-",
-                                ],
-                                [
-                                  "Serie - Número:",
-                                  `${firstDefined(previewGasto?.serie, previewGasto?.serieComprobante, previewGasto?.nroserie, "-")} - ${firstDefined(previewGasto?.numero, previewGasto?.nroComprobante, previewGasto?.nro, previewGasto?.num, previewGasto?.nrodoc, "-")}`,
-                                ],
-                                [
-                                  "LUGAR ORIGEN:",
-                                  firstDefined(
-                                    previewGasto?.lugarOrigen,
-                                    previewGasto?.lugarorigen,
-                                    previewGasto?.origen,
-                                    previewGasto?.puntoOrigen,
-                                    previewGasto?.desde,
-                                    "-",
-                                  ),
-                                ],
-                                [
-                                  "LUGAR DESTINO:",
-                                  firstDefined(
-                                    previewGasto?.lugarDestino,
-                                    previewGasto?.lugardestino,
-                                    previewGasto?.destino,
-                                    previewGasto?.puntoDestino,
-                                    previewGasto?.hasta,
-                                    "-",
-                                  ),
-                                ],
-                                [
-                                  "TIPO MOVILIDAD:",
-                                  firstDefined(
-                                    previewGasto?.tipoMovilidad,
-                                    previewGasto?.tipomovilidad,
-                                    previewGasto?.tipo_movilidad,
-                                    previewGasto?.movilidad,
-                                    previewGasto?.transporte,
-                                    previewGasto?.medioTransporte,
-                                    previewGasto?.medio_transporte,
-                                    "-",
-                                  ),
-                                ],
-                                [
-                                  "Motivo Viaje:",
-                                  firstDefined(
-                                    previewGasto?.motivoViaje,
-                                    previewGasto?.motivo_viaje,
-                                    previewGasto?.viajeMotivo,
-                                    previewGasto?.motivo,
-                                    "-",
-                                  ),
-                                ],
+                                ["Tipo Comprobante:", getTipoComprobante(previewGasto) || "-",],
+                                ["Fecha Emisión:",previewGasto.fecha?.split("T")[0] || "-",],
+                                ["Serie - Número:",`${firstDefined(previewGasto?.serie, "-")} - ${firstDefined(previewGasto?.numero, "-")}`,],
+                                ["LUGAR ORIGEN:",firstDefined(previewGasto?.lugarorigen, "-"),],
+                                ["LUGAR DESTINO:", firstDefined(previewGasto?.lugardestino, "-"),],
+                                ["TIPO MOVILIDAD:",firstDefined(previewGasto?.tipomovilidad,"-",),],
+                                ["Motivo Viaje:",firstDefined(previewGasto?.motivoviaje,"-",), ],
                               ]
                             : [
-                                [
-                                  "Tipo Comprobante:",
-                                  getTipoComprobante(previewGasto) || "-",
-                                ],
-                                [
-                                  "Fecha Emisión:",
-                                  previewGasto.fecha?.split("T")[0] || "-",
-                                ],
-                                [
-                                  "Serie - Número:",
-                                  `${firstDefined(previewGasto?.serie, previewGasto?.serieComprobante, "-")} - ${firstDefined(previewGasto?.numero, previewGasto?.nroComprobante, previewGasto?.nro, "-")}`,
-                                ],
-                                [
-                                  "Total:",
-                                  firstDefined(
-                                    previewGasto?.total,
-                                    previewGasto?.monto,
-                                    previewGasto?.importe,
-                                    previewGasto?.valor,
-                                    "-",
-                                  ),
-                                ],
+                                ["Tipo Comprobante:",getTipoComprobante(previewGasto) || "-",],
+                                ["Fecha Emisión:",previewGasto.fecha?.split("T")[0] || "-",],
+                                ["Serie - Número:",`${firstDefined(previewGasto?.serie, "-")} - ${firstDefined(previewGasto?.numero, "-")}`, ],
+                                ["Total:", firstDefined(previewGasto?.total, "-"),],
                               ]
                           ).map(([label, value]) => (
                             <div key={label} className="col-span-1">
@@ -1495,15 +1395,14 @@ export default function CrearGasto() {
                           </div>
                         </dl>
 
-                      
                         <div className="flex justify-end border-t border-slate-100 pt-3">
-                          <button
+                          {/* <button
                             type="button"
                             onClick={closePreview}
                             className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 cursor-pointer"
                           >
                             Cerrar
-                          </button>
+                          </button> */}
                         </div>
                       </div>
                     </div>
@@ -1531,7 +1430,7 @@ export default function CrearGasto() {
               onClick={closeModal}
             />
             <div className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden p-0 sm:items-start sm:overflow-auto sm:p-8">
-              <div className="flex h-dvh w-full max-w-6xl flex-col overflow-hidden border border-slate-200/80 bg-white shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] ring-1 ring-white/60 backdrop-blur-sm max-h-dvh sm:h-auto sm:max-h-[88vh] rounded-t-2xl sm:rounded-[1.35rem]">
+              <div className="flex max-h-[88dvh] w-full max-w-6xl flex-col overflow-hidden border border-slate-200/80 bg-white shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] ring-1 ring-white/60 backdrop-blur-sm sm:h-auto sm:max-h-[88vh] rounded-t-2xl sm:rounded-[1.35rem]">
                 <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-2 border-b border-blue-100 bg-linear-to-r from-blue-50 via-white to-indigo-50 px-2.5 py-2.5 sm:gap-3 sm:px-6 sm:py-3">
                   <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
                     <span className="h-9 w-1 rounded-full bg-linear-to-b from-blue-600 via-blue-700 to-indigo-500" />
@@ -1544,9 +1443,9 @@ export default function CrearGasto() {
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="cursor-pointer shrink-0 rounded-full border border-blue-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-900 sm:px-3.5 sm:py-1.5 sm:text-sm"
+                    className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-blue-200 bg-white text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-900"
                   >
-                    Cerrar
+                    <IconClose className="h-3.5 w-3.5" />
                   </button>
                 </div>
 
@@ -1579,7 +1478,8 @@ export default function CrearGasto() {
                     </select>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200 bg-white">
+                  <div className="">
+                    {/* <div className="rounded-2xl border border-slate-200 bg-white"> */}
                     {selectedPolitica && (
                       <>
                         <h2 className="mb-3 text-lg font-bold text-slate-800">

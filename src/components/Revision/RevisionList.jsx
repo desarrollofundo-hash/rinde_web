@@ -125,6 +125,7 @@ export default function RevisionList({
                 formatCurrency(getRevisionTotal(revision)),
                 getRevisionCantidadGastos(revision),
                 revision?.gerencia,
+                revision?.idrev,
             ]
                 .filter((value) => value !== undefined && value !== null)
                 .join(" ")
@@ -157,7 +158,7 @@ export default function RevisionList({
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Buscar por titulo, estado, fecha o total"
+              placeholder="Buscar por titulo,IdRev, estado, fecha o total"
               className="min-w-48 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
             />
 

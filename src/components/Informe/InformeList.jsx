@@ -213,8 +213,8 @@ export default function InformeList({
                                             className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-cyan-700 cursor-pointer"
                                         >
                                             <IconEye className="h-3.5 w-3.5 shrink-0" />
-                                            <span className="hidden sm:inline">Vista previa</span>
-                                            <span className="sm:hidden">Ver</span>
+                                            {/* <span className="hidden sm:inline">Vista previa</span> */}
+                                            {/* <span className="sm:hidden">Ver</span> */}
                                         </button>
                                     </td>
                                 </tr>

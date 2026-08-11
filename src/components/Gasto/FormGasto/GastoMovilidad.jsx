@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { centerCrop, makeAspectCrop } from "react-image-crop";
 import { Save } from "lucide-react";
+import { GlobalWorkerOptions, getDocument } from "pdfjs-dist/build/pdf.mjs";
 import EvidenciaUploader from "./EvidenciaUploader";
 import EvidenciaCropModal from "./EvidenciaCropModal";
 import QrScannerModal from "./QrScannerModal";
 import Toast from "../../shared/Toast";
 import useMovilidadForm from "../../../services/hooks/useMovilidadForm";
+
+GlobalWorkerOptions.workerSrc = new URL(
+    "pdfjs-dist/build/pdf.worker.min.mjs",
+    import.meta.url
+).href;
 
 const getCroppedFile = async (imageElement, pixelCrop, originalFile) => {
     const canvas = document.createElement("canvas");
@@ -39,6 +45,48 @@ const getCroppedFile = async (imageElement, pixelCrop, originalFile) => {
 
     return new File([blob], originalFile.name || "evidencia.jpg", {
         type: mimeType,
+        lastModified: Date.now(),
+    });
+};
+
+const isPdfFile = (file) => {
+    if (!file) return false;
+
+    const mimeType = String(file.type || "").toLowerCase();
+    if (["application/pdf", "application/x-pdf", "application/octet-stream"].includes(mimeType)) {
+        return true;
+    }
+
+    return /\.pdf$/i.test(String(file.name || ""));
+};
+
+const convertPdfToImageFile = async (pdfFile) => {
+    const pdfData = await pdfFile.arrayBuffer();
+    const pdfDocument = await getDocument({ data: pdfData }).promise;
+    const page = await pdfDocument.getPage(1);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+        throw new Error("No se pudo preparar el lienzo para convertir el PDF");
+    }
+
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+
+    await page.render({ canvasContext: context, viewport }).promise;
+
+    const renderedBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.95));
+
+    if (!renderedBlob) {
+        throw new Error("No se pudo convertir el PDF a imagen");
+    }
+
+    const baseName = String(pdfFile.name || "evidencia.pdf").replace(/\.pdf$/i, "");
+
+    return new File([renderedBlob], `${baseName || "evidencia"}.jpg`, {
+        type: "image/jpeg",
         lastModified: Date.now(),
     });
 };
@@ -139,11 +187,23 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
     const [cropShape, setCropShape] = useState("rect");
     const [isQrOpen, setIsQrOpen] = useState(false);
     const [evidenciaInputResetKey, setEvidenciaInputResetKey] = useState(0);
+    const [movilidadMontoDialog, setMovilidadMontoDialog] = useState({ isOpen: false, message: "" });
     const imageCropRef = useRef(null);
 
     const handleSubmitForm = async (e) => {
-        const isSaved = await handleSubmit(e);
-        if (!isSaved) return;
+        e.preventDefault();
+
+        const result = await handleSubmit(e);
+        if (!result?.saved) return;
+
+        const msgNorm = String(result.mensaje ?? "").toUpperCase().trim();
+        const excedeLimite = msgNorm.includes("44") || msgNorm.includes("LIMITE") || msgNorm.includes("SUPERA") || msgNorm.includes("EXCEDE");
+
+        if (excedeLimite) {
+            setMovilidadMontoDialog({ isOpen: true, message: result.mensaje });
+        } else {
+            alert("Guardado correctamente ✅");
+        }
 
         if (evidenciaPreviewUrl) {
             URL.revokeObjectURL(evidenciaPreviewUrl);
@@ -161,11 +221,22 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
         setEvidenciaInputResetKey((prev) => prev + 1);
     };
 
-    const handleChange = (e) => {
+    const handleChange = async (e) => {
         const { name, files } = e.target;
 
         if (files) {
-            const selectedFile = files[0] || null;
+            let selectedFile = files[0] || null;
+
+            if (name === "evidencia" && isPdfFile(selectedFile)) {
+                try {
+                    selectedFile = await convertPdfToImageFile(selectedFile);
+                } catch (error) {
+                    console.error("No se pudo convertir el PDF a imagen", error);
+                    setErrorMessage("No se pudo convertir el PDF a imagen");
+                    return;
+                }
+            }
+
             setFormData((prev) => ({
                 ...prev,
                 [name]: selectedFile,
@@ -293,7 +364,7 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
             setFormData((prev) => ({ ...prev, evidencia: croppedFile }));
             setEvidenciaPreviewUrl(newPreview);
             setIsCropMode(false);
-        } catch (error) {
+        } catch {
             /* console.error("Error recortando imagen en movilidad:", error); */
             alert("No se pudo recortar la imagen");
         }
@@ -664,6 +735,41 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
                 onClose={() => setErrorMessage("")}
                 duration={5000}
             />
+
+            {/* Modal: Límite de monto movilidad */}
+            {movilidadMontoDialog.isOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl">
+                        <div className="flex items-center gap-3 rounded-t-2xl border-b border-slate-100 px-5 py-4">
+                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-50">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m2 0a8 8 0 11-16 0 8 8 0 0116 0zm-8-4h.01M12 16h.01" />
+                                </svg>
+                            </div>
+                            <h2 className="text-base font-bold tracking-wide text-red-600">MONTO MOVILIDAD</h2>
+                        </div>
+                        <div className="px-5 py-4">
+                            <div className="flex items-start gap-2 rounded-lg border border-red-400 bg-red-50/60 p-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z" />
+                                </svg>
+                                <p className="text-sm font-semibold uppercase text-slate-700">
+                                    {movilidadMontoDialog.message}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex justify-end rounded-b-2xl border-t border-slate-100 px-5 py-3">
+                            <button
+                                type="button"
+                                onClick={() => setMovilidadMontoDialog({ isOpen: false, message: "" })}
+                                className="rounded-xl bg-red-500 px-6 py-2 text-sm font-semibold text-white transition hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300"
+                            >
+                                Entendido
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

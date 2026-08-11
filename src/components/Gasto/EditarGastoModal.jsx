@@ -10,6 +10,7 @@ import EvidenciaCropModal from "./FormGasto/EvidenciaCropModal";
 import EvidenciaImagen from "./EvidenciaImagen";
 import { IconEdit } from "@/Icons/edit";
 import { Save, X } from "lucide-react";
+import { IconClose } from "@/Icons/close";
 
 const getCroppedFile = async (imageElement, pixelCrop, originalFile) => {
     const canvas = document.createElement("canvas");
@@ -146,18 +147,7 @@ const getFieldValue = (source, keys) => {
 };
 
 const resolveTipoComprobante = (gasto) => {
-    const value = getFieldValue(gasto, [
-        "tipoComprobante",
-        "tipocomprobante",
-        "tipoCombrobante",
-        "tipo_comprobante",
-        "comprobante",
-        "tipo",
-        "nomTipoComprobante",
-        "nomtipocomprobante",
-        "nom_tipo_comprobante",
-        "nomtipo_comprobante",
-    ]);
+    const value = getFieldValue(gasto, ["tipocomprobante",]);
 
     if (value && typeof value === "object") {
         return String(firstDefined(
@@ -198,6 +188,9 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
     const [formData, setFormData] = useState({
         proveedor: "",
         glosa: "",
+        //obs1 de la cabecera del gasto, puede ser un comentario adicional o nota
+        obs1: "",
+        //evidencia obs contiene la ruta de evidencia si se cambió, sino el valor original
         obs: "",
         centroCostoId: "",
         centroCosto: "",
@@ -227,15 +220,22 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
     useEffect(() => {
         if (!gasto) return;
 
+        const obs1 = String(gasto.obs1 || "").trim();
         const glosaRaw = String(gasto.glosa || "").trim();
         const glosaIsPlaceholder = ["CREAR GASTO", "CREAR GASTO MOVILIDAD"].includes(glosaRaw.toUpperCase());
         const glosaValue = glosaRaw && !glosaIsPlaceholder
             ? glosaRaw
-            : String(gasto.obs || gasto.nota || gasto.observacion || gasto.observaciones || "").trim();
+            : String(gasto.obs || gasto.nota || gasto.obs1 || "").trim();
+
+     /*    const glosaValue =
+          glosaRaw && !glosaIsPlaceholder
+            ? glosaRaw
+            : String(gasto.obs || gasto.nota || "").trim(); */
 
         const initialData = {
             proveedor: String(gasto.proveedor || ""),
             glosa: glosaValue,
+            obs1: obs1,
             obs: String(gasto.obs || ""),
             centroCostoId: String(gasto.idCuenta || gasto.idcuenta || ""),
             centroCosto: String(gasto.centroCosto || gasto.consumidor || gasto.idCuenta || gasto.idcuenta || ""),
@@ -499,15 +499,7 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
     const buildEvidenceUpdate = async () => {
         if (!newEvidencia) return null;
 
-        const idRend = String(
-            gasto?.idrend ||
-            gasto?.idRend ||
-            gasto?.IDREND ||
-            gasto?.IdRend ||
-            formData?.idRend ||
-            gasto?.id ||
-            ""
-        ).trim();
+        const idRend = String(gasto?.idrend ||"").trim();
 
         if (!idRend) {
             throw new Error("No se pudo obtener el ID de la rendición. Por favor recarga el modal.");
@@ -527,9 +519,11 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
             throw new Error("La respuesta del servidor no contiene la ruta de la evidencia");
         }
 
+        const obs1=String(formData.obs1 || gasto.obs1 || "").trim();
         const evidenciaPath = String(result.path).trim();
         const evidenciaFileName = String(result?.fileName || newEvidencia?.name || "").trim();
         const evidenciaPatch = {
+            obs1:obs1,
             obs: evidenciaPath,
             evidenciaPath,
             evidenciaFileName,
@@ -664,6 +658,7 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                 lugarOrigen: String(gasto.lugarOrigen || ""),
                 lugarDestino: String(gasto.lugarDestino || ""),
                 tipoMovilidad: String(gasto.tipoMovilidad || ""),
+                obs1: String(formData.obs1 || gasto.obs1 || ""),
                 // IMPORTANTE: obs contiene la ruta de evidencia si se cambió
                 obs: String(evidenciaUpdate?.evidenciaPath || formData.obs || ""),
                 evidenciaPath: String(evidenciaUpdate?.evidenciaPath || formData.obs || ""),
@@ -678,13 +673,7 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                 useEdit: userId,
                 useElim: 0,
             };
-            /* 
-                        console.log("📡 Enviando payload completo con cambios:", payload);
-                        await updateDetalleGasto(payload);
-                        console.log("✅ Gasto actualizado en BD"); */
-
-            if (evidenciaUpdate) {
-            }
+            await updateDetalleGasto(payload);
 
             if (typeof onSaved === "function") {
                 await onSaved(payload);
@@ -692,8 +681,7 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
 
             onClose();
         } catch (submitError) {
-          /*   console.error("❌ Error al guardar:", submitError);
-            setError(submitError?.message || "No se pudo actualizar el gasto"); */
+            setError(submitError?.message || "No se pudo actualizar el gasto");
         } finally {
             setIsSaving(false);
         }
@@ -720,313 +708,443 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
 
     if (!isOpen || !gasto) return null;
 
-    return modalRoot ? createPortal((
-        <>
+    return modalRoot
+      ? createPortal(
+          <>
             <button
-                type="button"
-                aria-label="Cerrar modal"
-                className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px]"
-                onClick={onClose}
+              type="button"
+              aria-label="Cerrar modal"
+              className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px]"
+              onClick={onClose}
             />
 
             <div className="fixed inset-0 z-50 flex items-start justify-center overflow-hidden p-0 sm:items-start sm:p-8">
-                <div className="flex h-[100dvh] w-full max-w-5xl flex-col overflow-hidden border border-slate-200/80 bg-white shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] ring-1 ring-white/60 backdrop-blur-sm sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-[1.35rem]">
-                    {title && (
-                        <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-3 border-b border-blue-100 bg-linear-to-r from-blue-50 via-white to-indigo-50 px-4 py-2.5 sm:px-6 sm:py-3">
-                            <div className="flex min-w-0 items-center gap-2.5">
-                                <span className="h-7 w-1 rounded-full bg-linear-to-b from-blue-600 via-blue-700 to-indigo-500 sm:h-9" />
-                                <h2 className="min-w-0 text-sm font-extrabold text-slate-800 sm:text-base">{title}</h2>
+              <div className="flex h-[100dvh] w-full max-w-5xl flex-col overflow-hidden border border-slate-200/80 bg-white shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] ring-1 ring-white/60 backdrop-blur-sm sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-[1.35rem]">
+                {title && (
+                  <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-3 border-b border-blue-100 bg-linear-to-r from-blue-50 via-white to-indigo-50 px-4 py-2.5 sm:px-6 sm:py-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className="h-7 w-1 rounded-full bg-linear-to-b from-blue-600 via-blue-700 to-indigo-500 sm:h-9" />
+                      <h2 className="min-w-0 text-sm font-extrabold text-slate-800 sm:text-base">
+                        {title}
+                      </h2>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-blue-200 bg-white text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-900 cursor-pointer sm:h-10 sm:w-10"
+                    >
+                      <IconClose className="h-3.5 w-3.5 " />
+                    </button>
+                  </div>
+                )}
+
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-linear-to-b from-white to-slate-50/70 p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-5 lg:flex lg:flex-col lg:overflow-hidden lg:p-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                  {error && (
+                    <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                      {error}
+                    </p>
+                  )}
+                  <form
+                    onSubmit={handleSubmit}
+                    className="space-y-3 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col"
+                  >
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr] lg:min-h-0 lg:flex-1">
+                      {/* Solo esta columna hace scroll propio en pantallas lg+; la evidencia queda fija */}
+                      <div className="space-y-4 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-1 lg:[scrollbar-width:none] lg:[-ms-overflow-style:none] lg:[&::-webkit-scrollbar]:hidden">
+                        <section className={sectionClass}>
+                          <h3 className={sectionTitleClass}>
+                            Datos Generales :
+                          </h3>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <label className={labelClass}>
+                              Politica
+                              <input
+                                name="politica"
+                                value={formData.politica}
+                                readOnly
+                                className={inputReadOnlyClass}
+                              />
+                            </label>
+                            <label className={labelClass}>
+                              Categoria
+                              <select
+                                value={categoriaSelectedId}
+                                onChange={handleCategoriaChange}
+                                disabled={!isEditing}
+                                className={
+                                  isEditing ? inputClass : selectReadOnlyClass
+                                }
+                              >
+                                <option value="">
+                                  Selecciona una categoria
+                                </option>
+                                {categorias.map((item) => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.name}
+                                  </option>
+                                ))}
+                                {!categoriaSelectedId && formData.categoria && (
+                                  <option value="__current__">
+                                    {formData.categoria}
+                                  </option>
+                                )}
+                              </select>
+                            </label>
+                            <label className={labelClass}>
+                              Centro de costo
+                              <select
+                                value={centroSelectedId}
+                                onChange={handleCentroCostoChange}
+                                disabled={!isEditing}
+                                className={
+                                  isEditing ? inputClass : selectReadOnlyClass
+                                }
+                              >
+                                <option value="">
+                                  Selecciona un centro de costo
+                                </option>
+                                {centrosCosto.map((item) => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.consumidor || item.name}
+                                  </option>
+                                ))}
+                                {!centroSelectedId && formData.centroCosto && (
+                                  <option value="__current__">
+                                    {formData.centroCosto}
+                                  </option>
+                                )}
+                              </select>
+                            </label>
+                            <label className={labelClass}>
+                              Tipo de gasto
+                              <input
+                                name="tipogasto"
+                                value={formData.tipogasto}
+                                readOnly
+                                className={inputReadOnlyClass}
+                              />
+                            </label>
+                          </div>
+                        </section>
+
+                        <section className={sectionClass}>
+                          <h3 className={sectionTitleClass}>
+                            Datos del Comprobante :{" "}
+                          </h3>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <label className={labelClass}>
+                              Tipo Comprobante:
+                              <input
+                                type="text"
+                                name="tipoComprobante"
+                                value={formData.tipoComprobante}
+                                readOnly
+                                className={inputReadOnlyClass}
+                              />
+                            </label>
+                            {/* Movil: RUC en una sola fila (2 columnas). Tablet/PC: en fila con mayor ancho para evitar cortes. */}
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:col-span-2 sm:gap-3 lg:col-span-2">
+                              <label className={labelClass}>
+                                RUC Emisor:
+                                <input
+                                  type="text"
+                                  name="rucEmisor"
+                                  value={formData.rucEmisor}
+                                  readOnly
+                                  className={inputReadOnlyClass}
+                                />
+                              </label>
+                              <label className={labelClass}>
+                                RUC Cliente:
+                                <input
+                                  type="text"
+                                  name="rucCliente"
+                                  value={formData.rucCliente}
+                                  readOnly
+                                  className={inputReadOnlyClass}
+                                />
+                              </label>
                             </div>
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="cursor-pointer rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-900 sm:px-3.5 sm:py-1.5 sm:text-sm"
+
+                            <label className={`${labelClass} lg:col-span-3`}>
+                              Razon Social:
+                              <input
+                                type="text"
+                                name="razonSocial"
+                                value={formData.razonSocial}
+                                readOnly
+                                className={inputReadOnlyClass}
+                              />
+                            </label>
+                            {/* Movil: Serie y Numero en una sola fila. Tablet/PC: en fila con mayor ancho. */}
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:col-span-2 sm:gap-3 lg:col-span-2">
+                              <label className={labelClass}>
+                                Serie:
+                                <input
+                                  type="text"
+                                  name="serie"
+                                  value={formData.serie}
+                                  readOnly
+                                  className={inputReadOnlyClass}
+                                />
+                              </label>
+                              <label className={labelClass}>
+                                Numero:
+                                <input
+                                  type="text"
+                                  name="numero"
+                                  value={formData.numero}
+                                  readOnly
+                                  className={inputReadOnlyClass}
+                                />
+                              </label>
+                            </div>
+
+                            <label className={labelClass}>
+                              Fecha:
+                              <input
+                                type="date"
+                                name="fecha"
+                                value={formData.fecha}
+                                readOnly
+                                className={inputReadOnlyClass}
+                              />
+                            </label>
+
+                            <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 sm:col-span-2 sm:gap-3 lg:col-span-2">
+                              <label className={labelClass}>
+                                IGV:
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  name="igv"
+                                  value={formData.igv}
+                                  readOnly
+                                  className={inputReadOnlyClass}
+                                />
+                              </label>
+                              <label className={labelClass}>
+                                Total:
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  name="total"
+                                  value={formData.total}
+                                  readOnly
+                                  className={inputReadOnlyClass}
+                                />
+                              </label>
+                              <label className={labelClass}>
+                                Moneda:
+                                <input
+                                  name="moneda"
+                                  value={formData.moneda}
+                                  readOnly
+                                  className={inputReadOnlyClass}
+                                />
+                              </label>
+                            </div>
+
+                            <label
+                              className={`${labelClass} sm:col-span-2 lg:col-span-3`}
                             >
-                                Cerrar
-                            </button>
-                        </div>
-                    )}
+                              Nota u obs de gasto
+                              <textarea
+                                name="glosa"
+                                rows="4"
+                                value={formData.glosa}
+                                readOnly
+                                className={`${inputReadOnlyClass} resize-none`}
+                              />
+                            </label>
+                          </div>
+                        </section>
+                      </div>
 
-                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-linear-to-b from-white to-slate-50/70 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-5 lg:p-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                        {error && <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-                        <form onSubmit={handleSubmit} className="space-y-3">
-                            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
-                                <div className="space-y-4">
-                                    <section className={sectionClass}>
-                                        <h3 className={sectionTitleClass}>Datos Generales :</h3>
-                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                            <label className={labelClass}>
-                                                Politica
-                                                <input name="politica" value={formData.politica} readOnly className={inputReadOnlyClass} />
-                                            </label>
-                                            <label className={labelClass}>
-                                                Categoria
-                                                <select
-                                                    value={categoriaSelectedId}
-                                                    onChange={handleCategoriaChange}
-                                                    disabled={!isEditing}
-                                                    className={isEditing ? inputClass : selectReadOnlyClass}
-                                                >
-                                                    <option value="">Selecciona una categoria</option>
-                                                    {categorias.map((item) => (
-                                                        <option key={item.id} value={item.id}>{item.name}</option>
-                                                    ))}
-                                                    {!categoriaSelectedId && formData.categoria && (
-                                                        <option value="__current__">{formData.categoria}</option>
-                                                    )}
-                                                </select>
-                                            </label>
-                                            <label className={labelClass}>
-                                                Centro de costo
-                                                <select
-                                                    value={centroSelectedId}
-                                                    onChange={handleCentroCostoChange}
-                                                    disabled={!isEditing}
-                                                    className={isEditing ? inputClass : selectReadOnlyClass}
-                                                >
-                                                    <option value="">Selecciona un centro de costo</option>
-                                                    {centrosCosto.map((item) => (
-                                                        <option key={item.id} value={item.id}>{item.consumidor || item.name}</option>
-                                                    ))}
-                                                    {!centroSelectedId && formData.centroCosto && (
-                                                        <option value="__current__">{formData.centroCosto}</option>
-                                                    )}
-                                                </select>
-                                            </label>
-                                            <label className={labelClass}>
-                                                Tipo de gasto
-                                                <input name="tipogasto" value={formData.tipogasto} readOnly className={inputReadOnlyClass} />
-                                            </label>
-                                        </div>
-                                    </section>
+                      <aside className="space-y-4 lg:h-fit lg:self-start">
+                        <section className={sectionClass}>
+                          <h3 className={sectionTitleClass}>Evidencia</h3>
+                          <button
+                            type="button"
+                            onClick={handleOpenEvidenciaChangeModal}
+                            disabled={!isEditing}
+                            className={
+                              isEditing
+                                ? "mb-4 w-full rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 cursor-pointer"
+                                : "mb-4 w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-500 cursor-not-allowed opacity-60"
+                            }
+                          >
+                            Cambiar evidencia
+                          </button>
+                          <div className="flex flex-col gap-2 text-sm font-semibold text-slate-700">
+                            {evidenciaVisibleSrc ? (
+                              <div className="space-y-2">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                                  Vista previa nueva
+                                </p>
+                                <img
+                                  src={evidenciaVisibleSrc}
+                                  alt="Evidencia del gasto"
+                                  className="max-h-[55vh] w-full rounded-xl border border-slate-200 object-contain bg-white"
+                                  loading="lazy"
+                                />
+                              </div>
+                            ) : (
+                              <EvidenciaImagen
+                                key={`${gasto?.id || gasto?.idrend || gasto?.evidenciaPath || gasto?.evidenciaFileName || formData.obs || "evidencia"}`}
+                                gasto={gasto}
+                                fallbackObs={formData.obs}
+                                alt="Evidencia del gasto"
+                                className="max-h-[55vh] w-full rounded-xl border border-slate-200 object-contain bg-white"
+                                fallback={
+                                  <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-500">
+                                    No hay evidencia registrada para este gasto.
+                                  </p>
+                                }
+                              />
+                            )}
+                          </div>
+                        </section>
+                      </aside>
+                    </div>
 
-                                    <section className={sectionClass}>
-                                        <h3 className={sectionTitleClass}>Datos del Comprobante : </h3>
-                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                                            <label className={labelClass}>
-                                                Tipo Comprobante:
-                                                <input type="text" name="tipoComprobante" value={formData.tipoComprobante} readOnly className={inputReadOnlyClass} />
-                                            </label>
-                                            {/* Movil: RUC en una sola fila (2 columnas). Tablet/PC: en fila con mayor ancho para evitar cortes. */}
-                                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:col-span-2 sm:gap-3 lg:col-span-2">
-                                                <label className={labelClass}>
-                                                    RUC Emisor:
-                                                    <input type="text" name="rucEmisor" value={formData.rucEmisor} readOnly className={inputReadOnlyClass} />
-                                                </label>
-                                                <label className={labelClass}>
-                                                    RUC Cliente:
-                                                    <input type="text" name="rucCliente" value={formData.rucCliente} readOnly className={inputReadOnlyClass} />
-                                                </label>
-                                            </div>
-
-                                            <label className={`${labelClass} lg:col-span-3`}>
-                                                Razon Social:
-                                                <input type="text" name="razonSocial" value={formData.razonSocial} readOnly className={inputReadOnlyClass} />
-                                            </label>
-                                            {/* Movil: Serie y Numero en una sola fila. Tablet/PC: en fila con mayor ancho. */}
-                                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:col-span-2 sm:gap-3 lg:col-span-2">
-                                                <label className={labelClass}>
-                                                    Serie:
-                                                    <input type="text" name="serie" value={formData.serie} readOnly className={inputReadOnlyClass} />
-                                                </label>
-                                                <label className={labelClass}>
-                                                    Numero:
-                                                    <input type="text" name="numero" value={formData.numero} readOnly className={inputReadOnlyClass} />
-                                                </label>
-                                            </div>
-
-                                            <label className={labelClass}>
-                                                Fecha:
-                                                <input type="date" name="fecha" value={formData.fecha} readOnly className={inputReadOnlyClass} />
-                                            </label>
-
-                                            <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 sm:col-span-2 sm:gap-3 lg:col-span-2">
-                                                <label className={labelClass}>
-                                                    IGV:
-                                                    <input type="number" step="0.01" name="igv" value={formData.igv} readOnly className={inputReadOnlyClass} />
-                                                </label>
-                                                <label className={labelClass}>
-                                                    Total:
-                                                    <input type="number" step="0.01" name="total" value={formData.total} readOnly className={inputReadOnlyClass} />
-                                                </label>
-                                                <label className={labelClass}>
-                                                    Moneda:
-                                                    <input name="moneda" value={formData.moneda} readOnly className={inputReadOnlyClass} />
-                                                </label>
-                                            </div>
-
-
-                                            <label className={`${labelClass} sm:col-span-2 lg:col-span-3`}>
-                                                Nota u obs de gasto
-                                                <textarea name="glosa" rows="4" value={formData.glosa} readOnly className={`${inputReadOnlyClass} resize-none`} />
-                                            </label>
-                                        </div>
-                                    </section>
-                                </div>
-
-                                <aside className="space-y-4 xl:sticky xl:top-2 xl:self-start">
-                                    <section className={sectionClass}>
-                                        <h3 className={sectionTitleClass}>Evidencia</h3>
-                                        <button
-                                            type="button"
-                                            onClick={handleOpenEvidenciaChangeModal}
-                                            disabled={!isEditing}
-                                            className={isEditing ? "mb-4 w-full rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 cursor-pointer" : "mb-4 w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-500 cursor-not-allowed opacity-60"}
-                                        >
-                                            Cambiar evidencia
-                                        </button>
-                                        <div className="flex flex-col gap-2 text-sm font-semibold text-slate-700">
-                                            {evidenciaVisibleSrc ? (
-                                                <div className="space-y-2">
-                                                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                                                        Vista previa nueva
-                                                    </p>
-                                                    <img
-                                                        src={evidenciaVisibleSrc}
-                                                        alt="Evidencia del gasto"
-                                                        className="max-h-[55vh] w-full rounded-xl border border-slate-200 object-contain bg-white"
-                                                        loading="lazy"
-                                                    />
-                                                </div>
-                                            ) : (
-                                                <EvidenciaImagen
-                                                    key={`${gasto?.id || gasto?.idrend || gasto?.evidenciaPath || gasto?.evidenciaFileName || formData.obs || "evidencia"}`}
-                                                    gasto={gasto}
-                                                    fallbackObs={formData.obs}
-                                                    alt="Evidencia del gasto"
-                                                    className="max-h-[55vh] w-full rounded-xl border border-slate-200 object-contain bg-white"
-                                                    fallback={
-                                                        <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-500">
-                                                            No hay evidencia registrada para este gasto.
-                                                        </p>
-                                                    }
-                                                />
-                                            )}
-                                        </div>
-                                    </section>
-                                </aside>
-                            </div>
-
-                            <div className="mt-2 border-t border-slate-200 bg-white/95 px-0 pt-2.5 pb-[calc(0.35rem+env(safe-area-inset-bottom))] backdrop-blur sm:sticky sm:bottom-0 sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6">
-                                {/* <div className="mb-2 text-xs font-semibold text-slate-500">
+                    <div className="mt-2 border-t border-slate-200 bg-white/95 px-0 pt-2.5 pb-[calc(0.35rem+env(safe-area-inset-bottom))] backdrop-blur sm:sticky sm:bottom-0 sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6">
+                      {/* <div className="mb-2 text-xs font-semibold text-slate-500">
                         {isEditing ? "Modo edicion activo: puedes cambiar categoria y centro de costo." : "Modo lectura: presiona Editar para habilitar cambios."}
                     </div> */}
-                                <div className="flex flex-row gap-2 sm:flex-row sm:justify-end">
-                                    <div className="flex flex-1 gap-2 sm:flex-none sm:w-auto sm:gap-2">
-                                        {!isEditing && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setIsEditing(true)}
-                                                className="w-full rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 sm:w-auto cursor-pointer"
-                                            >
-                                                <span className="inline-flex items-center gap-1.5">
-                                                    <IconEdit className="h-4 w-4 text-blue-600" />
-                                                    <span className="hidden sm:inline">Editar</span>
-                                                </span>
-                                            </button>
-                                        )}
-                                        <button
-                                            type="button"
-                                            onClick={onClose}
-                                            className="w-full rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-50 sm:w-auto cursor-pointer"
-                                        >
-                                            <span className="inline-flex items-center gap-1.5">
-                                                <X className="h-4 w-4" />
-                                                <span className="hidden sm:inline">Cancelar</span>
-                                            </span>
-                                        </button>
-                                    </div>
-                                    <button
-                                        type="submit"
-                                        disabled={isSaving || !isEditing}
-                                        className="w-full rounded-xl bg-blue-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto cursor-pointer"
-                                    >
-                                        <span className="inline-flex items-center gap-1.5">
-                                            <Save className="h-4 w-4" />
-                                            <span className="hidden sm:inline">{isSaving ? "Guardando..." : "Guardar cambios"}</span>
-                                        </span>
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
+                      <div className="flex flex-row gap-2 sm:flex-row sm:justify-end">
+                        <div className="flex flex-1 gap-2 sm:flex-none sm:w-auto sm:gap-2">
+                          {!isEditing && (
+                            <button
+                              type="button"
+                              onClick={() => setIsEditing(true)}
+                              className="w-full rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 sm:w-auto cursor-pointer"
+                            >
+                              <span className="inline-flex items-center gap-1.5">
+                                <IconEdit className="h-4 w-4 text-indigo-600" />
+                                <span className="hidden sm:inline">Editar</span>
+                              </span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={onClose}
+                            className="w-full rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-50 sm:w-auto cursor-pointer"
+                          >
+                            <span className="inline-flex items-center gap-1.5">
+                              <X className="h-4 w-4" />
+                              <span className="hidden sm:inline">Cancelar</span>
+                            </span>
+                          </button>
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={isSaving || !isEditing}
+                          className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto cursor-pointer"
+                        >
+                          <span className="inline-flex items-center gap-1.5">
+                            <Save className="h-4 w-4" />
+                            <span className="hidden sm:inline">
+                              {isSaving ? "Guardando..." : "Guardar cambios"}
+                            </span>
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  </form>
 
-                        {/* Modal para cambiar evidencia */}
-                        {showEvidenciaModal && (
-                            // Movil: aparece desde abajo. PC/Tablet (sm+): centrado.
-                            <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/70 p-2 sm:items-center sm:p-4">
-                                <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white p-4 shadow-2xl sm:rounded-2xl sm:p-5">
-                                    <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 pb-3 ">
-                                        <h4 className="text-base font-bold text-slate-800">Cambiar evidencia</h4>
-                                        <button
-                                            type="button"
-                                            onClick={handleCloseEvidenciaModal}
-                                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                                        >
-                                            Cerrar
-                                        </button>
-                                    </div>
+                  {/* Modal para cambiar evidencia */}
+                  {showEvidenciaModal && (
+                    // Movil: aparece desde abajo. PC/Tablet (sm+): centrado.
+                    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/70 p-2 sm:items-center sm:p-4">
+                      <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white p-4 shadow-2xl sm:rounded-2xl sm:p-5">
+                        <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 pb-3 ">
+                          <h4 className="text-base font-bold text-slate-800">
+                            Cambiar evidencia
+                          </h4>
+                          <button
+                            type="button"
+                            onClick={handleCloseEvidenciaModal}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                          >
+                            <IconClose className="h-4 w-4" />
+                            Cerrar
+                          </button>
+                        </div>
 
-                                    {error && <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-
-                                    <div className="space-y-4">
-                                        <EvidenciaUploader
-                                            labelClass={labelClass}
-                                            formData={{ evidencia: newEvidencia }}
-                                            hasEvidencia={!!newEvidencia}
-                                            canCropImage={newEvidencia?.type?.startsWith("image/")}
-                                            onFileChange={handleEvidenciaFileChange}
-                                            onOpenPreview={() => { }}
-                                            onStartCrop={handleStartEvidenciaCrop}
-                                        />
-
-                                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                                            <button
-                                                type="button"
-                                                onClick={handleCloseEvidenciaModal}
-                                                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 sm:w-auto"
-                                            >
-                                                Cancelar
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={handleSaveNewEvidencia}
-                                                disabled={!newEvidencia || isEvidenciaSaving}
-                                                className="w-full rounded-xl bg-blue-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-                                            >
-                                                {isEvidenciaSaving ? "Guardando..." : "Listo"}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        {error && (
+                          <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                            {error}
+                          </p>
                         )}
 
-                        <EvidenciaCropModal
-                            isOpen={showEvidenciaModal && isEvidenciaCropMode}
+                        <div className="space-y-4">
+                          <EvidenciaUploader
+                            labelClass={labelClass}
+                            formData={{ evidencia: newEvidencia }}
                             hasEvidencia={!!newEvidencia}
-                            canCropImage={newEvidencia?.type?.startsWith("image/")}
-                            isCropMode={isEvidenciaCropMode}
-                            onClose={handleCancelEvidenciaCrop}
+                            canCropImage={newEvidencia?.type?.startsWith(
+                              "image/",
+                            )}
+                            onFileChange={handleEvidenciaFileChange}
+                            onOpenPreview={() => {}}
                             onStartCrop={handleStartEvidenciaCrop}
-                            onCancelCrop={handleCancelEvidenciaCrop}
-                            onApplyCrop={handleApplyEvidenciaCrop}
-                            previewUrl={newEvidenciaPreviewUrl}
-                            fileName={newEvidencia?.name}
-                            crop={evidenciaCrop}
-                            onChangeCrop={setEvidenciaCrop}
-                            onCompleteCrop={handleCompleteEvidenciaCrop}
-                            selectedAspect={cropPresets.find((item) => item.key === selectedEvidenciaPreset)?.aspect}
-                            cropShape={evidenciaCropShape}
-                            onImageLoaded={handleImageLoaded}
-                            selectedPreset={selectedEvidenciaPreset}
-                            onSelectPreset={handleChangeEvidenciaPreset}
-                            cropPresets={cropPresets}
-                            onSetCropShape={handleSetEvidenciaCropShape}
-                            onReset={handleResetEvidenciaCrop}
-                        />
+                          />
+
+                          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                            <button
+                              type="button"
+                              onClick={handleCloseEvidenciaModal}
+                              className="w-full rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100 sm:w-auto"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleSaveNewEvidencia}
+                              disabled={!newEvidencia || isEvidenciaSaving}
+                              className="w-full rounded-xl bg-blue-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                            >
+                              {isEvidenciaSaving ? "Guardando..." : "Listo"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
+                  )}
+
+                  <EvidenciaCropModal
+                    isOpen={showEvidenciaModal && isEvidenciaCropMode}
+                    hasEvidencia={!!newEvidencia}
+                    canCropImage={newEvidencia?.type?.startsWith("image/")}
+                    isCropMode={isEvidenciaCropMode}
+                    onClose={handleCancelEvidenciaCrop}
+                    onStartCrop={handleStartEvidenciaCrop}
+                    onCancelCrop={handleCancelEvidenciaCrop}
+                    onApplyCrop={handleApplyEvidenciaCrop}
+                    previewUrl={newEvidenciaPreviewUrl}
+                    fileName={newEvidencia?.name}
+                    crop={evidenciaCrop}
+                    onChangeCrop={setEvidenciaCrop}
+                    onCompleteCrop={handleCompleteEvidenciaCrop}
+                    selectedAspect={
+                      cropPresets.find(
+                        (item) => item.key === selectedEvidenciaPreset,
+                      )?.aspect
+                    }
+                    cropShape={evidenciaCropShape}
+                    onImageLoaded={handleImageLoaded}
+                    selectedPreset={selectedEvidenciaPreset}
+                    onSelectPreset={handleChangeEvidenciaPreset}
+                    cropPresets={cropPresets}
+                    onSetCropShape={handleSetEvidenciaCropShape}
+                    onReset={handleResetEvidenciaCrop}
+                  />
                 </div>
+              </div>
             </div>
-        </>
-    ), modalRoot) : null;
+          </>,
+          modalRoot,
+        )
+      : null;
 }

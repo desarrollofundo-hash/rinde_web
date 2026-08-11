@@ -218,8 +218,6 @@ const buildPayloadCabeceraMovilidad = ({
         area: String(empresa?.area || ""),
         proveedor: String(formData.razonSocial || ""),
         tipoComprobante: tipoComprobanteDescripcion,
-        tipocomprobante: tipoComprobanteDescripcion,
-        tipoCombrobante: tipoComprobanteDescripcion,
         serie: serieFinal,
         numero: numeroFinal,
         fecha: String(formData.fecha || "") || null,
@@ -227,7 +225,7 @@ const buildPayloadCabeceraMovilidad = ({
         total: toFiniteNumber(formData.total),
         moneda: monedaDescripcion,
         estadoActual: "BORRADOR",
-        glosa: String(formData.glosa || "CREAR GASTO MOVILIDAD"),
+        glosa: String("CREAR GASTO"),
         motivoViaje: String(formData.motivoViaje || ""),
         lugarOrigen: String(formData.origen || ""),
         lugarDestino: String(formData.destino || ""),
@@ -236,7 +234,7 @@ const buildPayloadCabeceraMovilidad = ({
         placaVehiculo: String(resolvedPlaca || formData.placa || ""),
         vehiculoPlaca: String(resolvedPlaca || formData.placa || ""),
         nroPlaca: String(resolvedPlaca || formData.placa || ""),
-        obs: "",
+        obs: formData.glosa || "",
         estado: "S",
         fecCre: nowIso,
         useReg: String(userId),
@@ -276,7 +274,7 @@ const buildPayloadDetalleMovilidad = ({
         tipogasto: String(resolvedTipoGasto || formData.tipoGasto || "MOVILIDAD"),
         ruc: String(formData.rucEmisor || ""),
         rucCliente: String(formData.rucCliente || ""),
-        desEmp: String(empresa?.nombre || empresa?.empresa || ""),
+        desEmp: String( empresa?.empresa),
         desSed: "",
         gerencia: String(empresa?.gerencia || ""),
         area: String(empresa?.area || ""),
@@ -544,7 +542,7 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
         const rawUser = localStorage.getItem("user");
         if (!rawUser) {
             alert("Error de autenticación. Por favor, inicie sesión de nuevo.");
-            return false;
+            return { saved: false, mensaje: "" };
         }
 
         const user = JSON.parse(rawUser);
@@ -558,12 +556,12 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
 
         if (!userId) {
             alert("Error de autenticación. Por favor, inicie sesión de nuevo.");
-            return false;
+            return { saved: false, mensaje: "" };
         }
 
         if (!rucClienteFormulario || !rucEmpresaSesion || rucClienteFormulario !== rucEmpresaSesion) {
             alert("No se puede guardar: el RUC Cliente debe ser igual al RUC de la empresa logueada.");
-            return false;
+            return { saved: false, mensaje: "" };
         }
 
         const centroCostoSeleccionado = centrosCosto.find((cc) => String(cc.id) === String(formData.centroCosto));
@@ -640,12 +638,12 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
         if (missingFields.length > 0) {
             const validationMessage = `Completa los campos obligatorios: ${missingFields.join(", ")}`;
             setErrorMessage(validationMessage);
-            return false;
+            return { saved: false, mensaje: validationMessage };
         }
 
         if (!resolvedIdCuenta) {
             alert("Selecciona un centro de costo antes de guardar");
-            return false;
+            return { saved: false, mensaje: "" };
         }
 
         const nowIso = getLocalIsoDateTime();
@@ -665,7 +663,12 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
                 nowIso,
             });
 
-            const responseCabecera = await saveRendicionGasto(payloadCabecera);
+            const { idRend: responseCabecera, mensaje: mensajeSP } = await saveRendicionGasto(payloadCabecera);
+
+            if (!responseCabecera) {
+                setErrorMessage(mensajeSP || "No se pudo obtener el ID del registro");
+                return { saved: false, mensaje: mensajeSP };
+            }
 
             const payloadDetalle = buildPayloadDetalleMovilidad({
                 formData,
@@ -696,7 +699,6 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
                 });
             }
 
-            alert("Guardado correctamente ✅");
             const politicaToKeep = String(selectedPolitica?.id ?? formData.politica ?? "");
             setFormData({
                 ...INITIAL_FORM_DATA,
@@ -704,7 +706,7 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
                 rucCliente: rucEmpresaSesion,
                 placa: String(formData.placa || ""),
             });
-            return true;
+            return { saved: true, mensaje: mensajeSP };
         } catch (error) {
 /*             console.error("Error guardando movilidad:", error);
  */            // Extraer mensaje del servidor si está disponible
@@ -728,22 +730,8 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
                 }
             }
 
-            const isExceso44Message = /44|exced/i.test(String(errorMsg || ""));
-
-            if (isPlanillaMovilidad && isExceso44Message) {
-                const politicaToKeep = String(selectedPolitica?.id ?? formData.politica ?? "");
-                setErrorMessage(`Guardado correctamente. ${errorMsg}`);
-                setFormData({
-                    ...INITIAL_FORM_DATA,
-                    politica: politicaToKeep,
-                    rucCliente: rucEmpresaSesion,
-                    placa: String(formData.placa || ""),
-                });
-                return true;
-            }
-
             setErrorMessage(errorMsg);
-            return false;
+            return { saved: false, mensaje: errorMsg };
         }
     }, [categorias, centrosCosto, formData, politicas, selectedPolitica]);
 

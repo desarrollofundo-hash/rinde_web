@@ -120,13 +120,25 @@ export async function saveEvidenciaGasto({ idRend, file, gastoData = {} }) {
             }
         );
 
-        const uploadData = uploadLocalResponse?.data || {};
+        const rawData = uploadLocalResponse?.data;
+        // El servidor puede responder: JSON objeto, JSON string, o string plano con la ruta.
+        const uploadData = rawData && typeof rawData === "object" ? rawData : {};
+        const rawDataAsPath = typeof rawData === "string" && rawData.trim() ? rawData.trim() : "";
+
         const resolvedPath = String(
             uploadData?.path ||
             uploadData?.fullPath ||
             uploadData?.ruta ||
             uploadData?.rutaArchivo ||
             uploadData?.archivo ||
+            uploadData?.url ||
+            uploadData?.filePath ||
+            uploadData?.filepath ||
+            uploadData?.file_path ||
+            uploadData?.location ||
+            uploadData?.savedPath ||
+            uploadData?.savedpath ||
+            rawDataAsPath ||
             ""
         );
         const resolvedFileName = String(
@@ -140,17 +152,29 @@ export async function saveEvidenciaGasto({ idRend, file, gastoData = {} }) {
             ""
         ).trim();
 
-        if ((uploadLocalResponse.status === 200 || uploadLocalResponse.status === 201)
-            && uploadData?.success === true
-            && resolvedPath) {
+        const successRaw = uploadData?.success;
+        const isSuccessResponse =
+            successRaw === true ||
+            successRaw === 1 ||
+            String(successRaw).toLowerCase() === "true" ||
+            String(successRaw).toUpperCase() === "S" ||
+            successRaw === undefined ||
+            successRaw === null;
+
+        const statusOk = uploadLocalResponse.status === 200 || uploadLocalResponse.status === 201;
+
+        if (statusOk && isSuccessResponse && resolvedPath) {
             uploadLocalPath = resolvedPath;
             uploadLocalResolvedFileName = resolvedFileName;
-            /* console.log("✅ Archivo guardado en uploadlocal:", uploadLocalPath); */
+        } else if (statusOk && resolvedPath) {
+            // El servidor respondió OK con ruta aunque sin campo success explícito.
+            uploadLocalPath = resolvedPath;
+            uploadLocalResolvedFileName = resolvedFileName;
         } else {
-           /*  console.warn("⚠️ uploadlocal respondió sin path exitoso:", uploadLocalResponse?.data); */
+            console.warn("[evidencia] uploadlocal respuesta inesperada — status:", uploadLocalResponse.status, "| data:", JSON.stringify(uploadLocalResponse?.data));
         }
     } catch (uploadLocalError) {
-       /*  console.warn("⚠️ No se pudo subir a /recibir/uploadlocal, continuando con guardado de evidencia:", getAxiosErrorMessage(uploadLocalError)); */
+        console.warn("[evidencia] uploadlocal error:", getAxiosErrorMessage(uploadLocalError));
     }
 
     if (!uploadLocalPath) {
@@ -168,7 +192,8 @@ export async function saveEvidenciaGasto({ idRend, file, gastoData = {} }) {
             rendicion: String(idRend),
             idRend: Number(idRend),
             idrend: Number(idRend),
-            evidencia: "",
+            /*  evidencia: "", */
+            evidencia: null,
             obs: uploadLocalPath,
             estado: "S",
             fecCre: evidenceNowIso,
@@ -199,7 +224,8 @@ export async function saveEvidenciaGasto({ idRend, file, gastoData = {} }) {
                 idrend: String(idRend),
             },
             idRend: Number(idRend),
-            evidencia: "",
+            /*  evidencia: "", */
+            evidencia:null,
             obs: uploadLocalPath,
             estado: "S",
             fecCre: evidenceNowIso,

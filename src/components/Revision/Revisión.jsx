@@ -155,13 +155,20 @@ export default function Revision() {
             )
         );
 
+    
+  const getDetalleDescripcion = (detalle) =>
+    String(
+        firstDefined(
+          detalle?.obs,
+      ) || "-",
+    );
+
 
 
     const getDetalleCategoria = (detalle) =>
         String(
             firstDefined(
                 detalle?.categoria,
-                detalle?.cat,
             ) || "-"
         );
 
@@ -321,7 +328,7 @@ export default function Revision() {
                     titulo: firstDefined(detalle?.titulo, detalle?.title, revision?.titulo, revision?.title),
                     nota: firstDefined(detalle?.nota, detalle?.Nota, revision?.nota, revision?.Nota),
                     politica: firstDefined(detalle?.politica, detalle?.pol, revision?.politica, revision?.pol),
-                    obs: firstDefined(detalle?.obs, detalle?.observacion, detalle?.observaciones, revision?.obs),
+                    obs: firstDefined(detalle?.obs),
                     estadoActual: firstDefined(detalle?.estadoActual, detalle?.estadoactual, revision?.estadoActual, revision?.estadoactual),
                     estado: firstDefined(detalle?.estado, revision?.estado),
                     fecCre: firstDefined(detalle?.fecCre, detalle?.feccre, revision?.fecCre, revision?.feccre),
@@ -358,7 +365,7 @@ export default function Revision() {
                     monto: firstDefined(detalle?.monto, detalle?.total, detalle?.valor),
                     tipocomprobante: firstDefined( detalle?.tipocomprobante),
                     fecha: firstDefined(detalle?.fecha, detalle?.fecCre),
-                    glosa: firstDefined(detalle?.obs),
+                    glosa: firstDefined(detalle?.glosa),
                 };
             });
 
@@ -947,7 +954,7 @@ export default function Revision() {
                         ],
                         [
                           "Centro de Costo",
-                          firstDefined(detalleRevision?.consumidor,"--"),
+                          firstDefined(detalleRevision?.consumidor, "--"),
                         ],
                         [
                           "Tipo de Gasto",
@@ -1038,7 +1045,10 @@ export default function Revision() {
                         ? [
                             [
                               "Tipo Comprobante",
-                              firstDefined(detalleRevision?.tipocomprobante, "-"),
+                              firstDefined(
+                                detalleRevision?.tipocomprobante,
+                                "-",
+                              ),
                             ],
                             ["Fecha Emisión", getDetalleFecha(detalleRevision)],
                             [
@@ -1099,15 +1109,15 @@ export default function Revision() {
                             ],
                             [
                               "Motivo Viaje",
-                              firstDefined(
-                                detalleRevision?.motivoviaje,"-",
-                              ),
+                              firstDefined(detalleRevision?.motivoviaje, "-"),
                             ],
                           ]
                         : [
                             [
                               "Tipo Comprobante",
-                              firstDefined( detalleRevision?.tipocomprobante,"-",
+                              firstDefined(
+                                detalleRevision?.tipocomprobante,
+                                "-",
                               ),
                             ],
                             ["Fecha Emisión", getDetalleFecha(detalleRevision)],
@@ -1150,23 +1160,18 @@ export default function Revision() {
                       <h2 className="col-span-2 text-sm font-bold text-slate-800 border-b border-slate-100 pb-1">
                         Observación
                       </h2>
-                      {[
-                        [
-                          "Nota:",
-                          firstDefined(        
-                            detalleRevision?.glosa,
-                          ),
-                        ],
-                      ].map(([label, value]) => (
-                        <div key={label} className="col-span-2">
-                          <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                            {label}
-                          </dt>
-                          <dd className="mt-0.5 font-medium text-slate-700">
-                            {value ?? "-"}
-                          </dd>
-                        </div>
-                      ))}
+                      {[["Nota:", firstDefined(detalleRevision?.obs)]].map(
+                        ([label, value]) => (
+                          <div key={label} className="col-span-2">
+                            <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                              {label}
+                            </dt>
+                            <dd className="mt-0.5 font-medium text-slate-700">
+                              {value ?? "-"}
+                            </dd>
+                          </div>
+                        ),
+                      )}
                     </dl>
                   </div>
                 </div>
@@ -1355,10 +1360,14 @@ export default function Revision() {
                                   <span className="text-slate-300">·</span>
                                   <span>{getDetalleFecha(detalle)}</span>
                                 </div>
+                                <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                                 GLOSA:<span>{getDetalleDescripcion(detalle)}</span>
+                                </div>
                               </div>
                               <span className="shrink-0 text-xs font-bold text-cyan-700">
                                 S/ {getDetalleMonto(detalle).toFixed(2)}
                               </span>
+
                               <IconEye className="h-3.5 w-3.5 shrink-0 text-slate-300" />
                             </button>
                           ))}

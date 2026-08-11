@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { centerCrop, makeAspectCrop } from "react-image-crop";
+import { GlobalWorkerOptions, getDocument } from "pdfjs-dist/build/pdf.mjs";
 import { getDropdownOptionsPolitica } from "../../../services/politica";
+
+GlobalWorkerOptions.workerSrc = new URL(
+    "pdfjs-dist/build/pdf.worker.min.mjs",
+    import.meta.url
+).href;
 import { getDropdownOptionsCategoria } from "../../../services/categoria";
 import { getDropdownOptionsCentroCosto } from "../../../services/centrocosto";
 import { getDropdownOptionsTipoGasto } from "../../../services/tipogasto";
@@ -70,6 +76,48 @@ const getCroppedFile = async (imageElement, pixelCrop, originalFile) => {
 
     return new File([blob], originalFile.name || "evidencia.jpg", {
         type: mimeType,
+        lastModified: Date.now(),
+    });
+};
+
+const isPdfFile = (file) => {
+    if (!file) return false;
+
+    const mimeType = String(file.type || "").toLowerCase();
+    if (["application/pdf", "application/x-pdf", "application/octet-stream"].includes(mimeType)) {
+        return true;
+    }
+
+    return /\.pdf$/i.test(String(file.name || ""));
+};
+
+const convertPdfToImageFile = async (pdfFile) => {
+    const pdfData = await pdfFile.arrayBuffer();
+    const pdfDocument = await getDocument({ data: pdfData }).promise;
+    const page = await pdfDocument.getPage(1);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+        throw new Error("No se pudo preparar el lienzo para convertir el PDF");
+    }
+
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+
+    await page.render({ canvasContext: context, viewport }).promise;
+
+    const renderedBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.95));
+
+    if (!renderedBlob) {
+        throw new Error("No se pudo convertir el PDF a imagen");
+    }
+
+    const baseName = String(pdfFile.name || "evidencia.pdf").replace(/\.pdf$/i, "");
+
+    return new File([renderedBlob], `${baseName || "evidencia"}.jpg`, {
+        type: "image/jpeg",
         lastModified: Date.now(),
     });
 };
@@ -187,7 +235,7 @@ const INITIAL_FORM_DATA = {
     consumidor: "",
     placa: "",
     glosa: "",
-    obs: "",
+    obs1: "",
     evidencia: null,
 };
 
@@ -246,6 +294,85 @@ const parseQrPayload = (rawText) => {
     }
 };
 
+const buildPayloadCabeceraGeneral = ({
+    formData,
+    userId,
+    dniToSend,
+    empresa,
+    politicaSeleccionada,
+    categoriaSeleccionada,
+    resolvedIdCuenta,
+    resolvedConsumidor,
+    resolvedTipoGasto,
+    tipoComprobanteDescripcion,
+    monedaDescripcion,
+    igvNumber,
+    totalNumber,
+    nowIso,
+}) => ({
+    idUser: Number(userId) || 0,
+    dni: dniToSend,
+    politica: String(politicaSeleccionada?.name ?? formData.politica),
+    categoria: String(categoriaSeleccionada?.name ?? formData.categoria),
+    tipogasto: String(resolvedTipoGasto),
+    idCuenta: resolvedIdCuenta,
+    consumidor: resolvedConsumidor,
+    ruc: String(formData.rucEmisor || ""),
+    rucCliente: String(formData.rucCliente || ""),
+    desEmp: String(empresa?.nombre || empresa?.empresa || ""),
+    desSed: "",
+    gerencia: String(empresa?.gerencia || ""),
+    area: String(empresa?.area || ""),
+    proveedor: String(formData.razonSocial || formData.proveedor || ""),
+    tipoCombrobante: tipoComprobanteDescripcion,
+    serie: String(formData.serie),
+    numero: String(formData.numero),
+    fecha: String(formData.fecha || ""),
+    igv: Number.isFinite(igvNumber) ? igvNumber : 0,
+    total: Number.isFinite(totalNumber) ? totalNumber : 0,
+    moneda: monedaDescripcion,
+    estadoActual: "BORRADOR",
+    glosa: "CREAR GASTO",
+    motivoViaje: "",
+    lugarOrigen: "",
+    lugarDestino: "",
+    tipoMovilidad: "",
+    // La nota que escribe el usuario en "Glosa" se guarda en la columna obs de la cabecera.
+    obs1: String(formData.obs || ""),
+    estado: "S",
+    fecCre: nowIso,
+    useReg: Number(userId) || 0,
+    hostname: "WEB",
+    fecEdit: nowIso,
+    useEdit: 0,
+    useElim: 0,
+});
+
+const buildPayloadDetalleGeneral = ({
+    payloadCabecera,
+    formData,
+    empresa,
+    dniToSend,
+    resolvedIdCuenta,
+    resolvedConsumidor,
+    responseCabecera,
+    nowIso,
+}) => ({
+    // Reenviar bloque completo para evitar que updaterendiciongasto pise columnas en null.
+    ...payloadCabecera,
+    idRend: String(responseCabecera),
+    idrend: String(responseCabecera),
+    fecEdit: nowIso,
+    useEdit: 0,
+    idcuenta: resolvedIdCuenta,
+    consumidor: resolvedConsumidor,
+    dni: dniToSend,
+    gerencia: String(empresa?.gerencia || formData.gerencia || ""),
+    placa: String(formData.placa || ""),
+    // Mismo origen que la cabecera: la nota de "Glosa", no el campo formData.obs (nunca se llena).
+    obs: String(formData.glosa || ""),
+});
+
 export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = null }) {
     const [formData, setFormData] = useState(INITIAL_FORM_DATA);
 
@@ -264,6 +391,9 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
     const [isQrOpen, setIsQrOpen] = useState(false);
     const [evidenciaInputResetKey, setEvidenciaInputResetKey] = useState(0);
     const [toastConfig, setToastConfig] = useState({ isVisible: false, message: "", type: "success" });
+    const [facturaDuplicadaDialog, setFacturaDuplicadaDialog] = useState({ isOpen: false, message: "" });
+   
+    const [movilidadMontoDialog, setMovilidadMontoDialog] = useState({ isOpen: false, message: "" });
     const imageCropRef = useRef(null);
 
     const showToast = (message, type = "success") => {
@@ -314,16 +444,28 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                 setTiposComprobante(FALLBACK_TIPOS_COMPROBANTE);
             }
         } catch (error) {
-            /* console.error("Error cargando tipos de comprobante:", error); */
+             console.error("Error cargando tipos de comprobante:", error); 
             setTiposComprobante(FALLBACK_TIPOS_COMPROBANTE);
         }
     }, []);
 
-    const handleChange = (e) => {
+    const handleChange = async (e) => {
         const { name, value, files } = e.target;
 
         if (files) {
-            const selectedFile = files[0] || null;
+            let selectedFile = files[0] || null;
+
+            if (name === "evidencia" && isPdfFile(selectedFile)) {
+                try {
+                    selectedFile = await convertPdfToImageFile(selectedFile);
+                    showToast("El PDF se convirtió a imagen para su guardado", "success");
+                } catch (error) {
+                    console.error("No se pudo convertir el PDF a imagen", error);
+                    showToast("No se pudo convertir el PDF a imagen", "error");
+                    return;
+                }
+            }
+
             setFormData((prev) => ({
                 ...prev,
                 [name]: selectedFile,
@@ -526,7 +668,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
         try {
             await loadCategorias(politicaNombre);
         } catch (error) {
-            /* console.error("Error cargando categorias por politica:", error); */
+             console.error("Error cargando categorias por politica:", error);
             setCategorias([]);
         }
     };
@@ -556,7 +698,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
         });
 
         Promise.resolve().then(() => loadCategorias(politicaNombre)).catch((error) => {
-            /* console.error("Error cargando categorias por politica seleccionada:", error); */
+            console.error("Error cargando categorias por politica seleccionada:", error);
             setCategorias([]);
         });
     }, [loadCategorias, politicas, selectedPoliticaProp]);
@@ -616,20 +758,19 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
         const dniToSend = String(formData.dni || userDni || "").trim();
         const rawEmpresa = localStorage.getItem("company") || localStorage.getItem("empresa");
         const empresa = rawEmpresa ? JSON.parse(rawEmpresa) : null;
-        const rucClienteFormulario = normalizeRuc(formData.rucCliente);
-        const rucEmpresaSesion = normalizeRuc(empresa?.ruc ?? empresa?.RUC ?? empresa?.numRuc);
-
-
-        if (!userId) {
-        /*     console.error("❌ No se ha encontrado el usuario en el localStorage o no tiene ID.");
-            showToast("Error de autenticación. Por favor, inicie sesión de nuevo.", "error"); */
+        
+      /*   const rucClienteFormulario = normalizeRuc(formData.rucCliente);
+        const rucEmpresaSesion = normalizeRuc(empresa?.ruc ?? empresa?.RUC ?? empresa?.numRuc); */
+       /*  if (!userId) {
+        console.error("❌ No se ha encontrado el usuario en el localStorage o no tiene ID.");
+            showToast("Error de autenticación. Por favor, inicie sesión de nuevo.", "error"); 
             return;
         }
 
         if (!rucClienteFormulario || !rucEmpresaSesion || rucClienteFormulario !== rucEmpresaSesion) {
             showToast("No se puede guardar: el RUC Cliente debe ser igual al RUC de la empresa logueada.", "error");
             return;
-        }
+        } */
 
         try {
             const politicaSeleccionada = politicas.find((p) => String(p.id) === String(formData.politica));
@@ -682,68 +823,48 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
             const totalNumber = Number(formData.total);
             const nowIso = getLocalIsoDateTime();
 
-            const payloadCabecera = {
-                idUser: String(userId),
-                dni: dniToSend,
-                politica: String(politicaSeleccionada?.name ?? formData.politica),
-                categoria: String(categoriaSeleccionada?.name ?? formData.categoria),
-                tipogasto: String(resolvedTipoGasto),
-                idCuenta: resolvedIdCuenta,
-                consumidor: resolvedConsumidor,
-                ruc: String(formData.rucEmisor || ""),
-                rucCliente: String(formData.rucCliente || ""),
-                desEmp: String(empresa?.nombre || empresa?.empresa || ""),
-                desSed: "",
-                gerencia: String(empresa?.gerencia || ""),
-                area: String(empresa?.area || ""),
-                proveedor: String(formData.razonSocial || formData.proveedor || ""),
-                tipoComprobante: tipoComprobanteDescripcion,
-                tipocomprobante: tipoComprobanteDescripcion,
-                tipoCombrobante: tipoComprobanteDescripcion,
-                serie: String(formData.serie),
-                numero: String(formData.numero),
-                fecha: String(formData.fecha || ""),
-                igv: Number.isFinite(igvNumber) ? igvNumber : 0,
-                total: Number.isFinite(totalNumber) ? totalNumber : 0,
-                moneda: monedaDescripcion,
-                estadoActual: "BORRADOR",
-                glosa: String(formData.glosa || ""),
-                motivoViaje: "",
-                lugarOrigen: "",
-                lugarDestino: "",
-                tipoMovilidad: "",
-                obs: String(formData.obs || ""),
-                estado: "S",
-                fecCre: nowIso,
-                useReg: String(userId),
-                hostname: "WEB",
-                FecEdit: nowIso,
-                DecEdit: nowIso,
-                UseEdit: 0,
-                useElim: 0,
-            };
-            /* console.log("📡 Payload cabecera:", payloadCabecera); */
+            const payloadCabecera = buildPayloadCabeceraGeneral({
+                formData,
+                userId,
+                dniToSend,
+                empresa,
+                politicaSeleccionada,
+                categoriaSeleccionada,
+                resolvedIdCuenta,
+                resolvedConsumidor,
+                resolvedTipoGasto,
+                tipoComprobanteDescripcion,
+                monedaDescripcion,
+                igvNumber,
+                totalNumber,
+                nowIso,
+            });
+/*             console.log("📡 Payload cabecera:", payloadCabecera); 
+ */
+            const { idRend: responseCabecera, mensaje: mensajeSP } = await saveRendicionGasto(payloadCabecera);
 
-            const responseCabecera = await saveRendicionGasto(payloadCabecera);
+            if (!responseCabecera) {
+                const msgNorm = normalizeText(mensajeSP);
+                if (msgNorm.includes("YA EXISTE") || msgNorm.includes("DUPLICAD") || msgNorm.includes("ALREADY")) {
+                    setFacturaDuplicadaDialog({ isOpen: true, message: mensajeSP });
+                } else {
+                    showToast(mensajeSP || "Error al guardar", "error");
+                }
+                return;
+            }
 
-            const payloadDetalle = {
-                // Enviar payload completo para evitar que updaterendiciongasto pise columnas en null.
-                ...payloadCabecera,
-                idRend: String(responseCabecera),
-                idrend: String(responseCabecera),
-                FecEdit: nowIso,
-                DecEdit: nowIso,
-                useEdit: 0,
-                UseEdit: 0,
-                idcuenta: resolvedIdCuenta,
-                consumidor: resolvedConsumidor,
-                dni: dniToSend,
-                gerencia: String(empresa?.gerencia || formData.gerencia || ""),
-                placa: String(formData.placa || ""),
-                obs: String(formData.obs || ""),
-            };
+            const payloadDetalle = buildPayloadDetalleGeneral({
+                payloadCabecera,
+                formData,
+                empresa,
+                dniToSend,
+                resolvedIdCuenta,
+                resolvedConsumidor,
+                responseCabecera,
+                nowIso,
+            });
 
-            /* console.log("📡 Payload detalle:", JSON.stringify(payloadDetalle, null, 2)); */
+           console.log("📡 Payload detalle:", JSON.stringify(payloadDetalle, null, 2));
 
             await saveDetalleGasto(payloadDetalle);
 
@@ -773,23 +894,27 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                         nombreArchivo: String(evidenciaResult?.fileName || formData.evidencia?.name || ""),
                         nomArchivo: String(evidenciaResult?.fileName || formData.evidencia?.name || ""),
                         ig: Number.isFinite(igvNumber) ? igvNumber : 0,
-                        FecEdit: nowIso,
-                        DecEdit: nowIso,
-                        useEdit: String(userId),
-                        UseEdit: String(userId),
+                        fecEdit: nowIso,
+                        useEdit: Number(userId) || 0,
                     };
 
                     try {
                         await saveDetalleGasto(payloadDetalleEvidencia);
                     } catch (persistRutaError) {
-                        /* console.warn("⚠️ No se pudo persistir ruta de evidencia en updaterendiciongasto:", persistRutaError?.message); */
+                        console.warn("⚠️ No se pudo persistir ruta de evidencia en updaterendiciongasto:", persistRutaError?.message);
                     }
                 }
             }
 
-            /* console.log("✅ Guardado ID:", responseCabecera); */
+            console.log("✅ Guardado ID:", responseCabecera);
 
-            showToast("Guardado correctamente", "success");
+            const msgNorm = normalizeText(mensajeSP);
+            const excedeLimite = msgNorm.includes("44") || msgNorm.includes("LIMITE") || msgNorm.includes("SUPERA") || msgNorm.includes("EXCEDE");
+            if (excedeLimite) {
+                setMovilidadMontoDialog({ isOpen: true, message: mensajeSP });
+            } else {
+                showToast(mensajeSP || "Guardado correctamente", "success");
+            }
 
             if (evidenciaPreviewUrl) {
                 URL.revokeObjectURL(evidenciaPreviewUrl);
@@ -800,6 +925,8 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                 ...INITIAL_FORM_DATA,
                 politica: politicaToKeep,
             });
+            // El reset limpia rucCliente; se vuelve a tomar de la empresa en sesión.
+            syncRucClienteDesdeSesion();
             setEvidenciaPreviewUrl("");
             setIsPreviewOpen(false);
             setIsCropMode(false);
@@ -812,10 +939,25 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
             setEvidenciaInputResetKey((prev) => prev + 1);
 
         } catch (error) {
-            /* console.error("❌ Error:", error); */
+            console.error("\u274c Error:", error);
             showToast("Error al guardar", "error");
         }
     };
+
+    // El RUC Cliente sale de la empresa activa en sesión (no lo escribe el usuario).
+    const syncRucClienteDesdeSesion = useCallback(() => {
+        const rawEmpresa = localStorage.getItem("company") || localStorage.getItem("empresa");
+        const empresa = rawEmpresa ? JSON.parse(rawEmpresa) : null;
+        const rucClienteSesion = normalizeRuc(
+            empresa?.ruc ?? empresa?.RUC ?? empresa?.numRuc ?? empresa?.rucCliente ?? empresa?.ruccliente
+        );
+
+        if (!rucClienteSesion) return;
+
+        setFormData((prev) =>
+            prev.rucCliente === rucClienteSesion ? prev : { ...prev, rucCliente: rucClienteSesion }
+        );
+    }, []);
 
     useEffect(() => {
         const cargarDatos = async () => {
@@ -823,17 +965,15 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                 const rawUser = localStorage.getItem("user");
                 const user = rawUser ? JSON.parse(rawUser) : null;
                 const dniSesion = getUserDni(user);
-                const rawEmpresa = localStorage.getItem("company") || localStorage.getItem("empresa");
-                const empresa = rawEmpresa ? JSON.parse(rawEmpresa) : null;
-                const rucClienteSesion = String(empresa?.ruc || "").trim();
 
-                if (dniSesion || rucClienteSesion) {
+                if (dniSesion) {
                     setFormData((prev) => ({
                         ...prev,
                         dni: prev.dni || dniSesion,
-                        rucCliente: prev.rucCliente || rucClienteSesion,
                     }));
                 }
+
+                syncRucClienteDesdeSesion();
 
                 const politicasData = await getDropdownOptionsPolitica();
 
@@ -844,12 +984,18 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                 await loadTiposGasto();
                 await loadTiposComprobante();
             } catch (error) {
-                /* console.error("Error cargando dropdowns:", error); */
+                 console.error("Error cargando dropdowns:", error); 
             }
         };
 
         cargarDatos();
-    }, [loadCategorias, loadCentrosCosto, loadTiposComprobante]);
+    }, [loadCategorias, loadCentrosCosto, loadTiposComprobante, syncRucClienteDesdeSesion]);
+
+    // Si el usuario cambia de empresa mientras el formulario sigue abierto, resincroniza el RUC Cliente.
+    useEffect(() => {
+        window.addEventListener("company:changed", syncRucClienteDesdeSesion);
+        return () => window.removeEventListener("company:changed", syncRucClienteDesdeSesion);
+    }, [syncRucClienteDesdeSesion]);
 
     useEffect(() => {
         return () => {
@@ -865,393 +1011,547 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
     const canCropImage = hasEvidencia && String(formData.evidencia?.type || "").startsWith("image/");
 
     return (
-        <form onSubmit={handleSubmit} className="mx-auto w-full max-w-6xl space-y-2 rounded-3xl from-slate-50 via-white to-cyan-50 p-4 pb-16 shadow-lg sm:p-6 sm:pb-6 lg:p-2 lg:pb-2">
-            {/*   <div className="rounded-2xl border border-slate-200 bg-white/80 p-2 shadow-sm sm:p-3">
+      <form
+        onSubmit={handleSubmit}
+        className="mx-auto w-full max-w-6xl space-y-2  p-4 pb-16  sm:p-6 sm:pb-6 lg:p-2 lg:pb-2"
+      >
+        {/*   <div className="rounded-2xl border border-slate-200 bg-white/80 p-2 shadow-sm sm:p-3">
                 <h2 className="text-2xl font-bold tracking-tight text-slate-800">Formulario de Gasto General</h2>
                 <p className="mt-1 text-sm text-slate-600">Completa los datos de rendición y guarda el comprobante.</p>
             </div> */}
 
-            {/* Evidencia y QR */}
-            <div className="grid grid-cols-1 items-stretch gap-2 lg:grid-cols-2">
-                <EvidenciaUploader
-                    labelClass={labelClass}
-                    formData={formData}
-                    hasEvidencia={hasEvidencia}
-                    canCropImage={canCropImage}
-                    inputResetKey={evidenciaInputResetKey}
-                    onFileChange={handleChange}
-                    onOpenPreview={() => {
-                        setIsPreviewOpen(true);
-                        setIsCropMode(false);
-                    }}
-                    onStartCrop={() => {
-                        setIsPreviewOpen(true);
-                        setIsCropMode(true);
-                    }}
-                />
+        {/* Evidencia y QR */}
+        <div className="grid grid-cols-1 items-stretch gap-2 lg:grid-cols-2">
+          <EvidenciaUploader
+            labelClass={labelClass}
+            formData={formData}
+            hasEvidencia={hasEvidencia}
+            canCropImage={canCropImage}
+            inputResetKey={evidenciaInputResetKey}
+            onFileChange={handleChange}
+            onOpenPreview={() => {
+              setIsPreviewOpen(true);
+              setIsCropMode(false);
+            }}
+            onStartCrop={() => {
+              setIsPreviewOpen(true);
+              setIsCropMode(true);
+            }}
+          />
 
-                <div className="h-full rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
-                    <div className="flex h-full flex-col justify-center gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2.5">
-                        <div className="min-w-0 text-left sm:flex-1">
-                            <p className="text-sm font-semibold text-slate-700">Lector de código QR</p>
-                            <p className="mt-0.5 text-xs leading-4 text-slate-500">Escanea para autocompletar datos del comprobante.</p>
-                        </div>
+          <div className="h-full rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+            <div className="flex h-full flex-col justify-center gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2.5">
+              <div className="min-w-0 text-left sm:flex-1">
+                <p className="text-sm font-semibold text-slate-700">
+                  Lector de código QR
+                </p>
+                <p className="mt-0.5 text-xs leading-4 text-slate-500">
+                  Escanea para autocompletar datos del comprobante.
+                </p>
+              </div>
 
-                        <button
-                            type="button"
-                            className="inline-flex w-full shrink-0 items-center justify-center rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 sm:w-auto cursor-pointer"
-                            onClick={() => setIsQrOpen(true)}
-                        >
-                            Escanear QR
-                        </button>
-                    </div>
-                </div>
+              <button
+                type="button"
+                className="inline-flex w-full shrink-0 items-center justify-center rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 sm:w-auto cursor-pointer"
+                onClick={() => setIsQrOpen(true)}
+              >
+                Escanear QR
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Datos generales */}
+           {/*  <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-2"> */}
+                 <section className=" p-3  sm:p-2">
+                
+          <h3 className="mb-2 text-base font-bold text-slate-800">
+            Datos generales
+          </h3>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <label className={labelClass}>Política</label>
+              <select
+                name="politica"
+                className={`${fieldClass} ${selectedPoliticaProp ? "cursor-not-allowed bg-slate-100 text-slate-500" : ""}`}
+                value={formData.politica}
+                onChange={handlePoliticaChange}
+                disabled={Boolean(selectedPoliticaProp)}
+                title={
+                  selectedPoliticaProp
+                    ? "La política ya fue seleccionada desde el formulario principal"
+                    : undefined
+                }
+              >
+                <option value="">Seleccionar política</option>
+                {politicas.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Datos generales */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-2">
-                <h3 className="mb-2 text-base font-bold text-slate-800">Datos generales</h3>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div className="flex flex-col gap-1.5">
-                        <label className={labelClass}>Política</label>
-                        <select
-                            name="politica"
-                            className={`${fieldClass} ${selectedPoliticaProp ? "cursor-not-allowed bg-slate-100 text-slate-500" : ""}`}
-                            value={formData.politica}
-                            onChange={handlePoliticaChange}
-                            disabled={Boolean(selectedPoliticaProp)}
-                            title={selectedPoliticaProp ? "La política ya fue seleccionada desde el formulario principal" : undefined}
-                        >
-                            <option value="">Seleccionar política</option>
-                            {politicas.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+            <div className="flex flex-col gap-1">
+              <label className={labelClass}>Categoría</label>
+              <select
+                name="categoria"
+                className={fieldClass}
+                value={formData.categoria}
+                onChange={handleChange}
+              >
+                <option value="">Seleccionar categoría</option>
+                {categorias.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-                    <div className="flex flex-col gap-1">
-                        <label className={labelClass}>Categoría</label>
-                        <select
-                            name="categoria"
-                            className={fieldClass}
-                            value={formData.categoria}
-                            onChange={handleChange}
-                        >
-                            <option value="">Seleccionar categoría</option>
-                            {categorias.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                    {c.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                        <label className={labelClass}>Centro de costo</label>
-                        {isPlanillaMovilidad ? (
-                            <input
-                                type="text"
-                                className={`${fieldClass} bg-slate-100 text-slate-500`}
-                                value={centrosCosto.find((cc) => String(cc.id) === String(formData.centroCosto))?.name || "Centro automático"}
-                                readOnly
-                                disabled
-                            />
-                        ) : (
-                            <select
-                                name="centroCosto"
-                                className={fieldClass}
-                                value={formData.centroCosto}
-                                onChange={handleCentroCostoChange}
-                            >
-                                <option value="">Seleccionar centro de costo</option>
-                                {centrosCosto.map((cc) => (
-                                    <option key={cc.id} value={cc.id}>
-                                        {cc.name}
-                                    </option>
-                                ))}
-                            </select>
-                        )}
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                        <label className={labelClass}>Tipo de gasto</label>
-                        <input
-                            name="tipoGasto"
-                            className={`${fieldClass} bg-slate-100 text-slate-500`}
-                            value={formData.tipoGasto || ""}
-                            placeholder="Automático según centro de costo"
-                            disabled
-                            readOnly
-                        />
-                    </div>
-                </div>
-            </section>
-
-            {/* Datos del comprobante */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-3">
-                <h3 className="mb-2 text-base font-bold text-slate-800">Datos del comprobante</h3>
-                {isPlanillaMovilidad ? (
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-                        <div className="flex flex-col gap-1">
-                            <label className={labelClass}>RUC Cliente</label>
-                            <input
-                                type="text"
-                                name="rucCliente"
-                                placeholder="Ej. 20123456789"
-                                className={fieldClass}
-                                value={formData.rucCliente}
-                                readOnly
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        <div className="flex flex-col gap-1">
-                            <label className={labelClass}>Fecha de emisión</label>
-                            <input
-                                type="date"
-                                name="fecha"
-                                className={fieldClass}
-                                value={formData.fecha}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        <div className="flex flex-col gap-1">
-                            <label className={labelClass}>Total</label>
-                            <input
-                                type="text"
-                                name="total"
-                                placeholder="000000.00"
-                                className={fieldClass}
-                                value={formData.total}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        <div className="flex flex-col gap-1">
-                            <label className={labelClass}>Moneda</label>
-                            <select
-                                name="moneda"
-                                className={fieldClass}
-                                value={formData.moneda}
-                                onChange={handleChange}
-                            >
-                                <option value="">Seleccionar</option>
-                                <option value="01">PEN</option>
-                                <option value="03">USD</option>
-                            </select>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                        <div className="grid grid-cols-1 gap-2 lg:col-span-3 lg:grid-cols-3">
-                            <div className="flex flex-col gap-1">
-                                <label className={labelClass}>RUC Emisor:</label>
-                                <input
-                                    type="number"
-                                    name="rucEmisor"
-                                    placeholder="Ej. 20123456789"
-                                    className={fieldClass}
-                                    value={formData.rucEmisor}
-                                    onChange={handleChange}
-                                    onBlur={handleRucEmisorBlur}
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                                <label className={labelClass}>Razón Social:</label>
-                                <input
-                                    type="text"
-                                    name="razonSocial"
-                                    placeholder="Ej. Empresa S.A."
-                                    className={fieldClass}
-                                    value={formData.razonSocial}
-                                    onChange={handleChange}
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                                <label className={labelClass}>RUC Cliente:</label>
-                                <input
-                                    type="text"
-                                    name="rucCliente"
-                                    placeholder="Ej. 20123456789"
-                                    className={fieldClass}
-                                    value={formData.rucCliente}
-                                    readOnly
-                                    onChange={handleChange}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col gap-1">
-                            <label className={labelClass}>Tipo de comprobante:</label>
-                            <select
-                                name="tipoComprobante"
-                                className={fieldClass}
-                                value={formData.tipoComprobante}
-                                onChange={handleChange}
-                            >
-                                <option value="">Seleccionar</option>
-                                {tiposComprobante.map((item) => (
-                                    <option key={item.id} value={item.id}>
-                                        {item.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-3 md:col-span-2 md:grid-cols-2 lg:col-span-2">
-                            <div className="flex flex-col gap-1">
-                                <label className={labelClass}>Fecha</label>
-                                <input
-                                    type="date"
-                                    name="fecha"
-                                    className={fieldClass}
-                                    value={formData.fecha}
-                                    onChange={handleChange}
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                                <label className={labelClass}>Moneda:</label>
-                                <select
-                                    name="moneda"
-                                    className={fieldClass}
-                                    value={formData.moneda}
-                                    onChange={handleChange}
-                                >
-                                    <option value="">Seleccionar</option>
-                                    <option value="01">PEN</option>
-                                    <option value="03">USD</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:col-span-3">
-                            <div className="flex flex-col gap-1">
-                                <label className={labelClass}>Serie:</label>
-                                <input
-                                    type="text"
-                                    name="serie"
-                                    placeholder="F001"
-                                    className={fieldClass}
-                                    value={formData.serie}
-                                    onChange={handleChange}
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                                <label className={labelClass}>Número:</label>
-                                <input
-                                    type="number"
-                                    name="numero"
-                                    placeholder="0001"
-                                    className={fieldClass}
-                                    value={formData.numero}
-                                    onChange={handleChange}
-                                    min="0"
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                                <label className={labelClass}>IGV</label>
-                                <input
-                                    type="number"
-                                    name="igv"
-                                    placeholder="0.00"
-                                    className={fieldClass}
-                                    value={formData.igv}
-                                    onChange={handleChange}
-
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                                <label className={labelClass}>Total:</label>
-                                <input
-                                    type="text"
-                                    name="total"
-                                    placeholder="00.00"
-                                    className={fieldClass}
-                                    value={formData.total}
-                                    onChange={handleChange}
-                                    min="0"
-                                />
-                            </div>
-                        </div>
-
-                    </div>
-                )}
-            </section>
-
-            {/* Glosa */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <label className={`${labelClass} mb-1 block`}>Glosa:</label>
-                <textarea
-                    name="glosa"
-                    type="text"
-                    placeholder="Agrega una descripcion breve del gasto o nota"
-                    className={`${fieldClass} min-h-28 resize-none`}
-                    value={formData.glosa}
-                    onChange={handleChange}
+            <div className="flex flex-col gap-1">
+              <label className={labelClass}>Centro de costo</label>
+              {isPlanillaMovilidad ? (
+                <input
+                  type="text"
+                  className={`${fieldClass} bg-slate-100 text-slate-500`}
+                  value={
+                    centrosCosto.find(
+                      (cc) => String(cc.id) === String(formData.centroCosto),
+                    )?.name || "Centro automático"
+                  }
+                  readOnly
+                  disabled
                 />
-            </section>
-
-            {/* Botones */}
-            <div className="sticky bottom-0 z-10 flex flex-col-reverse gap-3 border-t border-slate-200 bg-white/95 px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur sm:static sm:flex-row sm:justify-end sm:border-0 sm:bg-transparent sm:p-0">
-
-                <button
-                    type="submit"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 cursor-pointer sm:w-auto"
+              ) : (
+                <select
+                  name="centroCosto"
+                  className={fieldClass}
+                  value={formData.centroCosto}
+                  onChange={handleCentroCostoChange}
                 >
-                    <Save size={17} aria-hidden="true" />
-                    Guardar
-                </button>
+                  <option value="">Seleccionar centro de costo</option>
+                  {centrosCosto.map((cc) => (
+                    <option key={cc.id} value={cc.id}>
+                      {cc.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
-            <EvidenciaCropModal
-                isOpen={isPreviewOpen}
-                hasEvidencia={hasEvidencia}
-                canCropImage={canCropImage}
-                isCropMode={isCropMode}
-                onClose={() => {
-                    setIsPreviewOpen(false);
-                    setIsCropMode(false);
-                }}
-                onStartCrop={() => setIsCropMode(true)}
-                onCancelCrop={() => setIsCropMode(false)}
-                onApplyCrop={handleApplyCrop}
-                previewUrl={evidenciaPreviewUrl}
-                fileName={formData.evidencia?.name}
-                crop={crop}
-                onChangeCrop={(nextCrop) => setCrop(nextCrop)}
-                onCompleteCrop={(pixelCrop) => setCompletedCrop(pixelCrop)}
-                selectedAspect={selectedAspect}
-                cropShape={cropShape}
-                onImageLoaded={handleImageLoaded}
-                selectedPreset={selectedPreset}
-                onSelectPreset={handleChangePreset}
-                cropPresets={cropPresets}
-                onSetCropShape={setCropShape}
-                onReset={handleResetCropState}
-            />
+            <div className="flex flex-col gap-1">
+              <label className={labelClass}>Tipo de gasto</label>
+              <input
+                name="tipoGasto"
+                className={`${fieldClass} bg-slate-100 text-slate-500`}
+                value={formData.tipoGasto || ""}
+                placeholder="Automático según centro de costo"
+                disabled
+                readOnly
+              />
+            </div>
+          </div>
+        </section>
 
-            <QrScannerModal
-                isOpen={isQrOpen}
-                onClose={() => setIsQrOpen(false)}
-                onDetected={handleQrDetected}
-            />
+        {/* Datos del comprobante */}
+        <section className=" p-3  sm:p-3">
+                {/* <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-3"> */}
+          <h3 className="mb-2 text-base font-bold text-slate-800">
+            Datos del comprobante
+          </h3>
+          {isPlanillaMovilidad ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>RUC Cliente</label>
+                <input
+                  type="text"
+                  name="rucCliente"
+                  placeholder="Ej. 20123456789"
+                  className={`${fieldClass} cursor-not-allowed bg-slate-100 text-slate-500`}
+                  value={formData.rucCliente}
+                  readOnly
+                  disabled
+                  onChange={handleChange}
+                />
+              </div>
 
-            <Toast
-                message={toastConfig.message}
-                type={toastConfig.type}
-                isVisible={toastConfig.isVisible}
-                onClose={closeToast}
-                duration={3000}
-            />
-        </form>
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>Fecha de emisión</label>
+                <input
+                  type="date"
+                  name="fecha"
+                  className={fieldClass}
+                  value={formData.fecha}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>Total</label>
+                <input
+                  type="text"
+                  name="total"
+                  placeholder="000000.00"
+                  className={fieldClass}
+                  value={formData.total}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>Moneda</label>
+                <select
+                  name="moneda"
+                  className={fieldClass}
+                  value={formData.moneda}
+                  onChange={handleChange}
+                >
+                  <option value="">Seleccionar</option>
+                  <option value="01">PEN</option>
+                  <option value="03">USD</option>
+                </select>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 lg:col-span-3 lg:grid-cols-3">
+                <div className="flex flex-col gap-1">
+                  <label className={labelClass}>RUC Emisor:</label>
+                  <input
+                    type="number"
+                    name="rucEmisor"
+                    placeholder="Ej. 20123456789"
+                    className={fieldClass}
+                    value={formData.rucEmisor}
+                    onChange={handleChange}
+                    onBlur={handleRucEmisorBlur}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className={labelClass}>Razón Social:</label>
+                  <input
+                    type="text"
+                    name="razonSocial"
+                    placeholder="Ej. Empresa S.A."
+                    className={fieldClass}
+                    value={formData.razonSocial}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className={labelClass}>RUC Cliente:</label>
+                  <input
+                    type="text"
+                    name="rucCliente"
+                    placeholder="Ej. 20123456789"
+                    className={`${fieldClass} cursor-not-allowed bg-slate-400 text-white border-slate-400 disabled:bg-slate-400 disabled:text-white disabled:border-slate-400`}
+                    value={formData.rucCliente}
+                    readOnly
+                    disabled
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>Tipo de comprobante:</label>
+                <select
+                  name="tipoComprobante"
+                  className={fieldClass}
+                  value={formData.tipoComprobante}
+                  onChange={handleChange}
+                >
+                  <option value="">Seleccionar</option>
+                  {tiposComprobante.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 md:col-span-2 md:grid-cols-2 lg:col-span-2">
+                <div className="flex flex-col gap-1">
+                  <label className={labelClass}>Fecha</label>
+                  <input
+                    type="date"
+                    name="fecha"
+                    className={fieldClass}
+                    value={formData.fecha}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className={labelClass}>Moneda:</label>
+                  <select
+                    name="moneda"
+                    className={fieldClass}
+                    value={formData.moneda}
+                    onChange={handleChange}
+                  >
+                    <option value="">Seleccionar</option>
+                    <option value="01">PEN</option>
+                    <option value="03">USD</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:col-span-3">
+                <div className="flex flex-col gap-1">
+                  <label className={labelClass}>Serie:</label>
+                  <input
+                    type="text"
+                    name="serie"
+                    placeholder="F001"
+                    className={fieldClass}
+                    value={formData.serie}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className={labelClass}>Número:</label>
+                  <input
+                    type="number"
+                    name="numero"
+                    placeholder="0001"
+                    className={fieldClass}
+                    value={formData.numero}
+                    onChange={handleChange}
+                    min="0"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className={labelClass}>IGV</label>
+                  <input
+                    type="number"
+                    name="igv"
+                    placeholder="0.00"
+                    className={fieldClass}
+                    value={formData.igv}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className={labelClass}>Total:</label>
+                  <input
+                    type="text"
+                    name="total"
+                    placeholder="00.00"
+                    className={fieldClass}
+                    value={formData.total}
+                    onChange={handleChange}
+                    min="0"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Glosa */}
+        <section className=" p-4  sm:p-5">
+            {/* <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"> */}
+          <label className={`${labelClass} mb-1 block`}>Glosa:</label>
+          <textarea
+            name="glosa"
+            type="text"
+            placeholder="Agrega una descripcion breve del gasto o nota"
+            className={`${fieldClass} min-h-28 resize-none`}
+            value={formData.glosa}
+            onChange={handleChange}
+          />
+        </section>
+
+        {/* Botones */}
+        <div className="sticky bottom-0 z-10 flex flex-col-reverse gap-3 border-t border-slate-200 bg-white/95 px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur sm:static sm:flex-row sm:justify-end sm:border-0 sm:bg-transparent sm:p-0">
+          <button
+            type="submit"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 cursor-pointer sm:w-auto"
+          >
+            <Save size={17} aria-hidden="true" />
+            Guardar
+          </button>
+        </div>
+
+        <EvidenciaCropModal
+          isOpen={isPreviewOpen}
+          hasEvidencia={hasEvidencia}
+          canCropImage={canCropImage}
+          isCropMode={isCropMode}
+          onClose={() => {
+            setIsPreviewOpen(false);
+            setIsCropMode(false);
+          }}
+          onStartCrop={() => setIsCropMode(true)}
+          onCancelCrop={() => setIsCropMode(false)}
+          onApplyCrop={handleApplyCrop}
+          previewUrl={evidenciaPreviewUrl}
+          fileName={formData.evidencia?.name}
+          crop={crop}
+          onChangeCrop={(nextCrop) => setCrop(nextCrop)}
+          onCompleteCrop={(pixelCrop) => setCompletedCrop(pixelCrop)}
+          selectedAspect={selectedAspect}
+          cropShape={cropShape}
+          onImageLoaded={handleImageLoaded}
+          selectedPreset={selectedPreset}
+          onSelectPreset={handleChangePreset}
+          cropPresets={cropPresets}
+          onSetCropShape={setCropShape}
+          onReset={handleResetCropState}
+        />
+
+        <QrScannerModal
+          isOpen={isQrOpen}
+          onClose={() => setIsQrOpen(false)}
+          onDetected={handleQrDetected}
+        />
+
+        <Toast
+          message={toastConfig.message}
+          type={toastConfig.type}
+          isVisible={toastConfig.isVisible}
+          onClose={closeToast}
+          duration={3000}
+        />
+
+        {/* Modal: Límite de monto movilidad */}
+        {movilidadMontoDialog.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl">
+              {/* Título */}
+              <div className="flex items-center gap-3 rounded-t-2xl border-b border-slate-100 px-5 py-4">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-50">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6 text-red-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 12h6m2 0a8 8 0 11-16 0 8 8 0 0116 0zm-8-4h.01M12 16h.01"
+                    />
+                  </svg>
+                </div>
+                <h2 className="text-base font-bold tracking-wide text-red-600">
+                  MONTO MOVILIDAD
+                </h2>
+              </div>
+
+              {/* Cuerpo */}
+              <div className="px-5 py-4">
+                <div className="flex items-start gap-2 rounded-lg border border-red-400 bg-red-50/60 p-3">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z"
+                    />
+                  </svg>
+                  <p className="text-sm font-semibold text-slate-700 uppercase">
+                    {movilidadMontoDialog.message}
+                  </p>
+                </div>
+              </div>
+
+              {/* Acciones */}
+              <div className="flex justify-end rounded-b-2xl border-t border-slate-100 px-5 py-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMovilidadMontoDialog({ isOpen: false, message: "" })
+                  }
+                  className="rounded-xl bg-red-500 px-6 py-2 text-sm font-semibold text-white transition hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300"
+                >
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Factura duplicada */}
+        {facturaDuplicadaDialog.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl">
+              {/* Título */}
+              <div className="flex items-center gap-3 rounded-t-2xl border-b border-slate-100 px-5 py-4">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-50">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6 text-red-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 12h6m2 0a8 8 0 11-16 0 8 8 0 0116 0zm-8-4h.01M12 16h.01"
+                    />
+                  </svg>
+                </div>
+                <h2 className="text-base font-bold tracking-wide text-red-600">
+                  MENSAJE:
+                </h2>
+              </div>
+
+              {/* Cuerpo */}
+              <div className="px-5 py-4 space-y-3">
+                <div className="flex items-start gap-2 rounded-lg border border-red-100 bg-red-50/60 p-3">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z"
+                    />
+                  </svg>
+                  <p className="text-sm text-slate-700">
+                    {facturaDuplicadaDialog.message}
+                  </p>
+                </div>
+              </div>
+
+              {/* Acciones */}
+              <div className="flex justify-end rounded-b-2xl border-t border-slate-100 px-5 py-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFacturaDuplicadaDialog({ isOpen: false, message: "" })
+                  }
+                  className="rounded-xl bg-red-500 px-6 py-2 text-sm font-semibold text-white transition hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300"
+                >
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </form>
     );
 }

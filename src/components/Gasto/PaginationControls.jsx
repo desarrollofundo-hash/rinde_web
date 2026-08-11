@@ -83,13 +83,14 @@ export default function PaginationControls({
     };
 
     return (
-        <nav
-            aria-label="Paginación"
-            className="mt-2 rounded-xl bg-white/80 px-3 py-2 shadow-sm backdrop-blur-sm sm:px-4 sm:py-3"
-        >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                {/* Info */}
-                {/*  <div>
+      <nav
+        aria-label="Paginación"
+        /*   className="mt-2   px-3 py-2 shadow-sm backdrop-blur-sm sm:px-4 sm:py-3" */
+        className="mt-2 flex justify-center px-1 py-1"
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {/* Info */}
+          {/*  <div>
                     <p className="text-xs text-slate-500">
                         Página <span className="font-semibold text-blue-600">{currentPage}</span> de {totalPages}
                     </p>
@@ -98,84 +99,89 @@ export default function PaginationControls({
                     </p>
                 </div> */}
 
-                <div className="flex items-center justify-start gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:justify-center">
-                    {/* Prev */}
-                    <button
-                        onClick={handlePrev}
-                        disabled={currentPage === 1}
-                        className="shrink-0 rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 disabled:opacity-40"
+          <div className="flex items-center justify-start gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:justify-center">
+            {/* Prev */}
+            <button
+              onClick={handlePrev}
+              disabled={currentPage === 1}
+              className="shrink-0 rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 disabled:opacity-40"
+            >
+              ←
+            </button>
+
+            {/* Pages */}
+            <div className="flex shrink-0 items-center gap-1">
+              {pageNumbers.map((item, idx) => {
+                if (item === "...") {
+                  return (
+                    <span
+                      key={idx}
+                      className="shrink-0 px-2 text-sm text-slate-400"
                     >
-                        ←
-                    </button>
+                      …
+                    </span>
+                  );
+                }
 
-                    {/* Pages */}
-                    <div className="flex shrink-0 items-center gap-1">
-                        {pageNumbers.map((item, idx) => {
-                            if (item === "...") {
-                                return (
-                                    <span key={idx} className="shrink-0 px-2 text-sm text-slate-400">
-                                        …
-                                    </span>
-                                );
-                            }
+                const isCurrent = item === currentPage;
 
-                            const isCurrent = item === currentPage;
-
-                            return (
-                                <button
-                                    key={item}
-                                    onClick={() => onPageChange(item)}
-                                    className={`
+                return (
+                  <button
+                    key={item}
+                    onClick={() => onPageChange(item)}
+                    className={`
                                         shrink-0 px-3 py-1.5 text-sm rounded-md transition
-                                    ${isCurrent
-                                            ? "bg-blue-600 text-white shadow-sm"
-                                            : "text-slate-600 hover:bg-slate-100"}
+                                    ${
+                                      isCurrent
+                                        ? "bg-blue-600 text-white shadow-sm"
+                                        : "text-slate-600 hover:bg-slate-100"
+                                    }
                                 `}
-                                >
-                                    {item}
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    {/* Next */}
-                    <button
-                        onClick={handleNext}
-                        disabled={currentPage === totalPages}
-                        className="shrink-0 rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 disabled:opacity-40"
-                    >
-                        →
-                    </button>
-
-                    {/* Jump */}
-                    {showJumpTo && (
-                        <input
-                            type="number"
-                            min={1}
-                            max={totalPages}
-                            placeholder="#"
-                            onKeyDown={(e) => e.key === "Enter" && handleJump(e)}
-                            onBlur={handleJump}
-                            className="w-14 shrink-0 rounded-md bg-slate-100 px-2 py-1 text-xs text-center outline-none focus:ring-1 focus:ring-blue-400"
-                        />
-                    )}
-
-                    {/* Page size */}
-                    {typeof onPageSizeChange === "function" && (
-                        <select
-                            value={pageSize}
-                            onChange={handlePageSizeChange}
-                            className="shrink-0 rounded-md bg-slate-100 px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-400"
-                        >
-                            {pageSizeOptions.map((option) => (
-                                <option key={option} value={option}>
-                                    {option}
-                                </option>
-                            ))}
-                        </select>
-                    )}
-                </div>
+                  >
+                    {item}
+                  </button>
+                );
+              })}
             </div>
-        </nav>
+
+            {/* Next */}
+            <button
+              onClick={handleNext}
+              disabled={currentPage === totalPages}
+              className="shrink-0 rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 disabled:opacity-40"
+            >
+              →
+            </button>
+
+            {/* Jump */}
+            {showJumpTo && (
+              <input
+                type="number"
+                min={1}
+                max={totalPages}
+                placeholder="#"
+                onKeyDown={(e) => e.key === "Enter" && handleJump(e)}
+                onBlur={handleJump}
+                className="w-14 shrink-0 rounded-md bg-slate-100 px-2 py-1 text-xs text-center outline-none focus:ring-1 focus:ring-blue-400"
+              />
+            )}
+
+            {/* Page size */}
+            {typeof onPageSizeChange === "function" && (
+              <select
+                value={pageSize}
+                onChange={handlePageSizeChange}
+                className="shrink-0 rounded-md bg-slate-100 px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-400"
+              >
+                {pageSizeOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        </div>
+      </nav>
     );
 }

@@ -33,7 +33,6 @@ class NuevoGastoModal {
             tiposGasto: [],
             centrosCosto: [],
             tiposMovilidad: [],
-
             selectedCategoria: null,
             selectedTipoGasto: null,
             selectedCentroCosto: null,
@@ -43,7 +42,6 @@ class NuevoGastoModal {
             selectedFile: null,
             selectedFileType: null,
             selectedFileName: null,
-
             isLoading: false,
             isLoadingCategorias: false,
             isLoadingTiposGasto: false,
@@ -657,7 +655,7 @@ class NuevoGastoModal {
                 useElim: 0
             };
 
-            const idRend = await saveRendicionGasto(gastoData);
+            const { idRend } = await saveRendicionGasto(gastoData);
 
             const payloadDetalle = {
                 idRend: String(idRend),

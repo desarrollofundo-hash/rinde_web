@@ -154,6 +154,10 @@ export function getEvidenceImageCandidates(gasto, fallbackObs = "") {
         gasto?.ruta,
         gasto?.rutaArchivo,
         gasto?.pathArchivo,
+        gasto?.obs,
+        gasto?.evidencia,
+        gasto?.urlEvidencia,
+        gasto?.urlArchivo,
     ].filter(isLikelyFilePath);
 
     // Solo usar fallbackObs cuando realmente parece archivo/ruta.

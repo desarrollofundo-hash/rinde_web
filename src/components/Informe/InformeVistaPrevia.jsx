@@ -4,6 +4,7 @@ import { IconDelete } from "../../Icons/delete";
 import IconUpdate from "../../Icons/update";
 import IconSend from "../../Icons/send";
 import { IconEye } from "../../Icons/preview";
+import { IconClose } from "../../Icons/close";
 import {
   getWorkflowStatusBadgeClass,
   getWorkflowStatusLabel,
@@ -330,10 +331,16 @@ export default function InformeVistaPrevia({
     }
   };
 
-  const handleEnviarAuditoria = () => {
-    if (selectedGastos.length === 0) return;
-    if (typeof onEnviarAuditoria === "function") {
-      onEnviarAuditoria(selectedGastos);
+  const handleEnviarAuditoria = async () => {
+    if (isSaving || selectedGastos.length === 0) return;
+    if (typeof onEnviarAuditoria !== "function") return;
+
+    // Bloquea el botón de inmediato para evitar doble envío por doble clic.
+    setIsSaving(true);
+    try {
+      await onEnviarAuditoria(selectedGastos);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -424,9 +431,9 @@ export default function InformeVistaPrevia({
           <button
             type="button"
             onClick={onClose}
-            className="cursor-pointer rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-900 sm:px-3.5 sm:py-1.5 sm:text-sm"
+            className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-blue-200 bg-white text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-900"
           >
-            Cerrar
+            <IconClose className="h-3.5 w-3.5" />
           </button>
         </div>
 
@@ -451,7 +458,7 @@ export default function InformeVistaPrevia({
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-[9px] font-semibold uppercase text-slate-500">
-                    Cantidad de Gastos
+                    Cant. de gastos
                   </p>
                   <p className="line-clamp-1 font-semibold text-slate-900">
                     {cantidadResumen !== null && cantidadResumen !== undefined

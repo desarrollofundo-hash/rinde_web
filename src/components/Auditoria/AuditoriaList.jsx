@@ -14,6 +14,9 @@ export default function AuditoriaList({
     formatCurrency,
     getAuditoriaTotal,
     getAuditoriaCantidadGastos,
+    getAuditoriaCantidadAprobado,
+    getAuditoriaCantidadDesaprobado,
+    getAuditoriaTotalDesaprobado,
     currentPage,
     onPageChange,
     pageSize,
@@ -40,6 +43,9 @@ export default function AuditoriaList({
                 formatDate(auditoria?.fecCre),
                 formatCurrency(getAuditoriaTotal(auditoria)),
                 getAuditoriaCantidadGastos(auditoria),
+                getAuditoriaCantidadAprobado(auditoria),
+                getAuditoriaCantidadDesaprobado(auditoria),
+                formatCurrency(getAuditoriaTotalDesaprobado(auditoria)),
             ]
                 .filter((value) => value !== undefined && value !== null)
                 .join(" ")
@@ -51,6 +57,9 @@ export default function AuditoriaList({
         auditorias,
         normalizedSearch,
         getAuditoriaCantidadGastos,
+        getAuditoriaCantidadAprobado,
+        getAuditoriaCantidadDesaprobado,
+        getAuditoriaTotalDesaprobado,
         getAuditoriaId,
         getAuditoriaTotal,
         getEstadoLabel,
@@ -148,6 +157,14 @@ export default function AuditoriaList({
                     <th className="border-b border-slate-200 px-4 py-2 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
                       Cant. Gastos
                     </th>
+
+                    <th className="border-b border-slate-200 px-4 py-2 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
+                      Cant. Apro./ Desa.
+                    </th>
+
+                    {/*  <th className="border-b border-slate-200 px-4 py-2 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
+                      Total Desaprobado
+                    </th> */}
                     <th className="border-b border-slate-200 px-4 py-2 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
                       Acciones
                     </th>
@@ -205,6 +222,18 @@ export default function AuditoriaList({
                       <td className="px-4 py-2 text-center tabular-nums text-slate-700">
                         {getAuditoriaCantidadGastos(auditoria)}
                       </td>
+                      <td className="px-4 py-2 text-center tabular-nums font-bold">
+                        <span className="text-emerald-600">
+                          {getAuditoriaCantidadAprobado(auditoria)} Apro.
+                        </span>
+                        <span className="text-slate-400 font-bold"> / </span>
+                        <span className="text-red-600">
+                          {getAuditoriaCantidadDesaprobado(auditoria)} Desa.
+                        </span>
+                      </td>
+                      {/* <td className="px-4 py-2 text-center font-semibold tabular-nums text-red-600">
+                        {formatCurrency(getAuditoriaTotalDesaprobado(auditoria))}
+                      </td> */}
                       <td className="px-4 py-2 text-center">
                         <button
                           type="button"
@@ -212,7 +241,7 @@ export default function AuditoriaList({
                           className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-cyan-700 cursor-pointer"
                         >
                           <IconEye className="h-4 w-4 shrink-0" />
-                          Ver Detalles
+                          {/* Ver Detalles */}
                         </button>
                       </td>
                     </tr>
@@ -277,6 +306,24 @@ export default function AuditoriaList({
                     <p className="truncate text-[11px] font-semibold text-slate-600">
                       Total: {formatCurrency(getAuditoriaTotal(auditoria))} ·
                       Gastos: {getAuditoriaCantidadGastos(auditoria)}
+                    </p>
+                    {/*  <p className="truncate text-[11px] font-semibold text-emerald-600">
+                      Aprobado: {getAuditoriaCantidadAprobado(auditoria)}
+                    </p>
+                    <p className="truncate text-[11px] font-semibold text-red-600">
+                      Desaprobado: {getAuditoriaCantidadDesaprobado(auditoria)} 
+                    </p> */}
+                    <p className="truncate text-[11px] font-semibold">
+                      <span className="text-emerald-600">
+                        Aprobado: {getAuditoriaCantidadAprobado(auditoria)}
+                      </span>
+
+                      <span className="mx-2 text-slate-400">/</span>
+
+                      <span className="text-red-600">
+                        Desaprobado:{" "}
+                        {getAuditoriaCantidadDesaprobado(auditoria)}
+                      </span>
                     </p>
                   </div>
                   <button

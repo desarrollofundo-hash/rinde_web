@@ -74,19 +74,45 @@ function extractIdRendFromHeaders(headers = {}) {
     return null;
 }
 
-export async function saveRendicionGasto(facturaData) {
-/*     console.log("🚀 Guardando gasto...");
-    console.log("📦 Payload:", facturaData);
- */
-    try {
-        // 🔥 AQUÍ ESTÁ LA SOLUCIÓN
-        const bodyToSend = [facturaData];
+function extractMensajeFromData(data) {
+    if (data === null || data === undefined) return "";
+    if (typeof data === "string") return data.trim();
 
-        /* console.log("📡 BODY ENVIADO:", JSON.stringify(bodyToSend, null, 2)); */
+    if (Array.isArray(data)) {
+        for (const item of data) {
+            const msg = extractMensajeFromData(item);
+            if (msg) return msg;
+        }
+        return "";
+    }
+
+    if (typeof data !== "object") return "";
+
+    const directKeys = ["Mensaje", "mensaje", "message", "Message", "msg", "Msg", "description"];
+    for (const key of directKeys) {
+        if (typeof data[key] === "string" && data[key].trim()) {
+            return data[key].trim();
+        }
+    }
+
+    const nestedKeys = ["data", "result", "response", "payload", "value", "record", "item"];
+    for (const key of nestedKeys) {
+        if (data[key]) {
+            const msg = extractMensajeFromData(data[key]);
+            if (msg) return msg;
+        }
+    }
+
+    return "";
+}
+
+export async function saveRendicionGasto(facturaData) {
+    try {
+        const bodyToSend = [facturaData];
 
         const response = await API.post(
             "/saveupdate/saverendiciongasto?returnId=true",
-            bodyToSend, // 👈 YA NO facturaData
+            bodyToSend,
             {
                 headers: {
                     "X-Return-Format": "json",
@@ -95,19 +121,11 @@ export async function saveRendicionGasto(facturaData) {
             }
         );
         const data = response.data;
-/* 
-        console.log("📊 Response:", data);
-        console.log("📊 Response JSON:", JSON.stringify(data, null, 2)); */
 
-        // 🔴 Backend raro (defensa)
-        if (typeof data === "string") {
-            if (data.toLowerCase().includes("error")) {
-                throw new Error(data);
-            }
+        const mensaje = extractMensajeFromData(data) ?? "";
 
-            if (data.trim() === "UPSERT realizado correctamente.") {
-                throw new Error("No se devolvió el ID");
-            }
+        if (typeof data === "string" && data.toLowerCase().includes("error")) {
+            throw new Error(data);
         }
 
         let idRend = extractIdRendFromData(data);
@@ -115,30 +133,17 @@ export async function saveRendicionGasto(facturaData) {
             idRend = extractIdRendFromHeaders(response.headers);
         }
 
-        if (!idRend) {
-            throw new Error(`No se pudo obtener idRend. Response: ${JSON.stringify(data)}`);
-        }
-
-        /* console.log("🆔 ID:", idRend); */
-
-        return idRend;
+        return { idRend: idRend ?? null, mensaje };
 
     } catch (error) {
-   /*      console.error("❌ Error guardando gasto:"); */
-
         if (error.response) {
-            /* console.error("📄 Response:", error.response.data); */
             throw new Error(
                 `Error ${error.response.status}: ${JSON.stringify(error.response.data)}`
             );
         }
-
         if (error.request) {
-/*             console.error("📡 Sin respuesta del servidor");
- */            throw new Error("No hay respuesta del servidor");
+            throw new Error("No hay respuesta del servidor");
         }
-
-      /*   console.error("⚠️ Error:", error.message); */
         throw error;
     }
 }
