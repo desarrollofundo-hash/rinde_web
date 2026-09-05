@@ -60,8 +60,8 @@ const parseQrPayload = (rawText) => {
         const numero = String(json.numero || json.correlativo || "").trim();
 
         return {
-            rucEmisor: String(json.ruc || json.rucEmisor || json.RUC || "").replace(/\D/g, ""),
-            tipoComprobante: String(json.tipoComprobante || json.tipocomprobante || json.tipo || ""),
+            rucEmisor: String(json.ruc || "").replace(/\D/g, ""),
+            tipoComprobante: String(json.tipoComprobante || json.tipocomprobante || ""),
             serie,
             numero,
             fecha: normalizeQrDate(json.fecha || json.fechaEmision || ""),
@@ -667,6 +667,7 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
 
             if (!responseCabecera) {
                 setErrorMessage(mensajeSP || "No se pudo obtener el ID del registro");
+                
                 return { saved: false, mensaje: mensajeSP };
             }
 
@@ -708,8 +709,8 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
             });
             return { saved: true, mensaje: mensajeSP };
         } catch (error) {
-/*             console.error("Error guardando movilidad:", error);
- */            // Extraer mensaje del servidor si está disponible
+            console.error("Error guardando movilidad:", error);
+             // Extraer mensaje del servidor si está disponible
             let errorMsg = "No se pudo guardar el gasto";
 
             if (error?.message) {

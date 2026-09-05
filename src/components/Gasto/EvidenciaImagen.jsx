@@ -88,12 +88,14 @@ function inferImageMimeType(candidate, contentType, bytes) {
 }
 
 export default function EvidenciaImagen({ gasto, fallbackObs = "", alt = "Evidencia del gasto", className = "", loading = "lazy", fallback = null, ...imgProps }) {
-    // DEBUG: log los candidatos generados para la evidencia del gasto
+    const gastoId = gasto?.idrend ?? gasto?.idRend ?? gasto?.id;
     const candidates = useMemo(() => {
         const c = getEvidenceImageCandidates(gasto, fallbackObs);
-        /* console.log('EvidenciaImagen - candidatos generados:', c); */
+        if (import.meta.env.DEV) {
+            console.debug("[EvidenciaImagen] candidatos para", gastoId, ":", c);
+        }
         return c;
-    }, [gasto, fallbackObs]);
+    }, [gasto, fallbackObs, gastoId]);
     const [resolvedSrc, setResolvedSrc] = useState("");
     const objectUrlRef = useRef("");
 
@@ -135,6 +137,9 @@ export default function EvidenciaImagen({ gasto, fallbackObs = "", alt = "Eviden
                 return;
             }
 
+            if (import.meta.env.DEV) {
+                console.warn("[EvidenciaImagen] ningún candidato resolvió imagen para", gastoId, candidates);
+            }
             setResolvedSrc("");
         };
 
@@ -144,7 +149,7 @@ export default function EvidenciaImagen({ gasto, fallbackObs = "", alt = "Eviden
             isCancelled = true;
             revokeObjectUrl();
         };
-    }, [candidates]);
+    }, [candidates, gastoId]);
 
     if (!resolvedSrc) {
         return fallback;

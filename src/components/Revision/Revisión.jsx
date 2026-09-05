@@ -12,6 +12,7 @@ import {
     resolveWorkflowStatus,
 } from "../shared/workflowStatus";
 import Toast from "../shared/Toast";
+import { getMonedaSimbolo, resolveMoneda } from "../shared/moneda";
 import { downloadExcelXml } from "../../lib/exportExcel";
 import { IconEye } from "../../Icons/preview";
 import { IconClose } from "../../Icons/close";
@@ -204,6 +205,29 @@ export default function Revision() {
         );
         const number = Number(raw);
         return Number.isFinite(number) ? number : 0;
+    };
+
+    const getDetalleMoneda = (detalle) => resolveMoneda(detalle);
+
+    const formatDetalleMonto = (detalle) =>
+        `${getMonedaSimbolo(getDetalleMoneda(detalle))} ${getDetalleMonto(detalle).toFixed(2)}`;
+
+    // Agrupa los montos por moneda para no sumar soles y dólares en un mismo total.
+    const formatTotalesPorMoneda = (detallesLista) => {
+        const acumulado = new Map();
+
+        (Array.isArray(detallesLista) ? detallesLista : []).forEach((detalle) => {
+            const moneda = getDetalleMoneda(detalle);
+            acumulado.set(moneda, (acumulado.get(moneda) || 0) + getDetalleMonto(detalle));
+        });
+
+        if (acumulado.size === 0) {
+            return `${getMonedaSimbolo()} 0.00`;
+        }
+
+        return Array.from(acumulado.entries())
+            .map(([moneda, monto]) => `${getMonedaSimbolo(moneda)} ${monto.toFixed(2)}`)
+            .join("  +  ");
     };
 
     const normalizeText = (value) =>
@@ -462,7 +486,7 @@ export default function Revision() {
                     useElim: 0,
                 };
                  
-                                console.log(`📤 Enviando detalle (idRev: ${detallePayload.idRev}):`, detallePayload); 
+                             /*    console.log(`📤 Enviando detalle (idRev: ${detallePayload.idRev}):`, detallePayload);  */
 
                 const guardado = await saveRendicionRevisionDetalle(detallePayload);
                 if (!guardado) {
@@ -871,10 +895,10 @@ export default function Revision() {
                   {/* Header */}
                   <div className="flex items-center justify-between rounded-t-3xl border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-4 py-2.5 sm:rounded-t-2xl">
                     <div className="min-w-0">
-                      <h3 className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-slate-800 sm:text-base">
-                        <span>Detalle del Gasto</span>
-                        <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 sm:text-[11px]">
-                          #{getDetalleRendId(detalleRevision) || "-"}
+                      <h3 className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-slate-800 sm:text-[15px]">
+                        Detalle:
+                        <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 sm:text-xs">
+                          ID Gasto:#{getDetalleRendId(detalleRevision) || "-"}
                         </span>
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold sm:text-[11px] ${getEstadoBadgeClass(detalleRevision)}`}
@@ -940,7 +964,7 @@ export default function Revision() {
                     {/* Datos Generales */}
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                       <h2 className="col-span-2 text-sm font-bold text-slate-800 border-b border-slate-100 pb-1">
-                        Datos Generales del Gasto
+                        Datos Generales del Gasto:
                       </h2>
                       {[
                         [
@@ -1008,13 +1032,10 @@ export default function Revision() {
                     {/* Monto */}
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                       <h2 className="col-span-2 text-sm font-bold text-slate-800 border-b border-slate-100 pb-1">
-                        Monto del Gasto
+                        Monto del Gasto:
                       </h2>
                       {[
-                        [
-                          "Total",
-                          `S/ ${getDetalleMonto(detalleRevision).toFixed(2)}`,
-                        ],
+                        ["Total", formatDetalleMonto(detalleRevision)],
                         [
                           "IGV",
                           firstDefined(
@@ -1039,7 +1060,7 @@ export default function Revision() {
                     {/* Factura */}
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                       <h2 className="col-span-2 text-sm font-bold text-slate-800 border-b border-slate-100 pb-1">
-                        Datos de la Factura
+                        Datos de la Factura:
                       </h2>
                       {(isPlanillaMovilidadDetalle(detalleRevision)
                         ? [
@@ -1071,10 +1092,7 @@ export default function Revision() {
                                 "-",
                               ),
                             ],
-                            [
-                              "Total",
-                              `S/ ${getDetalleMonto(detalleRevision).toFixed(2)}`,
-                            ],
+                            ["Total", formatDetalleMonto(detalleRevision)],
                             [
                               "LUGAR ORIGEN",
                               firstDefined(
@@ -1138,10 +1156,7 @@ export default function Revision() {
                                 "-",
                               ),
                             ],
-                            [
-                              "Total",
-                              `S/ ${getDetalleMonto(detalleRevision).toFixed(2)}`,
-                            ],
+                            ["Total", formatDetalleMonto(detalleRevision)],
                           ]
                       ).map(([label, value]) => (
                         <div key={label} className="col-span-1">
@@ -1158,7 +1173,7 @@ export default function Revision() {
                     {/* Observación */}
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                       <h2 className="col-span-2 text-sm font-bold text-slate-800 border-b border-slate-100 pb-1">
-                        Observación
+                        Observación:
                       </h2>
                       {[["Nota:", firstDefined(detalleRevision?.obs)]].map(
                         ([label, value]) => (
@@ -1286,10 +1301,7 @@ export default function Revision() {
                           Total:
                         </p>
                         <p className="mt-0.5 text-xs font-semibold text-slate-800">
-                          S/{" "}
-                          {detalles
-                            .reduce((acc, d) => acc + getDetalleMonto(d), 0)
-                            .toFixed(2)}
+                          {formatTotalesPorMoneda(detalles)}
                         </p>
                       </div>
                       {/*    <div>
@@ -1335,9 +1347,14 @@ export default function Revision() {
                       </div>
                     ) : detalles.length > 0 ? (
                       <div className="p-4 sm:p-5">
-                        <h3 className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
-                          Gastos de la revisión ({detalles.length})
-                        </h3>
+                        <div className="mb-2 flex items-center justify-between">
+                          <h3 className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
+                            Gastos de la revisión: ({detalles.length})
+                          </h3>
+                          <span className="text-xs font-bold text-cyan-700">
+                            {formatTotalesPorMoneda(detalles)}
+                          </span>
+                        </div>
                         <div className="divide-y divide-slate-100 rounded-xl border border-slate-200/80 [scrollbar-width:thin]">
                           {detalles.map((detalle, idx) => (
                             <button
@@ -1361,11 +1378,12 @@ export default function Revision() {
                                   <span>{getDetalleFecha(detalle)}</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                                 GLOSA:<span>{getDetalleDescripcion(detalle)}</span>
+                                  GLOSA:
+                                  <span>{getDetalleDescripcion(detalle)}</span>
                                 </div>
                               </div>
                               <span className="shrink-0 text-xs font-bold text-cyan-700">
-                                S/ {getDetalleMonto(detalle).toFixed(2)}
+                                {formatDetalleMonto(detalle)}
                               </span>
 
                               <IconEye className="h-3.5 w-3.5 shrink-0 text-slate-300" />
@@ -1395,9 +1413,9 @@ export default function Revision() {
                           sendingDecision ||
                           isRevisionDecisionBloqueada(selectedRevision)
                         }
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:w-auto sm:px-5 cursor-pointer"
+                        className="group flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-green-700 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:w-auto sm:px-5 cursor-pointer"
                       >
-                        <IconUp className="h-4 w-4 shrink-0" />
+                        <IconUp className="h-4 w-4 shrink-0 transition-transform duration-300 group-hover:-translate-y-1 group-hover:scale-110" />
                         <span className="hidden sm:inline">
                           {sendingDecision ? "Procesando..." : "Aprobar"}
                         </span>
@@ -1410,9 +1428,9 @@ export default function Revision() {
                           sendingDecision ||
                           isRevisionDecisionBloqueada(selectedRevision)
                         }
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:w-auto sm:px-5 cursor-pointer"
+                        className="group flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-red-700 hover:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:w-auto sm:px-5 cursor-pointer"
                       >
-                        <IconDown className="h-4 w-4 shrink-0" />
+                        <IconDown className="h-4 w-4 shrink-0 transition-transform duration-300 group-hover:translate-y-1 group-hover:scale-110" />
                         <span className="hidden sm:inline">Rechazar</span>
                       </button>
                       {/*RECHAZAR */}
@@ -1438,25 +1456,22 @@ export default function Revision() {
                     />
                     <div className="relative z-10 w-full rounded-t-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:max-w-lg sm:rounded-2xl">
                       <h3 className="text-base font-bold text-slate-800 sm:text-lg">
-                        Motivo de rechazo
+                        Motivo de rechazo:
                       </h3>
-                      <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-                        Este motivo se enviará en el campo obs.
-                      </p>
 
                       <textarea
                         value={rejectObs}
                         onChange={(e) => setRejectObs(e.target.value)}
                         rows={4}
                         placeholder="Escribe el motivo de rechazo..."
-                        className="mt-3 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200"
+                        className="mt-3 w-full resize-none rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200"
                       />
 
                       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
                         <button
                           type="button"
                           onClick={() => setShowRejectModal(false)}
-                          className="w-full rounded-xl border border-slate-300 bg-white py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 sm:w-auto sm:px-4 sm:py-2 cursor-pointer"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:w-auto sm:px-5 cursor-pointer"
                         >
                           Cancelar
                         </button>
@@ -1464,7 +1479,7 @@ export default function Revision() {
                           type="button"
                           onClick={handleEnviarDesaprobacion}
                           disabled={sendingDecision}
-                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 sm:w-auto sm:px-4 sm:py-2 cursor-pointer"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:w-auto sm:px-5 cursor-pointer"
                         >
                           <IconSend className="h-4 w-4 shrink-0" />
                           {sendingDecision ? "Enviando..." : "Enviar rechazo"}

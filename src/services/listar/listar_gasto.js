@@ -227,7 +227,13 @@ export async function getListaGastos({
                 item.ruc_cliente,
               ),
               tipocomprobante: firstDefined(
-          item.tipocomprobante
+          item.tipocomprobante,
+          item.tipoComprobante,
+          item.tipoCombrobante,
+          item.tipo_comprobante,
+          item.codTipoComprobante,
+          item.codigoTipoComprobante,
+          item.idTipoComprobante,
               ),
               glosa: resolveGlosa(item),
               moneda: item.moneda,

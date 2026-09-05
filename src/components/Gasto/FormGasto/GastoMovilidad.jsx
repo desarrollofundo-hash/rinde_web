@@ -62,7 +62,13 @@ const isPdfFile = (file) => {
 
 const convertPdfToImageFile = async (pdfFile) => {
     const pdfData = await pdfFile.arrayBuffer();
-    const pdfDocument = await getDocument({ data: pdfData }).promise;
+    let pdfDocument;
+    try {
+        pdfDocument = await getDocument({ data: pdfData }).promise;
+    } catch {
+        // Fallback para evitar fallos intermitentes del worker en algunos navegadores/entornos.
+        pdfDocument = await getDocument({ data: pdfData, disableWorker: true }).promise;
+    }
     const page = await pdfDocument.getPage(1);
     const viewport = page.getViewport({ scale: 2 });
     const canvas = document.createElement("canvas");
@@ -168,7 +174,6 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
         categorias,
         centrosCosto,
         tiposMovilidad,
-        handleFieldChange,
         handlePoliticaChange,
         handleCentroCostoChange,
         handleRucEmisorBlur,
@@ -222,7 +227,7 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
     };
 
     const handleChange = async (e) => {
-        const { name, files } = e.target;
+        const { name, value, files } = e.target;
 
         if (files) {
             let selectedFile = files[0] || null;
@@ -255,19 +260,16 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
                     setCropShape("rect");
                 } else {
                     setEvidenciaPreviewUrl("");
-                    setIsPreviewOpen(false);
-                    setIsCropMode(false);
-                    setCrop(undefined);
-                    setCompletedCrop(null);
-                    setSelectedPreset("doc");
-                    setCropShape("rect");
                 }
             }
 
             return;
         }
 
-        handleFieldChange(e);
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
     };
 
     const selectedCategoria = categorias.find((categoria) => String(categoria.id) === String(formData.categoria));

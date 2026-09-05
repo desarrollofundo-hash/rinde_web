@@ -1,7 +1,39 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { IconBroom } from "../../Icons/broom";
 import { IconEye } from "../../Icons/preview";
 import PaginationControls from "../Gasto/PaginationControls";
+import { getListaAuditoriaDetalle } from "../../services";
+import { getMonedaSimbolo, resolveMoneda } from "../shared/moneda";
+
+const parseAmount = (value) => {
+    if (typeof value === "number") {
+        return Number.isFinite(value) ? value : 0;
+    }
+
+    if (typeof value !== "string") {
+        return 0;
+    }
+
+    const raw = value.trim().replace(/[^\d,.-]/g, "");
+    if (!raw) return 0;
+
+    let normalized = raw;
+    const hasComma = raw.includes(",");
+    const hasDot = raw.includes(".");
+
+    if (hasComma && hasDot) {
+        if (raw.lastIndexOf(",") > raw.lastIndexOf(".")) {
+            normalized = raw.replace(/\./g, "").replace(",", ".");
+        } else {
+            normalized = raw.replace(/,/g, "");
+        }
+    } else if (hasComma) {
+        normalized = /,\d{1,2}$/.test(raw) ? raw.replace(",", ".") : raw.replace(/,/g, "");
+    }
+
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
 
 export default function AuditoriaList({
     auditorias = [],
@@ -79,6 +111,56 @@ export default function AuditoriaList({
         filteredAuditorias.length > 0 &&
         filteredAuditorias.every((a) => selectedAuditoriaIds.includes(getAuditoriaId(a)));
 
+    // El total de la auditoría llega combinado desde el backend (soles + dólares mezclados),
+    // por eso se calcula el subtotal real por moneda a partir del detalle de gastos de cada una.
+    const [totalesPorMonedaPorAuditoria, setTotalesPorMonedaPorAuditoria] = useState({});
+    const fetchedAuditoriaIdsRef = useRef(new Set());
+
+    useEffect(() => {
+        const pendientes = paginatedAuditorias.filter((auditoria) => {
+            const id = getAuditoriaId(auditoria);
+            return id && !fetchedAuditoriaIdsRef.current.has(id);
+        });
+
+        if (pendientes.length === 0) return;
+
+        pendientes.forEach((auditoria) => {
+            const id = getAuditoriaId(auditoria);
+            fetchedAuditoriaIdsRef.current.add(id);
+            const idAd = auditoria?.idAd ?? auditoria?.id;
+
+            getListaAuditoriaDetalle({ idAd: String(idAd) })
+                .then((detalleData) => {
+                    const acumulado = new Map();
+                    (Array.isArray(detalleData) ? detalleData : []).forEach((detalle) => {
+                        const moneda = resolveMoneda(detalle);
+                        const monto = parseAmount(
+                            detalle?.total ?? detalle?.monto ?? detalle?.importe ?? detalle?.valor ?? 0,
+                        );
+                        acumulado.set(moneda, (acumulado.get(moneda) || 0) + monto);
+                    });
+
+                    setTotalesPorMonedaPorAuditoria((prev) => ({
+                        ...prev,
+                        [id]: Object.fromEntries(acumulado),
+                    }));
+                })
+                .catch(() => {
+                    fetchedAuditoriaIdsRef.current.delete(id);
+                });
+        });
+    }, [paginatedAuditorias, getAuditoriaId]);
+
+    // Solo muestra el subtotal real (por detalle de gastos) de la moneda a la que corresponde la columna.
+    const formatCurrencyPorMoneda = (auditoria, monedaCodigo) => {
+        const id = getAuditoriaId(auditoria);
+        const totales = totalesPorMonedaPorAuditoria[id];
+        if (!totales) return "...";
+        const monto = totales[monedaCodigo];
+        if (monto === undefined) return "-";
+        return `${getMonedaSimbolo(monedaCodigo)} ${monto.toFixed(2)}`;
+    };
+
     return (
       <section className="space-y-4">
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -151,8 +233,11 @@ export default function AuditoriaList({
                     <th className="border-b border-slate-200 px-4 py-2 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
                       Fecha
                     </th>
-                    <th className="border-b border-slate-200 px-4 py-2 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
-                      Total
+                    <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
+                      S/.{" "}
+                    </th>
+                    <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
+                      USD{" "}
                     </th>
                     <th className="border-b border-slate-200 px-4 py-2 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
                       Cant. Gastos
@@ -216,8 +301,11 @@ export default function AuditoriaList({
                       <td className="px-4 py-2 text-center text-slate-700">
                         {formatDate(auditoria?.fecCre)}
                       </td>
-                      <td className="px-4 py-2 text-center font-semibold tabular-nums text-slate-700">
-                        {formatCurrency(getAuditoriaTotal(auditoria))}
+                      <td className="border-b border-slate-100 px-2 py-1 text-center text-sm font-semibold text-slate-700">
+                        {formatCurrencyPorMoneda(auditoria, "PEN")}
+                      </td>
+                      <td className="border-b border-slate-100 px-2 py-1 text-center text-sm font-semibold text-slate-700">
+                        {formatCurrencyPorMoneda(auditoria, "USD")}
                       </td>
                       <td className="px-4 py-2 text-center tabular-nums text-slate-700">
                         {getAuditoriaCantidadGastos(auditoria)}
@@ -297,16 +385,21 @@ export default function AuditoriaList({
                       </span>
                     </div>
                     <h3 className="truncate text-sm font-bold text-slate-800">
-                      {auditoria?.obs ?? "Sin observación"}
+                      {auditoria?.titulo ?? ""}
                     </h3>
                     <p className="truncate text-[11px] text-slate-500">
-                      DNI: {auditoria?.dni ?? "-"} ·{" "}
-                      {formatDate(auditoria?.fecCre)}
+                      Creación:{formatDate(auditoria?.fecCre)}
                     </p>
-                    <p className="truncate text-[11px] font-semibold text-slate-600">
+                    <p className="truncate text-[11px] text-slate-500">
+                      Usuario: {auditoria?.usuario ?? "-"}
+                    </p>
+                    <p className="truncate text-[11px] text-slate-500">
+                      Gerencia: {auditoria?.gerencia ?? "-"}
+                    </p>
+                    {/*  <p className="truncate text-[11px] font-semibold text-slate-600">
                       Total: {formatCurrency(getAuditoriaTotal(auditoria))} ·
                       Gastos: {getAuditoriaCantidadGastos(auditoria)}
-                    </p>
+                    </p> */}
                     {/*  <p className="truncate text-[11px] font-semibold text-emerald-600">
                       Aprobado: {getAuditoriaCantidadAprobado(auditoria)}
                     </p>

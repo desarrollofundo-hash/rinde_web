@@ -250,12 +250,12 @@ export async function saveEvidenciaGasto({ idRend, file, gastoData = {} }) {
     ];
 
     try {
-        /*  console.log("📎 Payload evidencia listo", {
+         /*  console.log("📎 Payload evidencia listo", {
              idRend: String(idRend),
              nombreArchivo: finalFileName,
              tipoArchivo: String(file.type || "application/octet-stream"),
              tamanioKb: Math.round((Number(file.size) || 0) / 1024),
-         }); */
+         });  */
 
         let response;
         try {
@@ -267,7 +267,7 @@ export async function saveEvidenciaGasto({ idRend, file, gastoData = {} }) {
                 timeout: 60000,
             });
         } catch {
-            /* console.warn("⚠️ Primer formato de evidencia falló, probando formato alterno de rendicion"); */
+            console.warn("⚠️ Primer formato de evidencia falló, probando formato alterno de rendicion");
             response = await API.post("/saveupdate/saverendiciongastoevidencia", payloadTry2, {
                 headers: {
                     "Content-Type": "application/json",

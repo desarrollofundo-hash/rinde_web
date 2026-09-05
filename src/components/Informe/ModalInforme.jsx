@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getListaGastos } from "../../services/listar/listar_gasto";
+import { getMonedaSimbolo, resolveMoneda } from "../shared/moneda";
 
 export default function ModalInforme({
     isOpen,
@@ -87,6 +88,28 @@ export default function ModalInforme({
             if (!selectedSet.has(id)) return acc;
             return acc + getGastoAmount(gasto);
         }, 0);
+    }, [gastos, selectedGastos]);
+
+    // Subtotales agrupados por moneda para no asumir que todos los gastos comparten la misma
+    const totalesPorMoneda = useMemo(() => {
+        if (!Array.isArray(gastos) || gastos.length === 0 || selectedGastos.length === 0) {
+            return [];
+        }
+
+        const selectedSet = new Set(selectedGastos.map((id) => String(id)));
+        const acumulado = new Map();
+
+        gastos.forEach((gasto) => {
+            if (!selectedSet.has(getGastoId(gasto))) return;
+            const moneda = resolveMoneda(gasto);
+            acumulado.set(moneda, (acumulado.get(moneda) || 0) + getGastoAmount(gasto));
+        });
+
+        return Array.from(acumulado.entries()).map(([moneda, monto]) => ({
+            moneda,
+            simbolo: getMonedaSimbolo(moneda),
+            monto,
+        }));
     }, [gastos, selectedGastos]);
 
     useEffect(() => {
@@ -243,7 +266,12 @@ export default function ModalInforme({
                             <strong>Gastos seleccionados:</strong> {selectedGastos.length}
                         </p>
                         <p className="text-sm text-slate-700">
-                            <strong>Monto total seleccionado:</strong> S/ {totalSeleccionado.toFixed(2)}
+                            <strong>Monto total seleccionado:</strong>{" "}
+                            {totalesPorMoneda.length === 0
+                                ? `${getMonedaSimbolo()} ${totalSeleccionado.toFixed(2)}`
+                                : totalesPorMoneda
+                                    .map(({ simbolo, monto }) => `${simbolo} ${monto.toFixed(2)}`)
+                                    .join("  +  ")}
                         </p>
                         {glosa && (
                             <p className="text-sm text-slate-700">
@@ -324,7 +352,7 @@ export default function ModalInforme({
                                                 {gasto.categoria || "-"}
                                             </td>
                                             <td className="px-4 py-3 text-slate-700 font-semibold">
-                                                {getGastoAmount(gasto).toFixed(2)}
+                                                {getMonedaSimbolo(resolveMoneda(gasto))} {getGastoAmount(gasto).toFixed(2)}
                                             </td>
                                             <td className="px-4 py-3 text-slate-700">
                                                 {gasto.fecha?.split("T")[0] || "-"}

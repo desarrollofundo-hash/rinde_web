@@ -9,6 +9,7 @@ import {
   getWorkflowStatusBadgeClass,
   getWorkflowStatusLabel,
 } from "../shared/workflowStatus";
+import { getMonedaSimbolo, resolveMoneda } from "../shared/moneda";
 import EvidenciaImagen from "../Gasto/EvidenciaImagen";
 
 export default function InformeVistaPrevia({
@@ -90,6 +91,11 @@ export default function InformeVistaPrevia({
         gasto?.totalComprobante ??
         0,
     );
+
+  const getGastoMoneda = (gasto) => resolveMoneda(gasto);
+
+  const formatGastoMonto = (gasto) =>
+    `${getMonedaSimbolo(getGastoMoneda(gasto))} ${getGastoAmount(gasto).toFixed(2)}`;
 
   const parseAmount = (value) => {
     if (typeof value === "number") {
@@ -212,9 +218,29 @@ export default function InformeVistaPrevia({
     });
   }, [gastosPolitica, selectedGastos]);
 
-  const total = gastosSeleccionadosDetalle
-    .reduce((acc, gasto) => acc + getGastoAmount(gasto), 0)
-    .toFixed(2);
+  // Agrupa los montos por moneda para no sumar soles y dólares en un mismo total.
+  const formatTotalesPorMoneda = (gastos) => {
+    const acumulado = new Map();
+
+    (Array.isArray(gastos) ? gastos : []).forEach((gasto) => {
+      const moneda = getGastoMoneda(gasto);
+      acumulado.set(moneda, (acumulado.get(moneda) || 0) + getGastoAmount(gasto));
+    });
+
+    if (acumulado.size === 0) {
+      return `${getMonedaSimbolo()} 0.00`;
+    }
+
+    return Array.from(acumulado.entries())
+      .map(([moneda, monto]) => `${getMonedaSimbolo(moneda)} ${monto.toFixed(2)}`)
+      .join("  +  ");
+  };
+
+  const totalFormateado = formatTotalesPorMoneda(gastosSeleccionadosDetalle);
+
+  const totalNoSeleccionadosFormateado = formatTotalesPorMoneda(
+    gastosDisponiblesParaAgregar,
+  );
 
   const formatFecha = (value) => {
     if (!value) return "-";
@@ -486,7 +512,9 @@ export default function InformeVistaPrevia({
                   <p className="text-[9px] font-semibold uppercase text-slate-500">
                     Total
                   </p>
-                  <p className="font-extrabold text-cyan-700">S/ {total}</p>
+                  <p className="font-extrabold text-cyan-700">
+                    {totalFormateado}
+                  </p>
                 </div>
                 <div className="col-span-2 space-y-0.5 sm:col-span-1">
                   <p className="text-[9px] font-semibold uppercase text-slate-500">
@@ -508,6 +536,9 @@ export default function InformeVistaPrevia({
               <h3 className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
                 Gastos del informe ({gastosSeleccionadosDetalle.length})
               </h3>
+              <span className="text-xs font-bold text-cyan-700">
+                {totalFormateado}
+              </span>
             </div>
 
             <div className="px-4 pb-3 pt-2 sm:px-6">
@@ -541,7 +572,7 @@ export default function InformeVistaPrevia({
                         </p>
                       </div>
                       <span className="shrink-0 text-xs font-bold text-cyan-700">
-                        S/ {getGastoAmount(gasto).toFixed(2)}
+                        {formatGastoMonto(gasto)}
                       </span>
                       <IconEye className="h-3.5 w-3.5 shrink-0 text-slate-300" />
                     </button>
@@ -556,6 +587,9 @@ export default function InformeVistaPrevia({
               <h3 className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
                 Gastos no seleccionados ({gastosDisponiblesParaAgregar.length})
               </h3>
+              <span className="text-xs font-bold text-blue-600">
+                {totalNoSeleccionadosFormateado}
+              </span>
             </div>
 
             <div className="px-4 pb-3 pt-2 sm:px-6">
@@ -589,7 +623,7 @@ export default function InformeVistaPrevia({
                         </p>
                       </div>
                       <span className="shrink-0 text-xs font-bold text-blue-600">
-                        S/ {getGastoAmount(gasto).toFixed(2)}
+                        {formatGastoMonto(gasto)}
                       </span>
                       <IconEye className="h-3.5 w-3.5 shrink-0 text-slate-300" />
                     </button>
@@ -684,8 +718,11 @@ export default function InformeVistaPrevia({
               {/* Header */}
               <div className="flex items-center justify-between rounded-t-3xl border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-3 py-2 sm:rounded-t-2xl">
                 <div>
-                  <h3 className="text-base font-bold text-slate-800">
-                    Detalle : # {getGastoId(gastoDetalle)}
+                  <h3 className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-slate-800 sm:text-[15px]">
+                    Detalle:
+                    <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 sm:text-xs">
+                      ID Gasto: #{getGastoId(gastoDetalle)}
+                    </span>
                   </h3>
                 </div>
                 <button
@@ -722,7 +759,7 @@ export default function InformeVistaPrevia({
 
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-4">
                   <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
-                    Datos Generales del Gasto
+                    Datos Generales del Gasto:
                   </h2>
                   {[
                     {
@@ -824,19 +861,19 @@ export default function InformeVistaPrevia({
                       </div>
                     ))}
                   <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
-                    Monto del Gasto
+                    Monto del Gasto:
                   </h2>
                   {[
                     {
                       label: "IGV",
                       value:
                         gastoDetalle?.igv != null
-                          ? `S/ ${Number(gastoDetalle.igv).toFixed(2)}`
+                          ? `${getMonedaSimbolo(getGastoMoneda(gastoDetalle))} ${Number(gastoDetalle.igv).toFixed(2)}`
                           : null,
                     },
                     {
                       label: "Total",
-                      value: `S/ ${getGastoAmount(gastoDetalle).toFixed(2)}`,
+                      value: formatGastoMonto(gastoDetalle),
                       highlight: true,
                     },
                   ]
@@ -857,7 +894,7 @@ export default function InformeVistaPrevia({
                       </div>
                     ))}
                   <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
-                    Datos de la Factura
+                    Datos de la Factura:
                   </h2>
                   {(isPlanillaMovilidad
                     ? [
@@ -896,7 +933,7 @@ export default function InformeVistaPrevia({
                         },
                         {
                           label: "Total",
-                          value: `S/ ${getGastoAmount(gastoDetalle).toFixed(2)}`,
+                          value: formatGastoMonto(gastoDetalle),
                         },
                         {
                           label: "LUGAR ORIGEN",
@@ -1017,7 +1054,7 @@ export default function InformeVistaPrevia({
                     ))}
                   {!isPlanillaMovilidad && (
                     <>
-                      <h1 className="col-span-2 text-lg font-semibold text-slate-800">
+                      <h1 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
                         Observación:
                       </h1>
                       {[
@@ -1304,7 +1341,7 @@ export default function InformeVistaPrevia({
                         <span
                           className={`shrink-0 text-xs font-bold ${isChecked ? "text-cyan-700" : "text-blue-600"}`}
                         >
-                          S/ {getGastoAmount(gasto).toFixed(2)}
+                          {formatGastoMonto(gasto)}
                         </span>
                         <button
                           type="button"
@@ -1425,7 +1462,7 @@ export default function InformeVistaPrevia({
                         <span
                           className={`shrink-0 text-xs font-bold ${isChecked ? "text-amber-700" : "text-blue-600"}`}
                         >
-                          S/ {getGastoAmount(gasto).toFixed(2)}
+                          {formatGastoMonto(gasto)}
                         </span>
                         <button
                           type="button"

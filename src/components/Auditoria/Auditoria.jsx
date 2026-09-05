@@ -15,6 +15,7 @@ import {
   resolveWorkflowStatus,
 } from "../shared/workflowStatus";
 import Toast from "../shared/Toast";
+import { getMonedaSimbolo, resolveMoneda } from "../shared/moneda";
 import { downloadExcelXml } from "../../lib/exportExcel";
 import { IconEye } from "../../Icons/preview";
 import { IconEdit } from "../../Icons/edit";
@@ -150,13 +151,7 @@ export default function Auditoria() {
 
   const getDetalleRendId = (detalle) =>
     String(
-      firstDefined(
-        detalle?.idRend,
-        detalle?.idrend,
-        detalle?.idRendicion,
-        detalle?.idrendicion,
-        detalle?.id,
-      ),
+      firstDefined( detalle?.idrend,),
     );
 
   const getDetalleEditId = (detalle) =>
@@ -230,6 +225,29 @@ export default function Auditoria() {
     );
     const number = Number(raw);
     return Number.isFinite(number) ? number : 0;
+  };
+
+  const getDetalleMoneda = (detalle) => resolveMoneda(detalle);
+
+  const formatDetalleMonto = (detalle) =>
+    `${getMonedaSimbolo(getDetalleMoneda(detalle))} ${getDetalleMonto(detalle).toFixed(2)}`;
+
+  // Agrupa los montos por moneda para no sumar soles y dólares en un mismo total.
+  const formatTotalesPorMoneda = (detallesLista) => {
+    const acumulado = new Map();
+
+    (Array.isArray(detallesLista) ? detallesLista : []).forEach((detalle) => {
+      const moneda = getDetalleMoneda(detalle);
+      acumulado.set(moneda, (acumulado.get(moneda) || 0) + getDetalleMonto(detalle));
+    });
+
+    if (acumulado.size === 0) {
+      return `${getMonedaSimbolo()} 0.00`;
+    }
+
+    return Array.from(acumulado.entries())
+      .map(([moneda, monto]) => `${getMonedaSimbolo(moneda)} ${monto.toFixed(2)}`)
+      .join("  +  ");
   };
 
   const getAuditoriaId = (auditoria) =>
@@ -549,15 +567,6 @@ export default function Auditoria() {
 
   const detallesSeleccionadosCount = detalleIdsEdit.reduce(
     (acc, id) => acc + (detallesSeleccionadosEdit[id] ? 1 : 0),
-    0,
-  );
-
-  const totalSeleccionadoEdit = (Array.isArray(detalles) ? detalles : []).reduce(
-    (acc, detalle) => {
-      const id = getDetalleEditId(detalle);
-      if (!id || !detallesSeleccionadosEdit[id]) return acc;
-      return acc + getDetalleMonto(detalle);
-    },
     0,
   );
 
@@ -964,10 +973,10 @@ export default function Auditoria() {
           useElim: 0,
         };
 
-        console.log(
+        /* console.log(
           `📤 Enviando detalle (idAdDet: ${payloadDetalleRevision.idAdDet}):`,
           payloadDetalleRevision,
-        );
+        ); */
         await saveRendicionRevisionDetalle(payloadDetalleRevision);
       }
 
@@ -1461,9 +1470,9 @@ export default function Auditoria() {
         {!loading && auditorias.length === 0 && (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
             <p className="text-base font-semibold text-slate-700">
-              No hay auditorías 
+              No hay auditorías
             </p>
-         {/*    <p className="mt-1 text-sm text-slate-500">
+            {/*    <p className="mt-1 text-sm text-slate-500">
               Crea tu primera auditoría para empezar.
             </p> */}
           </div>
@@ -1516,9 +1525,12 @@ export default function Auditoria() {
                 {/* Header */}
                 <div className="flex items-center justify-between rounded-t-3xl border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-3 py-2 sm:rounded-t-2xl">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-base font-bold text-slate-800">
-                      Detalle : #{" "}
-                      {getDetalleRendId(detalleModal.detalle) || "-"}
+                    <h3 className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-slate-800 sm:text-[15px]">
+                      Detalle :
+                      <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 sm:text-xs">
+                        ID Gasto#{" "}
+                        {getDetalleRendId(detalleModal.detalle) || "-"}
+                      </span>
                     </h3>
                     <span
                       className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getWorkflowStatusBadgeClass(resolveWorkflowStatus(detalleModal.detalle, "PENDIENTE"), true)}`}
@@ -1567,7 +1579,7 @@ export default function Auditoria() {
 
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-4">
                     <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
-                      Datos Generales del Gasto
+                      Datos Generales del Gasto:
                     </h2>
                     {[
                       {
@@ -1662,22 +1674,20 @@ export default function Auditoria() {
                         </div>
                       ))}
                     <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
-                      Monto del Gasto
+                      Monto del Gasto:
                     </h2>
                     {[
                       {
                         label: "IGV",
                         value: firstDefined(
                           detalleModal.detalle?.igv,
-                          detalleModal.detalle?.tax,
-                          detalleModal.detalle?.impuesto,
                         )
-                          ? `S/ ${Number(firstDefined(detalleModal.detalle?.igv, detalleModal.detalle?.tax, detalleModal.detalle?.impuesto)).toFixed(2)}`
+                          ? `${getMonedaSimbolo(getDetalleMoneda(detalleModal.detalle))} ${Number(firstDefined(detalleModal.detalle?.igv, detalleModal.detalle?.tax, detalleModal.detalle?.impuesto)).toFixed(2)}`
                           : null,
                       },
                       {
                         label: "Total",
-                        value: `S/ ${getDetalleMonto(detalleModal.detalle).toFixed(2)}`,
+                        value: formatDetalleMonto(detalleModal.detalle),
                         highlight: true,
                       },
                     ]
@@ -1699,7 +1709,7 @@ export default function Auditoria() {
                       ))}
 
                     <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
-                      Datos de la Factura
+                      Datos de la Factura:
                     </h2>
                     {(isPlanillaMovilidadDetalle(detalleModal.detalle)
                       ? [
@@ -1711,38 +1721,10 @@ export default function Auditoria() {
                             label: "Fecha emisión",
                             value: getDetalleFecha(detalleModal.detalle),
                           },
-                          {
-                            label: "Serie",
-                            value: firstDefined(
-                              detalleModal.detalle?.serie,
-                              detalleModal.detalle?.nroserie,
-                              detalleModal.detalle?.serieComprobante,
-                            ),
-                          },
-                          {
-                            label: "Número",
-                            value: firstDefined(
-                              detalleModal.detalle?.numero,
-                              detalleModal.detalle?.nro,
-                              detalleModal.detalle?.num,
-                              detalleModal.detalle?.nrodoc,
-                            ),
-                          },
-                          {
-                            label: "Total",
-                            value: `S/ ${getDetalleMonto(detalleModal.detalle).toFixed(2)}`,
-                          },
-                          {
-                            label: "LUGAR ORIGEN",
-                            value:
-                              firstDefined(
-                                detalleModal.detalle?.lugarOrigen,
-                                detalleModal.detalle?.lugarorigen,
-                                detalleModal.detalle?.origen,
-                                detalleModal.detalle?.puntoOrigen,
-                                detalleModal.detalle?.desde,
-                              ) || "-",
-                          },
+                          {label: "Serie", value: firstDefined(detalleModal.detalle?.serie,),},
+                          { label: "Número",value: firstDefined( detalleModal.detalle?.numero,),},
+                          { label: "Total",value: formatDetalleMonto(detalleModal.detalle), },
+                          { label: "LUGAR ORIGEN", value:firstDefined(detalleModal.detalle?.lugarorigen,) || "-",},
                           {
                             label: "LUGAR DESTINO",
                             value:
@@ -1846,9 +1828,9 @@ export default function Auditoria() {
 
                     {!isPlanillaMovilidadDetalle(detalleModal.detalle) && (
                       <>
-                        <h1 className="col-span-2 text-lg font-semibold text-slate-800">
+                         <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
                           Observación:
-                        </h1>
+                        </h2>
                         {[
                           {
                             label: "Observación",
@@ -1898,10 +1880,10 @@ export default function Auditoria() {
                 <div className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 px-3 py-2.5 sm:px-6 sm:py-4">
                   <div className="flex items-start justify-between gap-2 sm:items-center sm:gap-3">
                     <div className="min-w-0">
-                      <h2 className="text-base font-bold text-slate-800 sm:text-lg">
+                      <h3 className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-slate-800 sm:text-[15px]">
                         Detalles de Auditoría
-                      </h2>
-                      <p className="truncate text-xs text-slate-600 sm:text-sm">
+                      </h3>
+                      <p className="inline-flex rounded-full bg-blue-50 py-0.5 text-[10px] font-bold sm:text-xs">
                         Rendidor:{" "}
                         {firstDefined(selectedAuditoria?.usuario, "-")}
                       </p>
@@ -1926,33 +1908,16 @@ export default function Auditoria() {
                       Resumen:
                     </h2>
                     {[
-                      {
-                        label: "Título",
-                        value: firstDefined(
-                          selectedAuditoria?.obs,
-                          selectedAuditoria?.titulo,
-                          selectedAuditoria?.title,
-                          "-",
-                        ),
-                      },
-                      {
-                        label: "Total",
-                        value: `S/ ${detalles.reduce((acc, d) => acc + getDetalleMonto(d), 0).toFixed(2)}`,
-                      },
-                      {
-                        label: "Fecha",
-                        value: formatDate(
+                      {label: "Título",value: firstDefined(selectedAuditoria?.titulo,"-",),},
+                      {label: "Total",value: formatTotalesPorMoneda(detalles),},
+                      {label: "Fecha",value: formatDate(
                           selectedAuditoria?.fecCre ??
                             selectedAuditoria?.fecha ??
                             "",
                         ),
                       },
-                      {
-                        label: "ID Auditoría",
-                        value: getAuditoriaId(selectedAuditoria) || "-",
-                      },
-                      {
-                        label: "Estado",
+                      {label: "ID Auditoría", value: getAuditoriaId(selectedAuditoria) || "-",},
+                      {label: "Estado",
                         value: getWorkflowStatusLabel(
                           getResumenEstadoAuditoria(),
                         ),
@@ -1960,21 +1925,9 @@ export default function Auditoria() {
                           getResumenEstadoAuditoria(),
                         ),
                       },
-                      {
-                        label: "Política",
-                        value: firstDefined(
-                          selectedAuditoria?.politica,
-                          selectedAuditoria?.pol,
-                          "-",
-                        ),
-                      },
-                      {
-                        label: "Cant. Gastos",
-                        value: String(detalles?.length ?? 0),
-                      },
-                      {
-                        label: "Cant. Desaprobado",
-                        value: String(
+                      {label: "Política",value: firstDefined( selectedAuditoria?.politica, "-", ),},
+                      {label: "Cant. Gastos", value: String(detalles?.length ?? 0), },
+                      { label: "Cant. Desaprobado",value: String(
                           detalles.filter(
                             (d) =>
                               resolveWorkflowStatus(d, "PENDIENTE") ===
@@ -1982,7 +1935,7 @@ export default function Auditoria() {
                           ).length,
                         ),
                       },
-                   /*    {
+                      /*    {
                         label: "Total Desaprobado",
                         value: formatCurrency(
                           detalles
@@ -2076,7 +2029,7 @@ export default function Auditoria() {
                                   </p>
                                 </div>
                                 <span className="shrink-0 text-xs font-bold text-cyan-700">
-                                  S/ {getDetalleMonto(detalle).toFixed(2)}
+                                  {formatDetalleMonto(detalle)}
                                 </span>
                                 <IconEye className="h-3.5 w-3.5 shrink-0 text-slate-300" />
                               </button>
@@ -2085,7 +2038,6 @@ export default function Auditoria() {
                         </div>
                       </div>
                     </section>
-
                   ) : (
                     <div className="text-center py-10">
                       <p className="text-slate-500 text-sm">
@@ -2253,7 +2205,7 @@ export default function Auditoria() {
 
                             <div className="text-right">
                               <p className="text-sm font-bold text-slate-800">
-                                {getDetalleMonto(detalle).toFixed(2)} PEN
+                                {formatDetalleMonto(detalle)}
                               </p>
                               <span
                                 className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${getWorkflowStatusBadgeClass(estadoDetalle, true)}`}
@@ -2274,7 +2226,14 @@ export default function Auditoria() {
                       Seleccionados ({detallesSeleccionadosCount})
                     </span>
                     <span className="text-base font-bold text-cyan-700">
-                      {totalSeleccionadoEdit.toFixed(2)} PEN
+                      {formatTotalesPorMoneda(
+                        (Array.isArray(detalles) ? detalles : []).filter(
+                          (detalle) => {
+                            const id = getDetalleEditId(detalle);
+                            return id && detallesSeleccionadosEdit[id];
+                          },
+                        ),
+                      )}
                     </span>
                   </div>
                 </div>

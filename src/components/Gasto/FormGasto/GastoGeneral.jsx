@@ -222,14 +222,14 @@ const INITIAL_FORM_DATA = {
     rucEmisor: "",
     razonSocial: "",
     proveedor: "",
-    tipoComprobante: "",
+    tipoComprobante: "01",
     serie: "",
     numeroSerie: "",
     numero: "",
     igv: "",
     fecha: "",
     total: "",
-    moneda: "",
+    moneda: "01",
     rucCliente: "",
     gerencia: "",
     consumidor: "",
@@ -309,44 +309,50 @@ const buildPayloadCabeceraGeneral = ({
     igvNumber,
     totalNumber,
     nowIso,
-}) => ({
-    idUser: Number(userId) || 0,
-    dni: dniToSend,
-    politica: String(politicaSeleccionada?.name ?? formData.politica),
-    categoria: String(categoriaSeleccionada?.name ?? formData.categoria),
-    tipogasto: String(resolvedTipoGasto),
-    idCuenta: resolvedIdCuenta,
-    consumidor: resolvedConsumidor,
-    ruc: String(formData.rucEmisor || ""),
-    rucCliente: String(formData.rucCliente || ""),
-    desEmp: String(empresa?.nombre || empresa?.empresa || ""),
-    desSed: "",
-    gerencia: String(empresa?.gerencia || ""),
-    area: String(empresa?.area || ""),
-    proveedor: String(formData.razonSocial || formData.proveedor || ""),
-    tipoCombrobante: tipoComprobanteDescripcion,
-    serie: String(formData.serie),
-    numero: String(formData.numero),
-    fecha: String(formData.fecha || ""),
-    igv: Number.isFinite(igvNumber) ? igvNumber : 0,
-    total: Number.isFinite(totalNumber) ? totalNumber : 0,
-    moneda: monedaDescripcion,
-    estadoActual: "BORRADOR",
-    glosa: "CREAR GASTO",
-    motivoViaje: "",
-    lugarOrigen: "",
-    lugarDestino: "",
-    tipoMovilidad: "",
-    // La nota que escribe el usuario en "Glosa" se guarda en la columna obs de la cabecera.
-    obs1: String(formData.obs || ""),
-    estado: "S",
-    fecCre: nowIso,
-    useReg: Number(userId) || 0,
-    hostname: "WEB",
-    fecEdit: nowIso,
-    useEdit: 0,
-    useElim: 0,
-});
+}) => {
+    // comentario: nota libre que el usuario escribe en el campo "Glosa" del formulario.
+    // Va siempre en la columna "obs" (obsCabecera) del primer API; "glosa" es un valor imputable fijo.
+    const comentario = String(formData.glosa || "").trim();
+
+    return {
+        idUser: Number(userId) || 0,
+        dni: dniToSend,
+        politica: String(politicaSeleccionada?.name ?? formData.politica),
+        categoria: String(categoriaSeleccionada?.name ?? formData.categoria),
+        tipogasto: String(resolvedTipoGasto),
+        idCuenta: resolvedIdCuenta,
+        consumidor: resolvedConsumidor,
+        ruc: String(formData.rucEmisor || ""),
+        rucCliente: String(formData.rucCliente || ""),
+        desEmp: String(empresa?.nombre || empresa?.empresa || ""),
+        desSed: "",
+        gerencia: String(empresa?.gerencia || ""),
+        area: String(empresa?.area || ""),
+        proveedor: String(formData.razonSocial || formData.proveedor || ""),
+        tipoCombrobante: tipoComprobanteDescripcion,
+        serie: String(formData.serie),
+        numero: String(formData.numero),
+        fecha: String(formData.fecha || ""),
+        igv: Number.isFinite(igvNumber) ? igvNumber : 0,
+        total: Number.isFinite(totalNumber) ? totalNumber : 0,
+        moneda: monedaDescripcion,
+        estadoActual: "BORRADOR",
+        glosa: "CREAR GASTO",
+        motivoViaje: "",
+        lugarOrigen: "",
+        lugarDestino: "",
+        tipoMovilidad: "",
+        // obsCabecera: columna "obs" del primer API, siempre igual al comentario del front.
+        obs: comentario,
+        estado: "S",
+        fecCre: nowIso,
+        useReg: Number(userId) || 0,
+        hostname: "WEB",
+        fecEdit: nowIso,
+        useEdit: 0,
+        useElim: 0,
+    };
+};
 
 const buildPayloadDetalleGeneral = ({
     payloadCabecera,
@@ -357,21 +363,27 @@ const buildPayloadDetalleGeneral = ({
     resolvedConsumidor,
     responseCabecera,
     nowIso,
-}) => ({
-    // Reenviar bloque completo para evitar que updaterendiciongasto pise columnas en null.
-    ...payloadCabecera,
-    idRend: String(responseCabecera),
-    idrend: String(responseCabecera),
-    fecEdit: nowIso,
-    useEdit: 0,
-    idcuenta: resolvedIdCuenta,
-    consumidor: resolvedConsumidor,
-    dni: dniToSend,
-    gerencia: String(empresa?.gerencia || formData.gerencia || ""),
-    placa: String(formData.placa || ""),
-    // Mismo origen que la cabecera: la nota de "Glosa", no el campo formData.obs (nunca se llena).
-    obs: String(formData.glosa || ""),
-});
+}) => {
+    // comentario: mismo valor que la cabecera (campo "Glosa" del front), nunca la ruta de evidencia.
+    const comentario = String(formData.glosa || "").trim();
+
+    return {
+        // Reenviar bloque completo para evitar que updaterendiciongasto pise columnas en null.
+        ...payloadCabecera,
+        idRend: String(responseCabecera),
+        idrend: String(responseCabecera),
+        fecEdit: nowIso,
+        useEdit: 0,
+        idcuenta: resolvedIdCuenta,
+        consumidor: resolvedConsumidor,
+        dni: dniToSend,
+        gerencia: String(empresa?.gerencia || formData.gerencia || ""),
+        placa: String(formData.placa || ""),
+        // obsCabecera: siempre el comentario, no se sobreescribe con la ruta de evidencia.
+        obs: comentario,
+    };
+};
+
 
 export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = null }) {
     const [formData, setFormData] = useState(INITIAL_FORM_DATA);
@@ -449,6 +461,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
         }
     }, []);
 
+    //PDF CONVIERTE A IMAGEN
     const handleChange = async (e) => {
         const { name, value, files } = e.target;
 
@@ -839,8 +852,8 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                 totalNumber,
                 nowIso,
             });
-/*             console.log("📡 Payload cabecera:", payloadCabecera); 
- */
+            /* console.log("📡 Payload cabecera:", payloadCabecera);  */
+ 
             const { idRend: responseCabecera, mensaje: mensajeSP } = await saveRendicionGasto(payloadCabecera);
 
             if (!responseCabecera) {
@@ -848,7 +861,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                 if (msgNorm.includes("YA EXISTE") || msgNorm.includes("DUPLICAD") || msgNorm.includes("ALREADY")) {
                     setFacturaDuplicadaDialog({ isOpen: true, message: mensajeSP });
                 } else {
-                    showToast(mensajeSP || "Error al guardar", "error");
+                    showToast(mensajeSP );
                 }
                 return;
             }
@@ -864,8 +877,8 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                 nowIso,
             });
 
-           console.log("📡 Payload detalle:", JSON.stringify(payloadDetalle, null, 2));
-
+/*            console.log("📡 Payload detalle:", JSON.stringify(payloadDetalle, null, 2));
+ */
             await saveDetalleGasto(payloadDetalle);
 
             if (formData.evidencia) {
@@ -906,14 +919,14 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                 }
             }
 
-            console.log("✅ Guardado ID:", responseCabecera);
+          /*   console.log("✅ Guardado ID:", responseCabecera); */
 
             const msgNorm = normalizeText(mensajeSP);
             const excedeLimite = msgNorm.includes("44") || msgNorm.includes("LIMITE") || msgNorm.includes("SUPERA") || msgNorm.includes("EXCEDE");
             if (excedeLimite) {
                 setMovilidadMontoDialog({ isOpen: true, message: mensajeSP });
             } else {
-                showToast(mensajeSP || "Guardado correctamente", "success");
+                showToast(mensajeSP);
             }
 
             if (evidenciaPreviewUrl) {

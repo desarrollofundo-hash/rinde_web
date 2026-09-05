@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
     getWorkflowStatusBadgeClass,
     getWorkflowStatusLabel,
     resolveWorkflowStatus,
 } from "../shared/workflowStatus";
+import { getMonedaSimbolo, resolveMoneda } from "../shared/moneda";
+import { getListaRevisionDetalle } from "../../services";
 import { IconEye } from "../../Icons/preview";
 import { IconBroom } from "../../Icons/broom";
 import PaginationControls from "../Gasto/PaginationControls";
@@ -143,9 +145,64 @@ export default function RevisionList({
     const currentFrom = filteredRevisiones.length === 0 ? 0 : startIdx + 1;
     const currentTo = Math.min(endIdx, filteredRevisiones.length);
 
+    const totalGastos = useMemo(
+        () => filteredRevisiones.reduce((acc, r) => acc + getRevisionCantidadGastos(r), 0),
+        [filteredRevisiones],
+    );
+
     const areAllSelected =
         filteredRevisiones.length > 0 &&
         filteredRevisiones.every((r) => selectedRevisionIds.includes(String(getRevisionId(r))));
+
+    // El total de la revisión llega combinado desde el backend (soles + dólares mezclados),
+    // por eso se calcula el subtotal real por moneda a partir del detalle de gastos de cada una.
+    const [totalesPorMonedaPorRevision, setTotalesPorMonedaPorRevision] = useState({});
+    const fetchedRevisionIdsRef = useRef(new Set());
+
+    useEffect(() => {
+        const pendientes = paginatedRevisiones.filter((revision) => {
+            const id = getRevisionId(revision);
+            return id && !fetchedRevisionIdsRef.current.has(id);
+        });
+
+        if (pendientes.length === 0) return;
+
+        pendientes.forEach((revision) => {
+            const id = getRevisionId(revision);
+            fetchedRevisionIdsRef.current.add(id);
+            const idrev = revision?.idRev ?? revision?.idrev ?? revision?.id;
+
+            getListaRevisionDetalle({ idrev: String(idrev) })
+                .then((detalleData) => {
+                    const acumulado = new Map();
+                    (Array.isArray(detalleData) ? detalleData : []).forEach((detalle) => {
+                        const moneda = resolveMoneda(detalle);
+                        const monto = parseAmount(
+                            detalle?.total ?? detalle?.monto ?? detalle?.importe ?? detalle?.valor ?? 0,
+                        );
+                        acumulado.set(moneda, (acumulado.get(moneda) || 0) + monto);
+                    });
+
+                    setTotalesPorMonedaPorRevision((prev) => ({
+                        ...prev,
+                        [id]: Object.fromEntries(acumulado),
+                    }));
+                })
+                .catch(() => {
+                    fetchedRevisionIdsRef.current.delete(id);
+                });
+        });
+    }, [paginatedRevisiones]);
+
+    // Solo muestra el subtotal real (por detalle de gastos) de la moneda a la que corresponde la columna.
+    const formatCurrencyPorMoneda = (revision, monedaCodigo) => {
+        const id = getRevisionId(revision);
+        const totales = totalesPorMonedaPorRevision[id];
+        if (!totales) return "...";
+        const monto = totales[monedaCodigo];
+        if (monto === undefined) return "-";
+        return `${getMonedaSimbolo(monedaCodigo)} ${monto.toFixed(2)}`;
+    };
 
     return (
       <section className="space-y-4">
@@ -217,11 +274,14 @@ export default function RevisionList({
                       Fecha
                     </th>
                     <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
-                      Total
+                      S/.{" "}
                     </th>
                     <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
-                      Cant. Gasto
+                      USD{" "}
                     </th>
+                    {/*   <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
+                      Cant. Gasto
+                    </th> */}
                     <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
                       Acciones
                     </th>
@@ -274,11 +334,14 @@ export default function RevisionList({
                         {formatDate(revision?.fecCre)}
                       </td>
                       <td className="border-b border-slate-100 px-2 py-1 text-center text-sm font-semibold tabular-nums text-slate-700">
-                        {formatCurrency(getRevisionTotal(revision))}
+                        {formatCurrencyPorMoneda(revision, "PEN")}
                       </td>
-                      <td className="border-b border-slate-100 px-2 py-1 text-center text-sm tabular-nums text-slate-700">
+                      <td className="border-b border-slate-100 px-2 py-1 text-center text-sm font-semibold tabular-nums text-slate-700">
+                        {formatCurrencyPorMoneda(revision, "USD")}
+                      </td>
+                      {/*  <td className="border-b border-slate-100 px-2 py-1 text-center text-sm tabular-nums text-slate-700">
                         {getRevisionCantidadGastos(revision)}
-                      </td>
+                      </td> */}
                       <td className="border-b border-slate-100 px-2 py-1 text-center">
                         <button
                           type="button"
@@ -286,8 +349,9 @@ export default function RevisionList({
                           className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-cyan-700 cursor-pointer"
                         >
                           <IconEye className="h-3.5 w-3.5 shrink-0" />
-{/*                           Ver Detalles
- */}                        </button>
+                          {/*                           Ver Detalles
+                           */}{" "}
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -340,15 +404,20 @@ export default function RevisionList({
                       </span>
                     </div>
                     <h3 className="truncate text-sm font-bold text-slate-800">
-                      {revision?.titulo ?? revision?.title ?? "Sin título"}
+                      {revision?.titulo}
                     </h3>
                     <p className="truncate text-[11px] text-slate-500">
-                      {revision?.gerencia || "-"} ·{" "}
-                      {formatDate(revision?.fecCre)}
+                      Creación: {formatDate(revision?.fecCre)}
+                    </p>
+                    <p className="truncate text-[11px] text-slate-500">
+                      Usuario: {revision?.usuario || "-"}
+                    </p>
+                    <p className="truncate text-[11px] text-slate-500">
+                      Gerencia: {revision?.gerencia || "-"}
                     </p>
                     <p className="truncate text-[11px] font-semibold text-slate-600">
-                      Total: {formatCurrency(getRevisionTotal(revision))} ·
-                      Gastos: {getRevisionCantidadGastos(revision)}
+                      
+                      Detalles:{getRevisionCantidadGastos(revision)}
                     </p>
                   </div>
                   <button

@@ -92,34 +92,15 @@ export default function CrearGasto() {
     [firstDefined],
   );
 
-  const getGastoIdRend = useCallback(
-    (gasto) =>
-      String(
-        firstDefined(
-          gasto?.idrend,
-          gasto?.idRend,
-          gasto?.idrendicion,
-          gasto?.id,
-        ),
-      ),
-    [firstDefined],
-  );
-
-
-      const getMotivoRechazo = useCallback(
+  const getGastoIdRend = useCallback( (gasto) => String(firstDefined( gasto?.idrend,),),[firstDefined],);
+ const getMotivoRechazo = useCallback(
         (gasto) =>
           String(firstDefined(gasto?.motivorechazo, gasto?.rechazoRev)),
         [firstDefined],
       );
   const getGastoSelectionId = useCallback(
     (gasto) => {
-      const explicitId = firstDefined(
-        gasto?.idrend,
-        gasto?.idRend,
-        gasto?.idrendicion,
-        gasto?.id,
-      );
-
+      const explicitId = firstDefined(gasto?.idrend,);
       if (explicitId) return String(explicitId);
 
       const fallback = [
@@ -150,38 +131,10 @@ export default function CrearGasto() {
 
   const isMovilidadGasto = useCallback(
     (gasto) => {
-      const categoriaRaw = normalizeText(
-        firstDefined(gasto?.categoria, gasto?.cat),
-      );
-      const tipoRaw = normalizeText(
-        firstDefined(
-          gasto?.tipogasto,
-          gasto?.tipoGasto,
-          gasto?.tipo_gasto,
-          gasto?.tipoMovilidad,
-          gasto?.tipomovilidad,
-          gasto?.tipo_movilidad,
-          gasto?.movilidad,
-          gasto?.transporte,
-        ),
-      );
-      const politicaRaw = normalizeText(
-        firstDefined(gasto?.politica, gasto?.pol),
-      );
-
-      const hasMovilidadFields = [
-        gasto?.lugarOrigen,
-        gasto?.lugarorigen,
-        gasto?.origen,
-        gasto?.lugarDestino,
-        gasto?.lugardestino,
-        gasto?.destino,
-        gasto?.tipoMovilidad,
-        gasto?.tipomovilidad,
-        gasto?.tipo_movilidad,
-        gasto?.movilidad,
-        gasto?.transporte,
-      ].some((value) => String(value ?? "").trim() !== "");
+      const categoriaRaw = normalizeText(firstDefined(gasto?.categoria),);
+      const tipoRaw = normalizeText(firstDefined(gasto?.tipogasto,gasto?.tipomovilidad,),);
+      const politicaRaw = normalizeText( firstDefined(gasto?.politica),);
+      const hasMovilidadFields = [gasto?.lugarorigen,gasto?.lugardestino,gasto?.tipomovilidad,].some((value) => String(value ?? "").trim() !== "");
 
       const keywords = [
         "MOVILIDAD",
@@ -248,34 +201,15 @@ export default function CrearGasto() {
 
   const isGastoEditable = useCallback(
     (gasto) => {
-      const estado = normalizeEstadoFlow(
-        firstDefined(
-          gasto?.estadoActual,
-          gasto?.estadoactual,
-          gasto?.EstadoActual,
-          "",
-        ),
-      );
-      return (
-        estado !== "RECHAZADO" &&
-        estado !== "APROBADO" &&
-        estado !== "EN AUDITORIA" &&
-        estado !== "EN REVISION"
-      );
+      const estado = normalizeEstadoFlow(firstDefined(gasto?.estadoActual,""),);
+      return estado === "BORRADOR";
     },
     [normalizeEstadoFlow, firstDefined],
   );
 
   const mergeGastoEstadoByFlow = useCallback(
     (gasto) => {
-      const backendEstado = normalizeEstadoFlow(
-        firstDefined(
-          gasto?.estadoActual,
-          gasto?.estadoactual,
-          gasto?.EstadoActual,
-          "",
-        ),
-      );
+      const backendEstado = normalizeEstadoFlow(firstDefined(gasto?.estadoActual,"",),);
 
       if (backendEstado) {
         return { ...gasto, estado: backendEstado, estadoActual: backendEstado };
@@ -352,18 +286,12 @@ export default function CrearGasto() {
           firstDefined(userData?.usecod, userData?.id, userData?.idUser, ""),
         );
         const resolvedRuc = String(
-          firstDefined(
-            companyData?.ruc,
-            companyData?.RUC,
-            companyData?.numRuc,
-            "",
-          ),
+          firstDefined(companyData?.ruc, "",),
         );
 
         if (!resolvedUserId || !resolvedRuc) {
           throw new Error("No se pudo resolver user/ruc para listar gastos");
         }
-
         const data = await getListaGastos({
           id: "1",
           idrend: "1",
@@ -557,7 +485,7 @@ export default function CrearGasto() {
 
     setPreviewGasto((prev) => {
       if (!prev) return prev;
-      const previewId = String(prev?.idRend ?? prev?.idrend ?? prev?.id ?? "");
+      const previewId = String( prev?.idrend ?? "");
       return previewId && updatedId && previewId === updatedId
         ? { ...prev, ...mergedGasto }
         : prev;
@@ -565,11 +493,15 @@ export default function CrearGasto() {
 
     setEditGasto((prev) => {
       if (!prev) return prev;
-      const editId = String(prev?.idRend ?? prev?.idrend ?? prev?.id ?? "");
+      const editId = String( prev?.idrend?? "");
       return editId && updatedId && editId === updatedId
         ? { ...prev, ...mergedGasto }
         : prev;
     });
+
+    // Revalida contra el servidor para confirmar que los campos editados (ruc, proveedor, glosa, etc.)
+    // realmente quedaron persistidos y no solo reflejados en el merge local.
+    fetchGastos({ silent: true, force: true });
   };
 
   const toggleExportMode = () => {
@@ -635,50 +567,17 @@ export default function CrearGasto() {
 
     const delimiter = ";";
     const columns = [
-      {
-        header: "ID Rendición",
-        getValue: (gasto) => getGastoIdRend(gasto),
-      },
-      {
-        header: "Política",
-        getValue: (gasto) => gasto?.politica ?? "",
-      },
-      {
-        header: "Categoría",
-        getValue: (gasto) => gasto?.categoria ?? "",
-      },
-      {
-        header: "Tipo de gasto",
-        getValue: (gasto) => gasto?.tipogasto ?? "",
-      },
-      {
-        header: "Proveedor",
-        getValue: (gasto) => gasto?.proveedor ?? "",
-      },
-      {
-        header: "Total",
-        getValue: (gasto) => gasto?.total ?? "",
-      },
-      {
-        header: "Moneda",
-        getValue: (gasto) => gasto?.moneda ?? "",
-      },
-      {
-        header: "Estado",
-        getValue: (gasto) => normalizeEstadoLabel(gasto?.estado ?? ""),
-      },
-      {
-        header: "Fecha",
-        getValue: (gasto) => gasto?.fecha?.split("T")[0] || "",
-      },
-      {
-        header: "Días",
-        getValue: (gasto) => getDiasTranscurridos(gasto),
-      },
-      {
-        header: "Glosa",
-        getValue: (gasto) => getGlosaOrNota(gasto),
-      },
+      {header: "ID Rendición",getValue: (gasto) => getGastoIdRend(gasto),},
+      {header: "Política",getValue: (gasto) => gasto?.politica ?? "",},
+      {header: "Categoría",getValue: (gasto) => gasto?.categoria ?? "", },
+      {header: "Tipo de gasto",getValue: (gasto) => gasto?.tipogasto ?? "",},
+      {header: "Proveedor",getValue: (gasto) => gasto?.proveedor ?? "",},
+      {header: "Total",getValue: (gasto) => gasto?.total ?? "",},
+      {header: "Moneda",getValue: (gasto) => gasto?.moneda ?? "",},
+      {header: "Estado",getValue: (gasto) => normalizeEstadoLabel(gasto?.estado ?? ""),},
+      {header: "Fecha",getValue: (gasto) => gasto?.fecha?.split("T")[0] || "",},
+      {header: "Días",getValue: (gasto) => getDiasTranscurridos(gasto),},
+      {header: "Glosa",getValue: (gasto) => getGlosaOrNota(gasto),},
     ];
 
     const escapeCsvCell = (value) => {
@@ -1216,12 +1115,10 @@ export default function CrearGasto() {
                       <div className="flex flex-col gap-2 border-b border-slate-200 bg-linear-to-r from-cyan-50 to-slate-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3">
                         <div className="min-w-0">
                           <h3 className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-slate-800 sm:text-[15px]">
-                            <span>Vista previa:</span>
-
-                            <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">
+                            Vista previa:
+                            <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 sm:text-xs">
                               # Id : {getGastoIdRend(previewGasto) || "-"}
                             </span>
-
                             <span
                               className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${getEstadoStyle(previewGasto.estado)}`}
                             >
@@ -1267,7 +1164,7 @@ export default function CrearGasto() {
 
                         <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                           <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
-                            Datos Generales del Gasto
+                            Datos Generales del Gasto:
                           </h2>
                           {[
                             [
@@ -1318,7 +1215,7 @@ export default function CrearGasto() {
 
                         <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                           <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
-                            Monto del Gasto
+                            Monto del Gasto:
                           </h2>
                           {[
                             ["Total:", firstDefined(previewGasto?.total, "-")],
@@ -1337,23 +1234,59 @@ export default function CrearGasto() {
 
                         <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                           <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
-                            Datos de la Factura
+                            Datos de la Factura:
                           </h2>
                           {(isMovilidadGasto(previewGasto)
                             ? [
-                                ["Tipo Comprobante:", getTipoComprobante(previewGasto) || "-",],
-                                ["Fecha Emisión:",previewGasto.fecha?.split("T")[0] || "-",],
-                                ["Serie - Número:",`${firstDefined(previewGasto?.serie, "-")} - ${firstDefined(previewGasto?.numero, "-")}`,],
-                                ["LUGAR ORIGEN:",firstDefined(previewGasto?.lugarorigen, "-"),],
-                                ["LUGAR DESTINO:", firstDefined(previewGasto?.lugardestino, "-"),],
-                                ["TIPO MOVILIDAD:",firstDefined(previewGasto?.tipomovilidad,"-",),],
-                                ["Motivo Viaje:",firstDefined(previewGasto?.motivoviaje,"-",), ],
+                                [
+                                  "Tipo Comprobante:",
+                                  getTipoComprobante(previewGasto) || "-",
+                                ],
+                                [
+                                  "Fecha Emisión:",
+                                  previewGasto.fecha?.split("T")[0] || "-",
+                                ],
+                                [
+                                  "Serie - Número:",
+                                  `${firstDefined(previewGasto?.serie, "-")} - ${firstDefined(previewGasto?.numero, "-")}`,
+                                ],
+                                [
+                                  "LUGAR ORIGEN:",
+                                  firstDefined(previewGasto?.lugarorigen, "-"),
+                                ],
+                                [
+                                  "LUGAR DESTINO:",
+                                  firstDefined(previewGasto?.lugardestino, "-"),
+                                ],
+                                [
+                                  "TIPO MOVILIDAD:",
+                                  firstDefined(
+                                    previewGasto?.tipomovilidad,
+                                    "-",
+                                  ),
+                                ],
+                                [
+                                  "Motivo Viaje:",
+                                  firstDefined(previewGasto?.motivoviaje, "-"),
+                                ],
                               ]
                             : [
-                                ["Tipo Comprobante:",getTipoComprobante(previewGasto) || "-",],
-                                ["Fecha Emisión:",previewGasto.fecha?.split("T")[0] || "-",],
-                                ["Serie - Número:",`${firstDefined(previewGasto?.serie, "-")} - ${firstDefined(previewGasto?.numero, "-")}`, ],
-                                ["Total:", firstDefined(previewGasto?.total, "-"),],
+                                [
+                                  "Tipo Comprobante:",
+                                  getTipoComprobante(previewGasto) || "-",
+                                ],
+                                [
+                                  "Fecha Emisión:",
+                                  previewGasto.fecha?.split("T")[0] || "-",
+                                ],
+                                [
+                                  "Serie - Número:",
+                                  `${firstDefined(previewGasto?.serie, "-")} - ${firstDefined(previewGasto?.numero, "-")}`,
+                                ],
+                                [
+                                  "Total:",
+                                  firstDefined(previewGasto?.total, "-"),
+                                ],
                               ]
                           ).map(([label, value]) => (
                             <div key={label} className="col-span-1">
@@ -1369,7 +1302,7 @@ export default function CrearGasto() {
 
                         <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                           <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
-                            Observación
+                            Observación:
                           </h2>
                           <div className="col-span-2">
                             <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
@@ -1383,12 +1316,9 @@ export default function CrearGasto() {
 
                         <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                           <h2 className="col-span-2 border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
-                            Motivo Rechazo
+                            Motivo Rechazo:
                           </h2>
                           <div className="col-span-2">
-                            {/* <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                              Glosa:
-                            </dt> */}
                             <dd className="mt-0.5 font-medium text-slate-700">
                               {getMotivoRechazo(previewGasto) || "-"}
                             </dd>

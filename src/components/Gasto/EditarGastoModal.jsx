@@ -1,16 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { centerCrop, makeAspectCrop } from "react-image-crop";
+import { GlobalWorkerOptions, getDocument } from "pdfjs-dist/build/pdf.mjs";
 import { updateDetalleGasto } from "../../services/update/updateGasto";
 import { saveEvidenciaGasto } from "../../services/evidencia";
 import { getDropdownOptionsCategoria } from "../../services/categoria";
 import { getDropdownOptionsCentroCosto } from "../../services/centrocosto";
+import { getDropdownOptionsTipoComprobante } from "../../services/tipocomprobante";
+import { getDropdownOptionsTipoMovilidad } from "../../services/tipo_movilidad";
+import { getApiRuc } from "../../services/ruc/api_ruc";
 import EvidenciaUploader from "./FormGasto/EvidenciaUploader";
 import EvidenciaCropModal from "./FormGasto/EvidenciaCropModal";
 import EvidenciaImagen from "./EvidenciaImagen";
 import { IconEdit } from "@/Icons/edit";
 import { Save, X } from "lucide-react";
 import { IconClose } from "@/Icons/close";
+
+GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url
+).href;
 
 const getCroppedFile = async (imageElement, pixelCrop, originalFile) => {
     const canvas = document.createElement("canvas");
@@ -48,12 +57,63 @@ const getCroppedFile = async (imageElement, pixelCrop, originalFile) => {
     });
 };
 
+  const isPdfFile = (file) => {
+    if (!file) return false;
+
+    const mimeType = String(file.type || "").toLowerCase();
+    if (["application/pdf", "application/x-pdf", "application/octet-stream"].includes(mimeType)) {
+      return true;
+    }
+
+    return /\.pdf$/i.test(String(file.name || ""));
+  };
+
+  const convertPdfToImageFile = async (pdfFile) => {
+    const pdfData = await pdfFile.arrayBuffer();
+    const pdfDocument = await getDocument({ data: pdfData }).promise;
+    const page = await pdfDocument.getPage(1);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      throw new Error("No se pudo preparar el lienzo para convertir el PDF");
+    }
+
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+
+    await page.render({ canvasContext: context, viewport }).promise;
+
+    const renderedBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.95));
+
+    if (!renderedBlob) {
+      throw new Error("No se pudo convertir el PDF a imagen");
+    }
+
+    const baseName = String(pdfFile.name || "evidencia.pdf").replace(/\.pdf$/i, "");
+
+    return new File([renderedBlob], `${baseName || "evidencia"}.jpg`, {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    });
+  };
+
 const cropPresets = [
     { key: "doc", label: "Documento", aspect: 4 / 3 },
     { key: "square", label: "Cuadrado", aspect: 1 / 1 },
     { key: "ticket", label: "Ticket", aspect: 16 / 9 },
     { key: "vertical", label: "Vertical", aspect: 3 / 4 },
     { key: "free", label: "Libre", aspect: null },
+];
+
+const FALLBACK_TIPOS_COMPROBANTE = [
+    { id: "01", name: "FACTURA ELECTRONICA" },
+    { id: "03", name: "BOLETA DE VENTA" },
+    { id: "07", name: "NOTA DE CREDITO" },
+    { id: "08", name: "NOTA DE DEBITO" },
+    { id: "10", name: "RECIBO POR HONORARIO" },
+    { id: "11", name: "OTROS" },
 ];
 
 const createInitialCrop = (mediaWidth, mediaHeight, aspect) => {
@@ -147,7 +207,15 @@ const getFieldValue = (source, keys) => {
 };
 
 const resolveTipoComprobante = (gasto) => {
-    const value = getFieldValue(gasto, ["tipocomprobante",]);
+  const value = getFieldValue(gasto, [
+    "tipocomprobante",
+    "tipoComprobante",
+    "tipoCombrobante",
+    "tipo_comprobante",
+    "codTipoComprobante",
+    "codigoTipoComprobante",
+    "idTipoComprobante",
+  ]);
 
     if (value && typeof value === "object") {
         return String(firstDefined(
@@ -167,12 +235,20 @@ const resolveTipoComprobante = (gasto) => {
     return String(value || "");
 };
 
+  const normalizeText = (value) => String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .trim();
+
 export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
     const [isSaving, setIsSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [error, setError] = useState("");
     const [categorias, setCategorias] = useState([]);
     const [centrosCosto, setCentrosCosto] = useState([]);
+    const [tiposComprobante, setTiposComprobante] = useState(FALLBACK_TIPOS_COMPROBANTE);
+    const [tiposMovilidad, setTiposMovilidad] = useState([]);
     // Estados para cambio de evidencia
     const [showEvidenciaModal, setShowEvidenciaModal] = useState(false);
     const [newEvidencia, setNewEvidencia] = useState(null);
@@ -188,9 +264,9 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
     const [formData, setFormData] = useState({
         proveedor: "",
         glosa: "",
-        //obs1 de la cabecera del gasto, puede ser un comentario adicional o nota
-        obs1: "",
-        //evidencia obs contiene la ruta de evidencia si se cambió, sino el valor original
+        // comentario: nota/observación del front que va SIEMPRE en la columna "obs" (obsCabecera) del primer API.
+        comentario: "",
+        // evidencia: obs contiene la ruta de evidencia si se cambió, sino el valor original (solo para preview local).
         obs: "",
         centroCostoId: "",
         centroCosto: "",
@@ -199,6 +275,7 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
         razonSocial: "",
         rucCliente: "",
         tipoComprobante: "",
+        tipoComprobanteId: "",
         serie: "",
         numero: "",
         fecha: "",
@@ -208,6 +285,11 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
         categoria: "",
         tipogasto: "",
         politica: "",
+        origen: "",
+        destino: "",
+        motivoViaje: "",
+        tipoMovilidad: "",
+        placa: "",
     });
 
     useEffect(() => {
@@ -220,12 +302,13 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
     useEffect(() => {
         if (!gasto) return;
 
-        const obs1 = String(gasto.obs1 || "").trim();
+        // comentario: obsCabecera real que persiste el backend en la columna "obs" de la cabecera.
+        const comentario = String(gasto.obs || gasto.nota || gasto.obs1 || "").trim();
         const glosaRaw = String(gasto.glosa || "").trim();
         const glosaIsPlaceholder = ["CREAR GASTO", "CREAR GASTO MOVILIDAD"].includes(glosaRaw.toUpperCase());
         const glosaValue = glosaRaw && !glosaIsPlaceholder
             ? glosaRaw
-            : String(gasto.obs || gasto.nota || gasto.obs1 || "").trim();
+            : comentario;
 
      /*    const glosaValue =
           glosaRaw && !glosaIsPlaceholder
@@ -235,14 +318,14 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
         const initialData = {
             proveedor: String(gasto.proveedor || ""),
             glosa: glosaValue,
-            obs1: obs1,
+            comentario: comentario,
             obs: String(gasto.obs || ""),
-            centroCostoId: String(gasto.idCuenta || gasto.idcuenta || ""),
+            centroCostoId: String(gasto.idcuenta || ""),
             centroCosto: String(gasto.centroCosto || gasto.consumidor || gasto.idCuenta || gasto.idcuenta || ""),
             categoriaId: String(gasto.idCategoria || gasto.idcategoria || gasto.categoriaId || gasto.categoria_id || ""),
-            rucEmisor: String(gasto.rucEmisor || gasto.ruc || ""),
+            rucEmisor: String( gasto.ruc || ""),
             razonSocial: String(gasto.razonSocial || gasto.proveedor || ""),
-            rucCliente: String(gasto.rucCliente || gasto.ruccliente || ""),
+            rucCliente: String( gasto.ruccliente || ""),
             tipoComprobante: resolveTipoComprobante(gasto),
             serie: String(gasto.serie || ""),
             numero: String(gasto.numero || ""),
@@ -253,6 +336,11 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
             categoria: String(gasto.categoria || ""),
             tipogasto: String(gasto.tipogasto || ""),
             politica: String(gasto.politica || ""),
+            origen: String(gasto.lugarOrigen || gasto.lugarorigen || gasto.origen || ""),
+            destino: String(gasto.lugarDestino || gasto.lugardestino || gasto.destino || ""),
+            motivoViaje: String(gasto.motivoViaje || gasto.motivoviaje || ""),
+            tipoMovilidad: String(gasto.tipoMovilidad || gasto.tipomovilidad || ""),
+            placa: String(gasto.placa || ""),
         };
         setFormData(initialData);
         setError("");
@@ -280,6 +368,20 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
             } catch (loadError) {
 /*                 console.warn("No se pudieron cargar categorias para editar:", loadError?.message);
  */                setCategorias([]);
+            }
+
+            try {
+                const tiposComprobanteData = await getDropdownOptionsTipoComprobante();
+                setTiposComprobante(Array.isArray(tiposComprobanteData) && tiposComprobanteData.length ? tiposComprobanteData : FALLBACK_TIPOS_COMPROBANTE);
+            } catch (loadError) {
+                setTiposComprobante(FALLBACK_TIPOS_COMPROBANTE);
+            }
+
+            try {
+              const tiposMovilidadData = await getDropdownOptionsTipoMovilidad();
+              setTiposMovilidad(Array.isArray(tiposMovilidadData) ? tiposMovilidadData : []);
+            } catch (loadError) {
+              setTiposMovilidad([]);
             }
 
             try {
@@ -316,11 +418,23 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
 
         if (!matchByText) return;
 
-        setFormData((prev) => ({
-            ...prev,
-            categoriaId: String(matchByText.id || ""),
-        }));
+        setFormData((prev) => ({ ...prev, categoriaId: String(matchByText.id || ""), }));
     }, [categorias, formData.categoria, formData.categoriaId]);
+
+    useEffect(() => {
+        if (!tiposComprobante.length || formData.tipoComprobanteId) return;
+
+      const tipoComprobanteValue = String(formData.tipoComprobante || "").trim().toLowerCase();
+      const matchByText = tiposComprobante.find((item) => {
+        const itemId = String(item.id || "").trim().toLowerCase();
+        const itemName = String(item.name || "").trim().toLowerCase();
+        return itemName === tipoComprobanteValue || itemId === tipoComprobanteValue;
+      });
+
+        if (!matchByText) return;
+
+        setFormData((prev) => ({ ...prev, tipoComprobanteId: String(matchByText.id || ""), }));
+    }, [tiposComprobante, formData.tipoComprobante, formData.tipoComprobanteId]);
 
     useEffect(() => {
         if (!centrosCosto.length) return;
@@ -346,7 +460,7 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
 
         return (
             <span className="flex flex-wrap items-center gap-1.5">
-                <span>Editar gasto -</span>
+                <span>Editar gasto</span>
                 {proveedor && (
                     <>
                         <span className="text-slate-300">·</span>
@@ -364,11 +478,45 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
     const handleCategoriaChange = (e) => {
         const selectedId = String(e.target.value || "");
         const categoria = categorias.find((item) => String(item.id) === selectedId);
-        setFormData((prev) => ({
-            ...prev,
-            categoriaId: selectedId,
-            categoria: String(categoria?.name || prev.categoria || ""),
-        }));
+        setFormData((prev) => ({ ...prev,categoriaId: selectedId,categoria: String(categoria?.name || prev.categoria || ""), }));
+    };
+
+    const handleTipoComprobanteChange = (e) => {
+        const selectedId = String(e.target.value || "");
+        const tipo = tiposComprobante.find((item) => String(item.id) === selectedId);
+        setFormData((prev) => ({ ...prev, tipoComprobanteId: selectedId, tipoComprobante: String(tipo?.name || prev.tipoComprobante || "") }));
+    };
+
+    const handleMonedaChange = (e) => {
+        const code = String(e.target.value || "");
+        const monedaDescripcion = code === "01" ? "PEN" : code === "03" ? "USD" : "";
+        setFormData((prev) => ({ ...prev, moneda: monedaDescripcion }));
+    };
+
+    const handleRucEmisorKeyDown = async (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+
+        const ruc = String(formData.rucEmisor || "").trim();
+        if (!/^\d{11}$/.test(ruc)) return;
+
+        try {
+            const data = await getApiRuc({ ruc });
+            const razonSocial =
+                data?.razonSocial ||
+                data?.nombre_o_razon_social ||
+                data?.nombreORazonSocial ||
+                data?.nombre ||
+                data?.nombreComercial ||
+                data?.nombreComercialSunat ||
+                "";
+
+            if (razonSocial) {
+                setFormData((prev) => ({ ...prev, razonSocial }));
+            }
+        } catch (error) {
+            /* console.error("❌ Error validando RUC emisor:", error.message); */
+        }
     };
 
     const handleCentroCostoChange = (e) => {
@@ -381,14 +529,36 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
         }));
     };
 
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+      setFormData((prev) => {
+        if (name === "glosa") {
+          return { ...prev, glosa: value, comentario: value };
+        }
+
+        return { ...prev, [name]: value };
+      });
+    };
+
     const handleOpenEvidenciaChangeModal = () => {
         setError("");
         setShowEvidenciaModal(true);
     };
 
-    const handleEvidenciaFileChange = (e) => {
-        const selectedFile = e.target.files?.[0] || null;
-        setNewEvidencia(selectedFile);
+    const handleEvidenciaFileChange = async (e) => {
+      let selectedFile = e.target.files?.[0] || null;
+
+      if (isPdfFile(selectedFile)) {
+        try {
+          selectedFile = await convertPdfToImageFile(selectedFile);
+        } catch (error) {
+          console.error("No se pudo convertir el PDF a imagen", error);
+          setError("No se pudo convertir el PDF a imagen");
+          return;
+        }
+      }
+
+      setNewEvidencia(selectedFile);
 
         if (selectedFile) {
             if (newEvidenciaPreviewUrl) {
@@ -509,7 +679,7 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
             idRend,
             file: newEvidencia,
             gastoData: {
-                ruc: String(formData.rucEmisor || gasto.rucEmisor || gasto.ruc || ""),
+                ruc: String(formData.rucEmisor || gasto.ruc || ""),
                 serie: String(formData.serie || gasto.serie || ""),
                 numero: String(formData.numero || gasto.numero || ""),
             },
@@ -519,12 +689,11 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
             throw new Error("La respuesta del servidor no contiene la ruta de la evidencia");
         }
 
-        const obs1=String(formData.obs1 || gasto.obs1 || "").trim();
         const evidenciaPath = String(result.path).trim();
         const evidenciaFileName = String(result?.fileName || newEvidencia?.name || "").trim();
+        // No incluir "obs" aquí: esa columna es el comentario de cabecera (obsCabecera) y no debe
+        // sobreescribirse con la ruta de evidencia (obsDetalle ya se guardó en saveEvidenciaGasto).
         const evidenciaPatch = {
-            obs1:obs1,
-            obs: evidenciaPath,
             evidenciaPath,
             evidenciaFileName,
             evidenciaUpdatedAt: getLocalIsoDateTime(),
@@ -561,23 +730,11 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
 
         try {
             const nowIso = getLocalIsoDateTime();
-            const idRendValue = String(gasto.idrend || gasto.idRend || gasto.id || "");
-
+            const idRendValue = String(gasto.idrend|| "");
             const rawUser = localStorage.getItem("user");
             const user = rawUser ? JSON.parse(rawUser) : null;
             const userId = Number.parseInt(String(user?.id ?? user?.usecod ?? user?.iduser ?? 0), 10) || 0;
-            const userDni = String(
-                user?.dni ||
-                user?.DNI ||
-                user?.usedoc ||
-                user?.nrodoc ||
-                user?.numdoc ||
-                user?.documento ||
-                user?.doc ||
-                user?.usuario ||
-                ""
-            ).trim();
-
+            const userDni = String(user?.dni || "").trim();
             const categoriaSeleccionada = categorias.find((item) => String(item.id) === String(formData.categoriaId || categoriaSelectedId)) || null;
             const centroCostoSeleccionado = centrosCosto.find((item) => String(item.id) === String(formData.centroCostoId || centroSelectedId)) || null;
 
@@ -600,6 +757,30 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                 gasto.consumidor ||
                 ""
             );
+            const notaObsValue = String(formData.glosa || formData.comentario || "").trim();
+            const categoriaForEvidence = String(formData.categoria || gasto.categoria || "");
+            const isViajesConComprobante = normalizeText(categoriaForEvidence).includes("VIAJES CON COMPROBANTE");
+            const tipoComprobanteValue = String(formData.tipoComprobante || resolveTipoComprobante(gasto) || "").trim();
+            const tipoComprobanteSeleccionado = tiposComprobante.find((item) => {
+              const itemId = String(item.id || "").trim().toLowerCase();
+              const itemName = String(item.name || "").trim().toLowerCase();
+              const formTipoLower = tipoComprobanteValue.toLowerCase();
+              return (
+                itemId === String(formData.tipoComprobanteId || "").trim().toLowerCase() ||
+                itemName === formTipoLower ||
+                itemId === formTipoLower
+              );
+            }) || null;
+            const tipoComprobanteDescripcion = String(
+              tipoComprobanteSeleccionado?.name ||
+              tipoComprobanteValue ||
+              ""
+            ).trim();
+            const tipoComprobanteCodigo = String(
+              formData.tipoComprobanteId ||
+              tipoComprobanteSeleccionado?.id ||
+              ""
+            ).trim();
 
             // Construir payload con TODOS los campos necesarios (backend puede esperar el objeto completo)
             let evidenciaUpdate = null;
@@ -619,6 +800,10 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                 }
             }
 
+            const obsForPayload = isViajesConComprobante && evidenciaUpdate?.evidenciaPath
+              ? String(evidenciaUpdate.evidenciaPath)
+              : notaObsValue;
+
             const payload = {
                 rendicion: idRendValue,  // CAMPO REQUERIDO: alias de idRend para el backend
                 idRend: idRendValue,
@@ -632,9 +817,12 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                 tipogasto: String(formData.tipogasto || gasto.tipogasto || ""),
                 ruc: String(formData.rucEmisor || gasto.rucEmisor || gasto.ruc || ""),
                 proveedor: String(formData.razonSocial || formData.proveedor || gasto.proveedor || ""),
-                tipoComprobante: String(formData.tipoComprobante || resolveTipoComprobante(gasto) || ""),
-                tipocomprobante: String(formData.tipoComprobante || resolveTipoComprobante(gasto) || ""),
-                tipoCombrobante: String(formData.tipoComprobante || resolveTipoComprobante(gasto) || ""),
+                tipoComprobante: tipoComprobanteDescripcion,
+                tipocomprobante: tipoComprobanteDescripcion,
+                tipoCombrobante: tipoComprobanteDescripcion,
+                idTipoComprobante: tipoComprobanteCodigo,
+                codTipoComprobante: tipoComprobanteCodigo,
+                codigoTipoComprobante: tipoComprobanteCodigo,
                 serie: String(formData.serie || gasto.serie || ""),
                 numero: String(formData.numero || gasto.numero || ""),
                 igv: Number(formData.igv || 0),
@@ -651,17 +839,19 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                 centroCostoId: resolvedIdCuenta,
                 consumidor: resolvedConsumidor,
                 centroCosto: resolvedConsumidor,
-                placa: String(gasto.placa || ""),
+                placa: String(formData.placa || gasto.placa || ""),
                 estadoActual: String(gasto.estadoActual || gasto.estado || ""),
-                glosa: String(formData.glosa || ""),
-                motivoViaje: String(gasto.motivoViaje || ""),
-                lugarOrigen: String(gasto.lugarOrigen || ""),
-                lugarDestino: String(gasto.lugarDestino || ""),
-                tipoMovilidad: String(gasto.tipoMovilidad || ""),
-                obs1: String(formData.obs1 || gasto.obs1 || ""),
-                // IMPORTANTE: obs contiene la ruta de evidencia si se cambió
-                obs: String(evidenciaUpdate?.evidenciaPath || formData.obs || ""),
-                evidenciaPath: String(evidenciaUpdate?.evidenciaPath || formData.obs || ""),
+                glosa: notaObsValue,
+                motivoViaje: String(formData.motivoViaje || gasto.motivoViaje || ""),
+                lugarOrigen: String(formData.origen || gasto.lugarOrigen || gasto.lugarorigen || ""),
+                lugarDestino: String(formData.destino || gasto.lugarDestino || gasto.lugardestino || ""),
+                tipoMovilidad: String(formData.tipoMovilidad || gasto.tipoMovilidad || gasto.tipomovilidad || ""),
+                // En viajes con comprobante algunos listados resuelven evidencia desde "obs".
+                obs: obsForPayload,
+                nota: notaObsValue,
+                observacion: notaObsValue,
+                observaciones: notaObsValue,
+                evidenciaPath: String(evidenciaUpdate?.evidenciaPath ||  ""),
                 evidenciaFileName: String(evidenciaUpdate?.evidenciaFileName || ""),
                 evidenciaUpdatedAt: String(evidenciaUpdate?.evidenciaPatch?.evidenciaUpdatedAt || getLocalIsoDateTime()),
                 ...(evidenciaUpdate?.evidenciaPatch || {}),
@@ -705,6 +895,30 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
         const match = centrosCosto.find((item) => String(item.consumidor || item.name || "").trim().toLowerCase() === String(formData.centroCosto || "").trim().toLowerCase());
         return String(match?.id || "");
     }, [centrosCosto, formData.centroCosto, formData.centroCostoId]);
+
+    const tipoComprobanteSelectedId = useMemo(() => {
+        if (formData.tipoComprobanteId) return String(formData.tipoComprobanteId);
+      const tipoComprobanteValue = String(formData.tipoComprobante || "").trim().toLowerCase();
+      const match = tiposComprobante.find((item) => {
+        const itemId = String(item.id || "").trim().toLowerCase();
+        const itemName = String(item.name || "").trim().toLowerCase();
+        return itemName === tipoComprobanteValue || itemId === tipoComprobanteValue;
+      });
+        return String(match?.id || "");
+    }, [tiposComprobante, formData.tipoComprobante, formData.tipoComprobanteId]);
+
+    const monedaSelectedId = useMemo(() => {
+        const moneda = String(formData.moneda || "").trim().toUpperCase();
+        if (moneda === "01" || moneda === "03") return moneda;
+        if (moneda === "PEN") return "01";
+        if (moneda === "USD") return "03";
+        return "";
+    }, [formData.moneda]);
+
+    const isPlanillaMovilidad = useMemo(
+      () => normalizeText(formData.categoria || "").includes("PLANILLA DE MOVILIDAD"),
+      [formData.categoria]
+    );
 
     if (!isOpen || !gasto) return null;
 
@@ -833,72 +1047,158 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                           </h3>
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             <label className={labelClass}>
-                              Tipo Comprobante:
+                              RUC Cliente:
                               <input
                                 type="text"
-                                name="tipoComprobante"
-                                value={formData.tipoComprobante}
+                                name="rucCliente"
+                                value={formData.rucCliente}
+                                onChange={handleChange}
                                 readOnly
                                 className={inputReadOnlyClass}
                               />
                             </label>
-                            {/* Movil: RUC en una sola fila (2 columnas). Tablet/PC: en fila con mayor ancho para evitar cortes. */}
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:col-span-2 sm:gap-3 lg:col-span-2">
-                              <label className={labelClass}>
-                                RUC Emisor:
-                                <input
-                                  type="text"
-                                  name="rucEmisor"
-                                  value={formData.rucEmisor}
-                                  readOnly
-                                  className={inputReadOnlyClass}
-                                />
-                              </label>
-                              <label className={labelClass}>
-                                RUC Cliente:
-                                <input
-                                  type="text"
-                                  name="rucCliente"
-                                  value={formData.rucCliente}
-                                  readOnly
-                                  className={inputReadOnlyClass}
-                                />
-                              </label>
-                            </div>
 
-                            <label className={`${labelClass} lg:col-span-3`}>
-                              Razon Social:
-                              <input
-                                type="text"
-                                name="razonSocial"
-                                value={formData.razonSocial}
-                                readOnly
-                                className={inputReadOnlyClass}
-                              />
-                            </label>
-                            {/* Movil: Serie y Numero en una sola fila. Tablet/PC: en fila con mayor ancho. */}
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:col-span-2 sm:gap-3 lg:col-span-2">
-                              <label className={labelClass}>
-                                Serie:
-                                <input
-                                  type="text"
-                                  name="serie"
-                                  value={formData.serie}
-                                  readOnly
-                                  className={inputReadOnlyClass}
-                                />
-                              </label>
-                              <label className={labelClass}>
-                                Numero:
-                                <input
-                                  type="text"
-                                  name="numero"
-                                  value={formData.numero}
-                                  readOnly
-                                  className={inputReadOnlyClass}
-                                />
-                              </label>
-                            </div>
+                            {!isPlanillaMovilidad && (
+                              <>
+                                <label className={labelClass}>
+                                  Tipo Comprobante:
+                                  <select
+                                    value={tipoComprobanteSelectedId}
+                                    onChange={handleTipoComprobanteChange}
+                                    disabled={!isEditing}
+                                    className={isEditing ? inputClass : selectReadOnlyClass}
+                                  >
+                                    <option value="">Seleccionar</option>
+                                    {tiposComprobante.map((item) => (
+                                      <option key={item.id} value={item.id}>
+                                        {item.name}
+                                      </option>
+                                    ))}
+                                    {!tipoComprobanteSelectedId && formData.tipoComprobante && (
+                                      <option value="__current__">{formData.tipoComprobante}</option>
+                                    )}
+                                  </select>
+                                </label>
+                                {/* Movil: RUC en una sola fila (2 columnas). Tablet/PC: en fila con mayor ancho para evitar cortes. */}
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:col-span-2 sm:gap-3 lg:col-span-2">
+                                  <label className={labelClass}>
+                                    RUC Emisor:
+                                    <input
+                                      type="text"
+                                      name="rucEmisor"
+                                      value={formData.rucEmisor}
+                                      onChange={handleChange}
+                                      onKeyDown={handleRucEmisorKeyDown}
+                                      readOnly={!isEditing}
+                                      className={isEditing ? inputClass : inputReadOnlyClass}
+                                    />
+                                  </label>
+                                </div>
+
+                                <label className={`${labelClass} lg:col-span-3`}>
+                                  Razon Social:
+                                  <input
+                                    type="text"
+                                    name="razonSocial"
+                                    value={formData.razonSocial}
+                                    onChange={handleChange}
+                                    readOnly={!isEditing}
+                                    className={isEditing ? inputClass : inputReadOnlyClass}
+                                  />
+                                </label>
+                                {/* Movil: Serie y Numero en una sola fila. Tablet/PC: en fila con mayor ancho. */}
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:col-span-2 sm:gap-3 lg:col-span-2">
+                                  <label className={labelClass}>
+                                    Serie:
+                                    <input
+                                      type="text"
+                                      name="serie"
+                                      value={formData.serie}
+                                      onChange={handleChange}
+                                      readOnly={!isEditing}
+                                      className={isEditing ? inputClass : inputReadOnlyClass}
+                                    />
+                                  </label>
+                                  <label className={labelClass}>
+                                    Numero:
+                                    <input
+                                      type="text"
+                                      name="numero"
+                                      value={formData.numero}
+                                      onChange={handleChange}
+                                      readOnly={!isEditing}
+                                      className={isEditing ? inputClass : inputReadOnlyClass}
+                                    />
+                                  </label>
+                                </div>
+                              </>
+                            )}
+
+                            {isPlanillaMovilidad && (
+                              <>
+                                <label className={labelClass}>
+                                  Origen:
+                                  <input
+                                    type="text"
+                                    name="origen"
+                                    value={formData.origen || ""}
+                                    onChange={handleChange}
+                                    readOnly={!isEditing}
+                                    className={isEditing ? inputClass : inputReadOnlyClass}
+                                  />
+                                </label>
+                                <label className={labelClass}>
+                                  Destino:
+                                  <input
+                                    type="text"
+                                    name="destino"
+                                    value={formData.destino || ""}
+                                    onChange={handleChange}
+                                    readOnly={!isEditing}
+                                    className={isEditing ? inputClass : inputReadOnlyClass}
+                                  />
+                                </label>
+                                <label className={`${labelClass} sm:col-span-2 lg:col-span-3`}>
+                                  Motivo de viaje:
+                                  <textarea
+                                    rows={2}
+                                    name="motivoViaje"
+                                    value={formData.motivoViaje || ""}
+                                    onChange={handleChange}
+                                    readOnly={!isEditing}
+                                    className={`${isEditing ? inputClass : inputReadOnlyClass} resize-none`}
+                                  />
+                                </label>
+                                <label className={labelClass}>
+                                  Tipo de movilidad:
+                                  <select
+                                    name="tipoMovilidad"
+                                    value={formData.tipoMovilidad || ""}
+                                    onChange={handleChange}
+                                    disabled={!isEditing}
+                                    className={isEditing ? inputClass : selectReadOnlyClass}
+                                  >
+                                    <option value="">Seleccionar tipo de movilidad</option>
+                                    {tiposMovilidad.map((item) => (
+                                      <option key={item.id} value={item.name}>
+                                        {item.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <label className={labelClass}>
+                                  Placa:
+                                  <input
+                                    type="text"
+                                    name="placa"
+                                    value={formData.placa || ""}
+                                    onChange={handleChange}
+                                    readOnly={!isEditing}
+                                    className={isEditing ? inputClass : inputReadOnlyClass}
+                                  />
+                                </label>
+                              </>
+                            )}
 
                             <label className={labelClass}>
                               Fecha:
@@ -906,8 +1206,9 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                                 type="date"
                                 name="fecha"
                                 value={formData.fecha}
-                                readOnly
-                                className={inputReadOnlyClass}
+                                onChange={handleChange}
+                                readOnly={!isEditing}
+                                className={isEditing ? inputClass : inputReadOnlyClass}
                               />
                             </label>
 
@@ -919,8 +1220,9 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                                   step="0.01"
                                   name="igv"
                                   value={formData.igv}
-                                  readOnly
-                                  className={inputReadOnlyClass}
+                                  onChange={handleChange}
+                                  readOnly={!isEditing}
+                                  className={isEditing ? inputClass : inputReadOnlyClass}
                                 />
                               </label>
                               <label className={labelClass}>
@@ -930,18 +1232,23 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                                   step="0.01"
                                   name="total"
                                   value={formData.total}
-                                  readOnly
-                                  className={inputReadOnlyClass}
+                                  onChange={handleChange}
+                                  readOnly={!isEditing}
+                                  className={isEditing ? inputClass : inputReadOnlyClass}
                                 />
                               </label>
                               <label className={labelClass}>
                                 Moneda:
-                                <input
-                                  name="moneda"
-                                  value={formData.moneda}
-                                  readOnly
-                                  className={inputReadOnlyClass}
-                                />
+                                <select
+                                  value={monedaSelectedId}
+                                  onChange={handleMonedaChange}
+                                  disabled={!isEditing}
+                                  className={isEditing ? inputClass : selectReadOnlyClass}
+                                >
+                                  <option value="">Seleccionar</option>
+                                  <option value="01">PEN</option>
+                                  <option value="03">USD</option>
+                                </select>
                               </label>
                             </div>
 
@@ -953,8 +1260,9 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                                 name="glosa"
                                 rows="4"
                                 value={formData.glosa}
-                                readOnly
-                                className={`${inputReadOnlyClass} resize-none`}
+                                onChange={handleChange}
+                                readOnly={!isEditing}
+                                className={`${isEditing ? inputClass : inputReadOnlyClass} resize-none`}
                               />
                             </label>
                           </div>

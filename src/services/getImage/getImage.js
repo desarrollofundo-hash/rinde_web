@@ -91,6 +91,15 @@ function getIdRendBasedNames(gasto) {
     const names = [];
     if (!idRend) return names;
 
+    // Fallbacks para movilidad/planilla: a veces se guarda sin serie/numero.
+    pushUnique(names, idRend);
+    pushUnique(names, `${idRend}___`);
+
+    if (ruc) {
+        pushUnique(names, `${idRend}_${ruc}`);
+        pushUnique(names, `${idRend}_${ruc}__`);
+    }
+
     if (serie && numero) {
         pushUnique(names, `${idRend}_${serie}_${numero}`);
     }
@@ -113,11 +122,19 @@ function isLikelyFilePath(value) {
     // Bloquear etiquetas/observaciones de estado comunes.
     if (/^(aprobado|rechazado|pendiente|en\s+revision|observado|nova)$/i.test(normalized)) return false;
 
-    // Texto con espacios sin rutas normalmente es glosa, no archivo.
-    if (/\s/.test(str) && !/[\/\\]/.test(str)) return false;
+    // Glosas con fecha (ej: "PEAJE 04- 07/08/2026") traen "/" pero no son rutas:
+    // solo se acepta si el último segmento parece un nombre de archivo real.
+    if (/[/\\]/.test(str)) {
+        const lastSegment = (str.split(/[/\\]/).pop() || "").trim();
+        return (
+            IMAGE_EXTENSION_REGEX.test(lastSegment) ||
+            /^\d+_[a-z0-9]+(?:_[a-z0-9]+)*$/i.test(lastSegment)
+        );
+    }
 
-    // Rutas explícitas o archivos con extensión conocida.
-    if (/[\/\\]/.test(str)) return true;
+    // Texto con espacios sin rutas normalmente es glosa, no archivo.
+    if (/\s/.test(str)) return false;
+
     if (IMAGE_EXTENSION_REGEX.test(str)) return true;
 
     // Nombres compuestos típicos: id_ruc_serie_numero (con o sin extensión).

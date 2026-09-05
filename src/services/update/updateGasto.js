@@ -1,7 +1,7 @@
 import API from "../api";
 
 export async function updateDetalleGasto(gastoData) {
-    /* console.log("========================================");
+   /*  console.log("========================================");
     console.log("🚀 API SERVICE - updateDetalleGasto");
     console.log("📍 URL: /saveupdate/updaterendiciongasto");
     console.log("📦 idRend:", gastoData?.idRend);
@@ -11,11 +11,11 @@ export async function updateDetalleGasto(gastoData) {
     try {
         const bodyToSend = [gastoData];
 
-        /*    console.log("========================================");
+           /* console.log("========================================");
            console.log("📡 BODY JSON ENVIADO AL SERVIDOR:");
            console.log(JSON.stringify(bodyToSend, null, 2));
-           console.log("========================================"); */
-
+           console.log("========================================");
+ */
         const response = await API.post(
             "/saveupdate/updaterendiciongasto",
             bodyToSend,
@@ -27,13 +27,13 @@ export async function updateDetalleGasto(gastoData) {
                 timeout: 30000,
             }
         );
-
-        /*         console.log("========================================");
+/* 
+                console.log("========================================");
                 console.log("📊 RESPUESTA - updaterendiciongasto");
                 console.log("   Status:", response.status);
                 console.log("   Body:", response.data);
-                console.log("========================================"); */
-
+                console.log("========================================");
+ */
         if (response.status === 200 || response.status === 201) {
             const body = JSON.stringify(response.data);
 
