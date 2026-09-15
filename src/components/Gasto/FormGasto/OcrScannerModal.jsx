@@ -165,6 +165,10 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
                 setMostrando("upload");
                 setResultados([]);
               }}
+              onEdit={(idx, item) => {
+                console.log("Editar registro", idx, item);
+                // TODO: Implementar modal de edición
+              }}
             />
           ) : (
             <>
