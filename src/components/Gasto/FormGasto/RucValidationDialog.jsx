@@ -26,7 +26,7 @@ export default function RucValidationDialog({
         <div className="space-y-4 px-6 py-5">
           <p className="text-sm leading-relaxed font-semibold text-red-700 bg-red-50 p-3 rounded-lg border border-red-200">
             ⚠️ La empresa de la factura NO coincide con la empresa seleccionada.
-            Verifica que has elegido la empresa correcta antes de continuar.
+            Debes cambiar la empresa seleccionada antes de guardar este gasto.
           </p>
 
           {/* Comparación de RUCs */}
@@ -34,12 +34,12 @@ export default function RucValidationDialog({
             {/* RUC Factura */}
             <div className="space-y-1.5">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                🔴 Factura (Cliente)
+                🔴 Factura cargada
               </p>
               <p className="mt-1 font-mono text-sm font-bold text-red-600">
                 RUC: {rucClienteOcr}
               </p>
-              <p className="text-sm font-semibold text-slate-900">
+              <p className="mt-1 text-sm font-semibold text-slate-900">
                 {razonSocialOcr || "—"}
               </p>
             </div>
@@ -54,19 +54,19 @@ export default function RucValidationDialog({
             {/* RUC Empresa */}
             <div className="space-y-1.5">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                🟢 Empresa Logueada
+                🟢 Empresa actual seleccionada
               </p>
               <p className="mt-1 font-mono text-sm font-bold text-blue-600">
                 RUC: {rucEmpresa}
               </p>
-              <p className="text-sm font-semibold text-slate-900">
+              <p className="mt-1 text-sm font-semibold text-slate-900">
                 {razonSocialEmpresa || "—"}
               </p>
             </div>
           </div>
 
           <p className="text-xs text-slate-600 bg-yellow-50 p-2.5 rounded border border-yellow-200">
-            ❓ Si esta es la factura correcta, haz clic en "Continuar". Si cometiste un error, cambia de empresa.
+            💡 Haz clic en "Cancelar" para cambiar de empresa. Cuando selecciones la empresa correcta, carga la factura nuevamente.
           </p>
         </div>
 
@@ -79,13 +79,13 @@ export default function RucValidationDialog({
             <X className="h-4 w-4" />
             Cancelar
           </button>
-          <button
+          {/*    <button
             onClick={onAccept}
             className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 px-4 py-2.5 font-semibold text-white transition hover:from-orange-600 hover:to-red-600 active:scale-95 cursor-pointer shadow-md"
           >
             <Check className="h-4 w-4" />
             Continuar
-          </button>
+          </button> */}
         </div>
       </div>
     </div>
