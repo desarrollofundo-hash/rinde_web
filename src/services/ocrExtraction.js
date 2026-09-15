@@ -37,7 +37,11 @@ async function convertirFileABase64(file) {
 
 async function convertirPdfAImagen(file) {
   try {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+    const pdfWorkerUrl = new URL(
+      "pdfjs-dist/build/pdf.worker.min.mjs",
+      import.meta.url
+    ).href;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
