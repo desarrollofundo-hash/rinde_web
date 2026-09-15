@@ -102,7 +102,13 @@ async function extraerCamposConOpenAI(base64Imagen, mimeType) {
     }
 
     const data = await respuesta.json();
-    const contenido = data.choices?.[0]?.message?.content || "";
+    let contenido = data.choices?.[0]?.message?.content || "";
+
+    // Extraer JSON si está dentro de un bloque de código markdown
+    const jsonMatch = contenido.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+        contenido = jsonMatch[1].trim();
+    }
 
     try {
         return JSON.parse(contenido);
