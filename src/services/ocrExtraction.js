@@ -36,27 +36,30 @@ async function convertirFileABase64(file) {
 function construirPrompt() {
     const codigosValidos = TIPOS_COMPROBANTE_CATALOGO.map((t) => `${t.id}=${t.name}`).join(", ");
 
-    return `Eres un extractor de datos de comprobantes de pago peruanos (SUNAT).
+    return `Eres un extractor de datos PERFECCIONISTA de comprobantes de pago peruanos (SUNAT).
 Analiza la imagen del comprobante (factura, boleta, ticket de restaurante, etc).
-El formato y las etiquetas varían mucho según el emisor, así que interpreta el contenido
-por significado visual, no busques una palabra exacta.
 
-REGLAS IMPORTANTES:
-- "rucEmisor": el RUC del NEGOCIO/PROVEEDOR que VENDE y EMITE el comprobante (encabezado).
-  NO es el RUC del cliente/comprador.
-- "rucCliente": el RUC del comprador/cliente, si aparece en el documento.
-- "serie" y "numero": divide el correlativo por el ÚLTIMO guion.
-  Ej: "F001-00015317" -> serie "F001", numero "00015317"
-- "tipoComprobante": código según este catálogo: ${codigosValidos}
-  Si no calza claramente, usa "11" (OTROS).
-- "fecha": fecha de EMISIÓN en formato ISO YYYY-MM-DD.
-- "moneda": "01" para Soles (S/, PEN), "03" para Dólares ($, USD).
-- "igv" y "total": números con punto decimal, sin símbolo de moneda.
-  Si no discrimina IGV, usa 0.
-- "razonSocial": nombre o razón social del NEGOCIO EMISOR (no el cliente).
-- Si un campo no se puede determinar, usa null (no inventes).
+INSTRUCCIONES CRÍTICAS:
+1. Responde SOLO con JSON válido - sin código markdown, sin backticks, sin explicaciones
+2. El JSON debe ser parseable directamente
+3. Todos los campos deben estar presentes (usa null si no se encuentra)
 
-Responde SOLO con JSON válido, sin explicaciones adicionales.`;
+FORMATO ESPERADO:
+{"rucEmisor":"20602094805","rucCliente":null,"serie":"F001","numero":"00015317","tipoComprobante":"01","fecha":"2025-05-29","moneda":"01","igv":"2.20","total":"27.00","razonSocial":"NOMBRE"}
+
+REGLAS DE EXTRACCIÓN:
+- "rucEmisor": RUC del NEGOCIO/PROVEEDOR (emisor en encabezado). Solo números, sin puntos.
+- "rucCliente": RUC del comprador/cliente si aparece. null si no existe.
+- "serie": Letras/números antes del primer o ÚNICO guion. Ej: "F001" de "F001-00015317"
+- "numero": Solo dígitos después del ÚLTIMO guion. Ej: "00015317" de "F001-00015317"
+- "tipoComprobante": Código: ${codigosValidos}. Si no claro, usa "11".
+- "fecha": Formato ISO YYYY-MM-DD. Busca la fecha de EMISIÓN del documento.
+- "moneda": "01" (Soles/S/), "03" (Dólares/$). Detecta del símbolo de moneda.
+- "igv": Número decimal con punto. El monto del IGV o impuesto. Si no discrimina, usa "0".
+- "total": Monto total con decimales. Número puro, sin símbolo.
+- "razonSocial": Nombre/razón social del EMISOR (empresa que emite el comprobante).
+
+NO INVENTES DATOS. Si no ves algo claramente, usa null.`;
 }
 
 async function extraerCamposConOpenAI(base64Imagen, mimeType) {
@@ -104,16 +107,39 @@ async function extraerCamposConOpenAI(base64Imagen, mimeType) {
     const data = await respuesta.json();
     let contenido = data.choices?.[0]?.message?.content || "";
 
-    // Extraer JSON si está dentro de un bloque de código markdown
+    // Intentar extraer JSON de varias formas posibles
+    let json = null;
+
+    // 1. Buscar JSON dentro de backticks (markdown code blocks)
     const jsonMatch = contenido.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (jsonMatch) {
         contenido = jsonMatch[1].trim();
     }
 
+    // 2. Buscar objeto JSON entre llaves
+    const jsonObjectMatch = contenido.match(/\{[\s\S]*\}/);
+    if (jsonObjectMatch) {
+        contenido = jsonObjectMatch[0];
+    }
+
+    // 3. Intentar parse
     try {
-        return JSON.parse(contenido);
-    } catch {
-        throw new Error(`No se pudo interpretar la respuesta de OpenAI como JSON: ${contenido}`);
+        json = JSON.parse(contenido);
+        return json;
+    } catch (e) {
+        // 4. Si falla, intentar limpiar caracteres problemáticos
+        const cleaned = contenido
+            .replace(/[\r\n]+/g, ' ')
+            .replace(/,\s*}/g, '}')
+            .replace(/,\s*]/g, ']')
+            .trim();
+
+        try {
+            json = JSON.parse(cleaned);
+            return json;
+        } catch (e2) {
+            throw new Error(`No se pudo interpretar respuesta de OpenAI como JSON. Contenido: ${contenido.substring(0, 200)}`);
+        }
     }
 }
 
