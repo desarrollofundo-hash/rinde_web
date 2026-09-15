@@ -137,86 +137,28 @@ IMPORTANTE: NO INVENTAR. Si está claro que falta un dato, usa null exacto.`;
 }
 
 async function extraerCamposConOpenAI(base64Imagen, mimeType) {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("Falta VITE_OPENAI_API_KEY en tu .env");
-  }
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
 
-  const prompt = construirPrompt();
-
-  const respuesta = await fetch("https://api.openai.com/v1/chat/completions", {
+  const respuesta = await fetch(`${backendUrl}/api/ocr/extract`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${mimeType};base64,${base64Imagen}`,
-              },
-            },
-          ],
-        },
-      ],
-      temperature: 0.2,
-      max_tokens: 500,
+      base64Image: base64Imagen,
+      mimeType: mimeType,
     }),
   });
 
   if (!respuesta.ok) {
     const errorData = await respuesta.json();
     throw new Error(
-      `OpenAI respondió con error ${respuesta.status}: ${errorData.error?.message || "Error desconocido"}`,
+      errorData.error || `Error en servidor OCR: ${respuesta.status}`,
     );
   }
 
-  const data = await respuesta.json();
-  let contenido = data.choices?.[0]?.message?.content || "";
-
-  // Intentar extraer JSON de varias formas posibles
-  let json = null;
-
-  // 1. Buscar JSON dentro de backticks (markdown code blocks)
-  const jsonMatch = contenido.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonMatch) {
-    contenido = jsonMatch[1].trim();
-  }
-
-  // 2. Buscar objeto JSON entre llaves
-  const jsonObjectMatch = contenido.match(/\{[\s\S]*\}/);
-  if (jsonObjectMatch) {
-    contenido = jsonObjectMatch[0];
-  }
-
-  // 3. Intentar parse
-  try {
-    json = JSON.parse(contenido);
-    return json;
-  } catch (e) {
-    // 4. Si falla, intentar limpiar caracteres problemáticos
-    const cleaned = contenido
-      .replace(/[\r\n]+/g, " ")
-      .replace(/,\s*}/g, "}")
-      .replace(/,\s*]/g, "]")
-      .trim();
-
-    try {
-      json = JSON.parse(cleaned);
-      return json;
-    } catch (e2) {
-      throw new Error(
-        `No se pudo interpretar respuesta de OpenAI como JSON. Contenido: ${contenido.substring(0, 200)}`,
-      );
-    }
-  }
+  const json = await respuesta.json();
+  return json;
 }
 
 /**
