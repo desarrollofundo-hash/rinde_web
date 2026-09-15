@@ -728,13 +728,23 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
             if (rucClienteOcr !== rucEmpresa) {
                 console.warn(`❌ RUC NO COINCIDEN: "${rucClienteOcr}" !== "${rucEmpresa}"`);
 
+                // Obtener nombre de empresa logueada desde localStorage
+                const rawEmpresa = localStorage.getItem("company") || localStorage.getItem("empresa");
+                const empresa = rawEmpresa ? JSON.parse(rawEmpresa) : null;
+                const nombreEmpresaLogueada =
+                    empresa?.razonSocial ||
+                    empresa?.nombreComercial ||
+                    empresa?.nombre ||
+                    empresa?.name ||
+                    "Empresa Desconocida";
+
                 // Mostrar diálogo elegante en lugar de window.confirm()
                 setRucValidationDialog({
                     isOpen: true,
                     rucClienteOcr,
                     rucEmpresa,
-                    razonSocialOcr,
-                    razonSocialEmpresa: formData.razonSocial || "—",
+                    razonSocialOcr: "Cliente (no disponible)",
+                    razonSocialEmpresa: nombreEmpresaLogueada,
                     onConfirm: () => {
                         console.log("✋ Usuario aceptó continuar con RUC diferente");
                         completarConDatosOcr(datosOcr);
