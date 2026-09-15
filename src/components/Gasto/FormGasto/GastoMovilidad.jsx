@@ -229,9 +229,34 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
         setEvidenciaInputResetKey((prev) => prev + 1);
     };
 
+    const getRucEmpresaSesion = () => {
+        const normalizeRuc = (value) => String(value ?? "").replace(/\D/g, "").trim();
+        const rawEmpresa = localStorage.getItem("company") || localStorage.getItem("empresa");
+        const empresa = rawEmpresa ? JSON.parse(rawEmpresa) : null;
+        return normalizeRuc(
+            empresa?.ruc ?? empresa?.RUC ?? empresa?.numRuc ?? empresa?.rucCliente ?? empresa?.ruccliente
+        );
+    };
+
     const handleOcrDetected = (datosOcr) => {
         const rucEmisorLimpio = String(datosOcr.rucEmisor || "").replace(/\D/g, "");
+        const rucClienteOcr = String(datosOcr.rucCliente || "").replace(/\D/g, "");
         const razonSocialOcr = String(datosOcr.razonSocial || "").trim();
+
+        // Validar que el RUC cliente de la factura coincida con la empresa logueada
+        const rucEmpresa = getRucEmpresaSesion();
+        if (rucClienteOcr && rucEmpresa && rucClienteOcr !== rucEmpresa) {
+            const confirmacion = window.confirm(
+                `⚠️ ADVERTENCIA:\n\n` +
+                `RUC en factura: ${rucClienteOcr}\n` +
+                `RUC empresa activa: ${rucEmpresa}\n\n` +
+                `Los RUC no coinciden. ¿Deseas continuar de todas formas?`
+            );
+            if (!confirmacion) {
+                setErrorMessage("Operación cancelada. Los RUC no coinciden.");
+                return;
+            }
+        }
 
         setFormData((prev) => ({
             ...prev,
@@ -242,7 +267,7 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
             igv: datosOcr.igv || prev.igv,
             total: datosOcr.total || prev.total,
             fecha: datosOcr.fecha || prev.fecha,
-            rucCliente: datosOcr.rucCliente || prev.rucCliente,
+            rucCliente: rucClienteOcr || prev.rucCliente,
             razonSocial: razonSocialOcr || prev.razonSocial,
             proveedor: razonSocialOcr || prev.proveedor,
             moneda: datosOcr.moneda || prev.moneda,
