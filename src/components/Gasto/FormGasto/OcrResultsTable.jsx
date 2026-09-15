@@ -1,5 +1,5 @@
 import { Check, X, Edit2, Trash2, AlertCircle } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ImageZoomLightbox from "../ImageZoomLightbox";
 import OcrEditModal from "./OcrEditModal";
 
@@ -12,6 +12,29 @@ export default function OcrResultsTable({
   const [zoomImage, setZoomImage] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
   const [deleteConfirmIndex, setDeleteConfirmIndex] = useState(null);
+  const [rucEmpresaActual, setRucEmpresaActual] = useState("");
+
+  // Actualizar RUC de empresa cada vez que cambia el usuario/empresa logueada
+  useEffect(() => {
+    const obtenerRucActual = () => {
+      try {
+        const rawEmpresa = localStorage.getItem("company") || localStorage.getItem("empresa");
+        const empresa = rawEmpresa ? JSON.parse(rawEmpresa) : null;
+        const ruc = String(empresa?.ruc ?? empresa?.RUC ?? empresa?.numRuc ?? "").replace(/\D/g, "");
+        setRucEmpresaActual(ruc);
+        console.log("✓ RUC de empresa actualizado:", ruc);
+      } catch (error) {
+        console.error("Error al obtener RUC de empresa:", error);
+        setRucEmpresaActual("");
+      }
+    };
+
+    obtenerRucActual();
+
+    // Escuchar cambios en localStorage cada 500ms para detectar cambio de empresa
+    const interval = setInterval(obtenerRucActual, 500);
+    return () => clearInterval(interval);
+  }, []);
 
   const tiposComprobante = {
     "01": "FACTURA ELECTRONICA",
@@ -45,25 +68,14 @@ export default function OcrResultsTable({
     setDeleteConfirmIndex(null);
   };
 
-  const getRucEmpresa = () => {
-    try {
-      const rawEmpresa = localStorage.getItem("company") || localStorage.getItem("empresa");
-      const empresa = rawEmpresa ? JSON.parse(rawEmpresa) : null;
-      return String(empresa?.ruc ?? empresa?.RUC ?? empresa?.numRuc ?? "").replace(/\D/g, "");
-    } catch (error) {
-      return "";
-    }
-  };
-
   const validarRucFacura = (rucCliente) => {
-    const rucEmpresa = getRucEmpresa();
     const rucClienteLimpio = String(rucCliente || "").replace(/\D/g, "");
 
-    if (!rucClienteLimpio || !rucEmpresa) {
+    if (!rucClienteLimpio || !rucEmpresaActual) {
       return { valido: false, mensaje: "RUC no disponible", color: "text-gray-500" };
     }
 
-    if (rucClienteLimpio === rucEmpresa) {
+    if (rucClienteLimpio === rucEmpresaActual) {
       return {
         valido: true,
         mensaje: "✓ Factura sí pertenece a la empresa",
