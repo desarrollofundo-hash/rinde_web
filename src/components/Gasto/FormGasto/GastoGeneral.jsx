@@ -743,7 +743,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                     isOpen: true,
                     rucClienteOcr,
                     rucEmpresa,
-                    razonSocialOcr: "Cliente (no disponible)",
+                    razonSocialOcr: datosOcr.razonSocialCliente || "Nombre no disponible",
                     razonSocialEmpresa: nombreEmpresaLogueada,
                     onConfirm: () => {
                         console.log("✋ Usuario aceptó continuar con RUC diferente");

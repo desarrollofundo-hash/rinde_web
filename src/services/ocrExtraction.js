@@ -50,15 +50,16 @@ INSTRUCCIONES CRÍTICAS:
 ESTRUCTURA JSON REQUERIDA (EJEMPLO REAL):
 {
   "rucEmisor": "10077149231",
+  "razonSocial": "GUES HOUSE",
   "rucCliente": "20603461534",
+  "razonSocialCliente": "AGRICOLA SANTA AZUL S.A.C",
   "tipoComprobante": "01",
   "serie": "FPP1",
   "numero": "002356",
   "fecha": "2025-05-29",
   "moneda": "01",
   "igv": "0.77",
-  "total": "27.00",
-  "razonSocial": "GUES HOUSE"
+  "total": "27.00"
 }
 
 EXTRACCIÓN OBLIGATORIA DE CAMPOS:
@@ -76,7 +77,14 @@ EXTRACCIÓN OBLIGATORIA DE CAMPOS:
    - Ejemplo: "20603461534"
    - Si NO hay cliente explícito: usa null
 
-3. "tipoComprobante": Código ${codigosValidos}. Defecto "11".
+3. "razonSocialCliente" (CRÍTICO - OBLIGATORIO BUSCAR):
+   - NOMBRE/RAZÓN SOCIAL del CLIENTE (quien compra/recibe)
+   - Busca en la sección "Cliente:", "Señor(es):", "Razón Social:", cerca del rucCliente
+   - NO confundir con razonSocial (que es del emisor)
+   - Ejemplo: "AGRICOLA SANTA AZUL S.A.C"
+   - Si NO aparece explícito: usa null (no inventar)
+
+4. "tipoComprobante": Código ${codigosValidos}. Defecto "11".
 
 4. "serie": Letras/números ANTES del guion. Ej: "FPP1" de "FPP1-002356"
 
@@ -192,6 +200,7 @@ export async function extraerDatosComprobante(file) {
 
   // VALIDACIÓN CRÍTICA: rucCliente es obligatorio para validar contra empresa
   const rucClienteExtraido = String(campos.rucCliente || "").replace(/\D/g, "").trim();
+  const razonSocialClienteExtraida = String(campos.razonSocialCliente || "").trim();
 
   if (!rucClienteExtraido) {
     console.warn("⚠️ ADVERTENCIA: No se pudo extraer el RUC del Cliente de la factura");
@@ -200,7 +209,8 @@ export async function extraerDatosComprobante(file) {
 
   return {
     rucEmisor: String(campos.rucEmisor || ""),
-    rucCliente: rucClienteExtraido, // Importante: puede estar vacío si no se extrae
+    rucCliente: rucClienteExtraido,
+    razonSocialCliente: razonSocialClienteExtraida,
     tipoComprobante: String(campos.tipoComprobante || ""),
     serie: String(campos.serie || ""),
     numero: String(campos.numero || ""),
