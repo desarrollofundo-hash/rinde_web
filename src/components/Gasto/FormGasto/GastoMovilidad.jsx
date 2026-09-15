@@ -229,14 +229,22 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
         setEvidenciaInputResetKey((prev) => prev + 1);
     };
 
-    const getRucEmpresaSesion = () => {
-        const normalizeRuc = (value) => String(value ?? "").replace(/\D/g, "").trim();
-        const rawEmpresa = localStorage.getItem("company") || localStorage.getItem("empresa");
-        const empresa = rawEmpresa ? JSON.parse(rawEmpresa) : null;
-        return normalizeRuc(
-            empresa?.ruc ?? empresa?.RUC ?? empresa?.numRuc ?? empresa?.rucCliente ?? empresa?.ruccliente
-        );
-    };
+    // IMPORTANTE: Siempre leer FRESCO del localStorage para capturar cambios de empresa
+    const getRucEmpresaSesion = useCallback(() => {
+        try {
+            const normalizeRuc = (value) => String(value ?? "").replace(/\D/g, "").trim();
+            const rawEmpresa = localStorage.getItem("company") || localStorage.getItem("empresa");
+            if (!rawEmpresa) return "";
+
+            const empresa = JSON.parse(rawEmpresa);
+            return normalizeRuc(
+                empresa?.ruc ?? empresa?.RUC ?? empresa?.numRuc ?? empresa?.rucCliente ?? empresa?.ruccliente
+            );
+        } catch (error) {
+            console.warn("⚠️ Error al leer RUC de empresa desde localStorage:", error);
+            return "";
+        }
+    }, []);
 
     const handleOcrDetected = (datosOcr) => {
         const rucEmisorLimpio = String(datosOcr.rucEmisor || "").replace(/\D/g, "");

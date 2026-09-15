@@ -629,13 +629,22 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
         showToast("QR escaneado. Se autocompletaron los datos detectados", "success");
     };
 
-    const getRucEmpresaSesion = () => {
-        const rawEmpresa = localStorage.getItem("company") || localStorage.getItem("empresa");
-        const empresa = rawEmpresa ? JSON.parse(rawEmpresa) : null;
-        return normalizeRuc(
-            empresa?.ruc ?? empresa?.RUC ?? empresa?.numRuc ?? empresa?.rucCliente ?? empresa?.ruccliente
-        );
-    };
+    const getRucEmpresaSesion = useCallback(() => {
+        // IMPORTANTE: Siempre leer FRESCO del localStorage, nunca cachear
+        // para capturar cambios de empresa en tiempo real
+        try {
+            const rawEmpresa = localStorage.getItem("company") || localStorage.getItem("empresa");
+            if (!rawEmpresa) return "";
+
+            const empresa = JSON.parse(rawEmpresa);
+            return normalizeRuc(
+                empresa?.ruc ?? empresa?.RUC ?? empresa?.numRuc ?? empresa?.rucCliente ?? empresa?.ruccliente
+            );
+        } catch (error) {
+            console.warn("⚠️ Error al leer RUC de empresa desde localStorage:", error);
+            return "";
+        }
+    }, []);
 
     const handleOcrDetected = async (datosOcr) => {
         const rucEmisorLimpio = String(datosOcr.rucEmisor || "").replace(/\D/g, "");
