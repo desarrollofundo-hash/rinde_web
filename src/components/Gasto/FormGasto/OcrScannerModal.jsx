@@ -4,62 +4,77 @@ import { extraerDatosComprobante } from "../../../services/ocrExtraction";
 import * as pdfjsLib from "pdfjs-dist";
 
 export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
-  const [archivo, setArchivo] = useState(null);
-  const [preview, setPreview] = useState(null);
+  const [archivos, setArchivos] = useState([]);
+  const [previews, setPreviews] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
 
   const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    setArchivo(file);
+    setArchivos(files);
     setError(null);
+    setCargando(true);
 
-    // Si es PDF, convertir a imagen para preview
-    if (file.type === "application/pdf") {
-      try {
-        setCargando(true);
-        const pdfWorkerUrl = new URL(
-          "pdfjs-dist/build/pdf.worker.min.mjs",
-          import.meta.url,
-        ).href;
-        pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+    const newPreviews = [];
 
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        const page = await pdf.getPage(1);
+    try {
+      for (const file of files) {
+        if (file.type === "application/pdf") {
+          // Convertir PDF a imagen
+          const pdfWorkerUrl = new URL(
+            "pdfjs-dist/build/pdf.worker.min.mjs",
+            import.meta.url,
+          ).href;
+          pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-        const viewport = page.getViewport({ scale: 2 });
-        const canvas = document.createElement("canvas");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          const page = await pdf.getPage(1);
 
-        const context = canvas.getContext("2d");
-        await page.render({ canvasContext: context, viewport }).promise;
+          const viewport = page.getViewport({ scale: 2 });
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
 
-        setPreview(canvas.toDataURL("image/png"));
-        setCargando(false);
-      } catch (err) {
-        setError(`Error al procesar PDF: ${err.message}`);
-        setCargando(false);
-        setArchivo(null);
-        setPreview(null);
+          const context = canvas.getContext("2d");
+          await page.render({ canvasContext: context, viewport }).promise;
+
+          newPreviews.push({
+            file,
+            preview: canvas.toDataURL("image/png"),
+          });
+        } else if (file.type.startsWith("image/")) {
+          // Mostrar imagen directamente
+          const reader = new FileReader();
+          await new Promise((resolve) => {
+            reader.onload = (event) => {
+              newPreviews.push({
+                file,
+                preview: event.target.result,
+              });
+              resolve();
+            };
+            reader.readAsDataURL(file);
+          });
+        }
       }
-    } else {
-      // Si es imagen, mostrar preview normalmente
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setPreview(event.target.result);
-      };
-      reader.readAsDataURL(file);
+
+      setPreviews(newPreviews);
+      setCargando(false);
+    } catch (err) {
+      setError(`Error al procesar archivos: ${err.message}`);
+      setCargando(false);
+      setArchivos([]);
+      setPreviews([]);
     }
   };
 
   const procesarImagen = async () => {
-    if (!archivo) {
-      setError("Por favor selecciona una imagen de factura");
+    if (archivos.length === 0) {
+      setError("Por favor selecciona al menos una imagen de factura");
       return;
     }
 
@@ -67,20 +82,25 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
     setError(null);
 
     try {
-      const datos = await extraerDatosComprobante(archivo);
-      onDetected(datos);
+      const todosLosDatos = [];
+      for (const archivo of archivos) {
+        const datos = await extraerDatosComprobante(archivo);
+        todosLosDatos.push(datos);
+      }
+
+      onDetected(todosLosDatos.length === 1 ? todosLosDatos[0] : todosLosDatos);
       limpiar();
       onClose();
     } catch (err) {
-      setError(err.message || "Error al procesar la imagen");
+      setError(err.message || "Error al procesar las imágenes");
     } finally {
       setCargando(false);
     }
   };
 
   const limpiar = () => {
-    setArchivo(null);
-    setPreview(null);
+    setArchivos([]);
+    setPreviews([]);
     setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -114,7 +134,7 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
           {/* Upload area */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">
-              Selecciona una imagen o PDF de factura:
+              Selecciona imágenes o PDFs de facturas (puedes cargar varias):
             </label>
             <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center transition hover:border-blue-400 hover:bg-blue-50/50">
               <input
@@ -123,6 +143,7 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
                 accept="image/*,.pdf"
                 onChange={handleFileChange}
                 disabled={cargando}
+                multiple
                 className="hidden"
               />
 
@@ -136,22 +157,41 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
               </button>
 
               <p className="text-sm font-semibold text-slate-900">
-                {archivo ? "Archivo cargado" : "Selecciona imagen o PDF"}
+                {archivos.length > 0
+                  ? `${archivos.length} archivo${archivos.length > 1 ? "s" : ""} cargado${archivos.length > 1 ? "s" : ""}`
+                  : "Selecciona imagen o PDF"}
               </p>
               <p className="text-xs text-slate-600">
-                {archivo ? archivo.name : "Foto de factura o archivo PDF"}
+                {archivos.length > 0
+                  ? archivos.map((a) => a.name).join(", ")
+                  : "Foto de factura o archivo PDF"}
               </p>
             </div>
           </div>
 
-          {/* Preview */}
-          {preview && (
+          {/* Previews */}
+          {previews.length > 0 && (
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <img
-                src={preview}
-                alt="Vista previa"
-                className="h-48 w-full object-cover rounded-lg"
-              />
+              <p className="mb-3 text-xs font-semibold text-slate-600">
+                Vista previa ({previews.length}):
+              </p>
+              <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto">
+                {previews.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="overflow-hidden rounded-lg border border-slate-200"
+                  >
+                    <img
+                      src={item.preview}
+                      alt={`Vista previa ${idx + 1}`}
+                      className="h-32 w-full object-cover"
+                    />
+                    <p className="truncate bg-white px-2 py-1 text-xs text-slate-600">
+                      {item.file.name}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -178,16 +218,16 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
           </button>
           <button
             onClick={procesarImagen}
-            disabled={!archivo || cargando}
+            disabled={archivos.length === 0 || cargando}
             className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed cursor-pointer"
           >
             {cargando ? (
               <>
                 <Loader className="h-4 w-4 animate-spin" />
-                Procesando...
+                Procesando {archivos.length} {archivos.length === 1 ? "archivo" : "archivos"}...
               </>
             ) : (
-              "Extraer datos"
+              `Extraer datos (${archivos.length})`
             )}
           </button>
         </div>
