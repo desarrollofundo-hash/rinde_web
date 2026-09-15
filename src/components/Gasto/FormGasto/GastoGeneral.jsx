@@ -408,6 +408,8 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
         isOpen: false,
         rucClienteOcr: "",
         rucEmpresa: "",
+        razonSocialOcr: "",
+        razonSocialEmpresa: "",
         onConfirm: null,
     });
     const [evidenciaInputResetKey, setEvidenciaInputResetKey] = useState(0);
@@ -731,6 +733,8 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                     isOpen: true,
                     rucClienteOcr,
                     rucEmpresa,
+                    razonSocialOcr,
+                    razonSocialEmpresa: formData.razonSocial || "—",
                     onConfirm: () => {
                         console.log("✋ Usuario aceptó continuar con RUC diferente");
                         completarConDatosOcr(datosOcr);
@@ -1649,6 +1653,8 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
           isOpen={rucValidationDialog.isOpen}
           rucClienteOcr={rucValidationDialog.rucClienteOcr}
           rucEmpresa={rucValidationDialog.rucEmpresa}
+          razonSocialOcr={rucValidationDialog.razonSocialOcr}
+          razonSocialEmpresa={rucValidationDialog.razonSocialEmpresa}
           onAccept={() => {
             if (rucValidationDialog.onConfirm) {
               rucValidationDialog.onConfirm();
