@@ -21,6 +21,7 @@ import QrScannerModal from "./QrScannerModal";
 import OcrScannerModal from "./OcrScannerModal";
 import RucValidationDialog from "./RucValidationDialog";
 import Toast from "../../shared/Toast.jsx";
+import RiveAnimation from "../../RiveAnimation";
 import { Save, QrCode, Camera } from "lucide-react";
 
 const getUserDni = (user) => {
@@ -1414,18 +1415,19 @@ export default function GastoGeneral({
           <button
             type="button"
             onClick={() => setIsOcrOpen(true)}
-            className="group relative overflow-hidden rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm transition hover:shadow-md hover:border-blue-300"
+            className="group relative overflow-hidden rounded-xl border border-blue-200 bg-linear-to-br from-blue-50 to-white p-4 shadow-sm transition hover:shadow-md hover:border-blue-300"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent opacity-0 transition group-hover:opacity-100" />
+            <div className="absolute inset-0 bg-linear-to-br from-blue-600/5 to-transparent opacity-0 transition group-hover:opacity-100" />
 
             <div className="relative flex flex-col gap-3">
               <div className="flex items-center gap-3">
-                <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white">
-                  <Camera className="h-5 w-5" />
-                </div>
+                <RiveAnimation
+                  src="/animations/robot-bouncing.riv"
+                  className="h-12 w-12"
+                />
                 <div className="text-left">
                   <p className="font-semibold text-slate-900">Scaner IA</p>
-                  {/*COLOCAR IMAGEN IA */}
+                  <p className="text-xs text-slate-500">Extrae datos automáticamente</p>
                 </div>
               </div>
             </div>
