@@ -254,17 +254,24 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
         // Validar que el RUC cliente de la factura coincida con la empresa logueada
         const rucEmpresa = getRucEmpresaSesion();
 
-        // DEBUG: Mostrar valores para troubleshooting
-        console.log("🔍 OCR Validación RUC (Movilidad):", {
-            rucClienteOcr,
-            rucEmpresa,
-            razonSocialOcr,
-            datosOcrCompletos: datosOcr,
-        });
+        // DEBUG: Mostrar valores con máximo detalle
+        console.log("═══════════════════════════════════════");
+        console.log("🔍 OCR VALIDACIÓN RUC (MOVILIDAD) - DATOS COMPLETOS:");
+        console.log("═══════════════════════════════════════");
+        console.log("📋 Del OCR extraído:", datosOcr);
+        console.log(`  • rucEmisor (limpio): "${rucEmisorLimpio}"`);
+        console.log(`  • rucCliente (limpio): "${rucClienteOcr}"`);
+        console.log(`  • razonSocial: "${razonSocialOcr}"`);
+        console.log("───────────────────────────────────────");
+        console.log("🏢 De la empresa en sesión:");
+        console.log(`  • rucEmpresa: "${rucEmpresa}"`);
+        console.log("───────────────────────────────────────");
 
         // Validación: Solo si ambos RUC existen y son diferentes
         if (rucClienteOcr && rucEmpresa) {
+            console.log("✅ Ambos RUC presentes - Comparando...");
             if (rucClienteOcr !== rucEmpresa) {
+                console.warn(`❌ RUC NO COINCIDEN: "${rucClienteOcr}" !== "${rucEmpresa}"`);
                 const confirmacion = window.confirm(
                     `⚠️ ADVERTENCIA - RUC NO COINCIDE:\n\n` +
                     `RUC cliente en factura: ${rucClienteOcr}\n` +
@@ -277,13 +284,13 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
                     return;
                 }
             } else {
-                console.log("✅ RUC validado correctamente - coinciden");
+                console.log("✅ RUC validado correctamente - coinciden perfectamente");
             }
         } else {
-            console.warn("⚠️ RUC incompleto - No se puede validar", {
-                rucClienteOcr: rucClienteOcr || "VACÍO",
-                rucEmpresa: rucEmpresa || "VACÍO",
-            });
+            console.warn("❌ RUC INCOMPLETO - No se puede validar:");
+            console.warn(`  • rucClienteOcr: "${rucClienteOcr || '∅ VACÍO'}" (tipo: ${typeof rucClienteOcr})`);
+            console.warn(`  • rucEmpresa: "${rucEmpresa || '∅ VACÍO'}" (tipo: ${typeof rucEmpresa})`);
+            console.log("═══════════════════════════════════════");
         }
 
         setFormData((prev) => ({
