@@ -9,6 +9,8 @@
 // porque el prefijo VITE_ la expone al cliente. Antes de ir a producción esto debería
 // moverse a un endpoint de tu backend real que guarde las claves del lado servidor.
 
+import * as pdfjsLib from "pdfjs-dist";
+
 // Mismo catálogo que FALLBACK_TIPOS_COMPROBANTE en GastoGeneral.jsx.
 // Si cambias uno, cambia el otro para que no se desincronicen.
 export const TIPOS_COMPROBANTE_CATALOGO = [
@@ -31,6 +33,33 @@ async function convertirFileABase64(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+async function convertirPdfAImagen(file) {
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const page = await pdf.getPage(1);
+
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    const context = canvas.getContext("2d");
+    await page.render({ canvasContext: context, viewport }).promise;
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        const imagenFile = new File([blob], "factura.png", { type: "image/png" });
+        resolve(imagenFile);
+      }, "image/png");
+    });
+  } catch (error) {
+    throw new Error(`No se pudo convertir PDF a imagen: ${error.message}`);
+  }
 }
 
 function construirPrompt() {
@@ -187,15 +216,24 @@ async function extraerCamposConOpenAI(base64Imagen, mimeType) {
 }
 
 /**
- * Extrae los campos de un comprobante a partir de un archivo (imagen).
+ * Extrae los campos de un comprobante a partir de un archivo (imagen o PDF).
+ * Si es PDF, lo convierte a imagen primero.
  * Devuelve el mismo "shape" que parseQrPayload() en GastoGeneral.jsx.
  *
- * @param {File} file  Imagen ya lista (si venía de un PDF, ya fue convertida
- *                      antes de llegar acá, igual que en el flujo existente).
+ * @param {File} file  Imagen (JPG, PNG, etc) o PDF
  */
 export async function extraerDatosComprobante(file) {
-  const base64Imagen = await convertirFileABase64(file);
-  const mimeType = file.type || "image/jpeg";
+  let archivoParaProcesar = file;
+
+  // Si es PDF, convertir a imagen
+  if (file.type === "application/pdf") {
+    console.log("📄 Detectado PDF, convirtiendo a imagen...");
+    archivoParaProcesar = await convertirPdfAImagen(file);
+    console.log("✅ PDF convertido a imagen");
+  }
+
+  const base64Imagen = await convertirFileABase64(archivoParaProcesar);
+  const mimeType = archivoParaProcesar.type || "image/jpeg";
   const campos = await extraerCamposConOpenAI(base64Imagen, mimeType);
 
   // VALIDACIÓN CRÍTICA: rucCliente es obligatorio para validar contra empresa

@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { X, Upload, Loader, AlertCircle } from "lucide-react";
 import { extraerDatosComprobante } from "../../../services/ocrExtraction";
+import * as pdfjsLib from "pdfjs-dist";
 
 export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
     const [archivo, setArchivo] = useState(null);
@@ -9,18 +10,47 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
     const [error, setError] = useState(null);
     const fileInputRef = useRef(null);
 
-    const handleFileChange = (e) => {
+    const handleFileChange = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
         setArchivo(file);
         setError(null);
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            setPreview(event.target.result);
-        };
-        reader.readAsDataURL(file);
+        // Si es PDF, convertir a imagen para preview
+        if (file.type === "application/pdf") {
+            try {
+                setCargando(true);
+                pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const page = await pdf.getPage(1);
+
+                const viewport = page.getViewport({ scale: 2 });
+                const canvas = document.createElement("canvas");
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                const context = canvas.getContext("2d");
+                await page.render({ canvasContext: context, viewport }).promise;
+
+                setPreview(canvas.toDataURL("image/png"));
+                setCargando(false);
+            } catch (err) {
+                setError(`Error al procesar PDF: ${err.message}`);
+                setCargando(false);
+                setArchivo(null);
+                setPreview(null);
+            }
+        } else {
+            // Si es imagen, mostrar preview normalmente
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                setPreview(event.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     const procesarImagen = async () => {
@@ -82,7 +112,7 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
                     {/* Upload area */}
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">
-                            Selecciona una imagen de factura
+                            Selecciona una imagen o PDF de factura
                         </label>
                         <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center transition hover:border-blue-400 hover:bg-blue-50/50">
                             <input
@@ -104,12 +134,12 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
                             </button>
 
                             <p className="text-sm font-semibold text-slate-900">
-                                {archivo ? "Imagen cargada" : "Selecciona una imagen"}
+                                {archivo ? "Archivo cargado" : "Selecciona imagen o PDF"}
                             </p>
                             <p className="text-xs text-slate-600">
                                 {archivo
                                     ? archivo.name
-                                    : "Haz clic para seleccionar una foto"}
+                                    : "Foto de factura o archivo PDF"}
                             </p>
                         </div>
                     </div>
