@@ -18,8 +18,8 @@ export default function OcrResultsTable({
     "03": "BOLETA DE VENTA",
     "07": "NOTA DE CREDITO",
     "08": "NOTA DE DEBITO",
-    "10": "RECIBO POR HONORARIO",
-    "11": "OTROS",
+    10: "RECIBO POR HONORARIO",
+    11: "OTROS",
   };
 
   const monedas = {
@@ -45,114 +45,349 @@ export default function OcrResultsTable({
     setDeleteConfirmIndex(null);
   };
 
+  const getRucEmpresa = () => {
+    try {
+      const rawEmpresa = localStorage.getItem("company") || localStorage.getItem("empresa");
+      const empresa = rawEmpresa ? JSON.parse(rawEmpresa) : null;
+      return String(empresa?.ruc ?? empresa?.RUC ?? empresa?.numRuc ?? "").replace(/\D/g, "");
+    } catch (error) {
+      return "";
+    }
+  };
+
+  const validarRucFacura = (rucCliente) => {
+    const rucEmpresa = getRucEmpresa();
+    const rucClienteLimpio = String(rucCliente || "").replace(/\D/g, "");
+
+    if (!rucClienteLimpio || !rucEmpresa) {
+      return { valido: false, mensaje: "RUC no disponible", color: "text-gray-500" };
+    }
+
+    if (rucClienteLimpio === rucEmpresa) {
+      return {
+        valido: true,
+        mensaje: "✓ Factura sí pertenece a la empresa",
+        color: "text-green-600 font-semibold"
+      };
+    } else {
+      return {
+        valido: false,
+        mensaje: "✗ Factura NO pertenece a la empresa",
+        color: "text-red-600 font-semibold"
+      };
+    }
+  };
+
+  const desktopColumnWidths = {
+    numero: "4%",
+    rucCliente: "10%",
+    cliente: "20%",
+    tipo: "8%",
+    comprobante: "13%",
+    fecha: "10%",
+    total: "9%",
+    moneda: "7%",
+    evidencia: "10%",
+    acciones: "11%",
+    observaciones: "10%",
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold text-slate-900">
-          Resultados OCR ({resultados.length} registros)
+          Resultados del Scanit: {/* ({resultados.length} registros) */}
         </h3>
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-red-600">
           Revisa los datos extraídos antes de guardar
         </p>
       </div>
 
-      <div className="overflow-x-auto border border-slate-200 rounded-lg">
-        <table className="w-full text-sm">
-          {/* Header */}
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <table className="w-full table-fixed border-separate border-spacing-0 text-sm">
+          {/* ================= HEADER ================= */}
           <thead>
-            <tr className="border-b border-slate-200 bg-gradient-to-r from-blue-50 to-slate-50">
-              <th className="px-3 py-2 text-left font-semibold text-slate-700">#</th>
-              <th className="px-3 py-2 text-left font-semibold text-slate-700">RUC Emisor</th>
-              <th className="px-3 py-2 text-left font-semibold text-slate-700">Emisor</th>
-              <th className="px-3 py-2 text-left font-semibold text-slate-700">RUC Cliente</th>
-              <th className="px-3 py-2 text-left font-semibold text-slate-700">Cliente</th>
-              <th className="px-3 py-2 text-left font-semibold text-slate-700">Tipo</th>
-              <th className="px-3 py-2 text-left font-semibold text-slate-700">Serie-Número</th>
-              <th className="px-3 py-2 text-left font-semibold text-slate-700">Fecha</th>
-              <th className="px-3 py-2 text-left font-semibold text-slate-700">IGV</th>
-              <th className="px-3 py-2 text-left font-semibold text-slate-700">Total</th>
-              <th className="px-3 py-2 text-left font-semibold text-slate-700">Moneda</th>
-              <th className="px-3 py-2 text-center font-semibold text-slate-700">Evidencia</th>
-              <th className="px-3 py-2 text-center font-semibold text-slate-700">Acciones</th>
+            <tr className="bg-slate-50">
+              <th
+                style={{ width: desktopColumnWidths.numero }}
+                className="border-b border-slate-200 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+              >
+                #
+              </th>
+
+              <th
+                style={{ width: desktopColumnWidths.rucCliente }}
+                className="border-b border-slate-200 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+              >
+                RUC EMISOR
+              </th>
+
+              <th
+                style={{ width: desktopColumnWidths.emisor }}
+                className="border-b border-slate-200 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500 "
+              >
+                EMPRESA
+              </th>
+
+              <th
+                style={{ width: desktopColumnWidths.tipo }}
+                className="border-b border-slate-200 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+              >
+                Tipo
+              </th>
+
+              <th
+                style={{ width: desktopColumnWidths.comprobante }}
+                className="border-b border-slate-200 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+              >
+                Comprobante
+              </th>
+
+              <th
+                style={{ width: desktopColumnWidths.fecha }}
+                className="border-b border-slate-200 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+              >
+                Fecha
+              </th>
+
+              <th
+                style={{ width: desktopColumnWidths.total }}
+                className="border-b border-slate-200 px-2 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500"
+              >
+                Total
+              </th>
+
+              <th
+                style={{ width: desktopColumnWidths.moneda }}
+                className="border-b border-slate-200 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+              >
+                Moneda
+              </th>
+
+              <th
+                style={{ width: desktopColumnWidths.evidencia }}
+                className="border-b border-slate-200 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+              >
+                Evidencia
+              </th>
+
+              <th
+                style={{ width: desktopColumnWidths.acciones }}
+                className="border-b border-slate-200 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+              >
+                Acciones
+              </th>
+              <th
+                style={{ width: desktopColumnWidths.acciones }}
+                className="border-b border-slate-200 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+              >
+                Observaciones
+              </th>
             </tr>
           </thead>
 
-          {/* Body */}
+          {/* ================= BODY ================= */}
           <tbody>
             {resultados.map((item, idx) => (
               <tr
                 key={idx}
-                className={`border-b border-slate-200 hover:bg-blue-50/50 transition ${
-                  idx % 2 === 0 ? "bg-white" : "bg-slate-50/30"
-                }`}
+                className={`
+            group transition-colors
+            hover:bg-blue-50/40
+            ${idx % 2 === 0 ? "bg-white" : "bg-slate-50/30"}
+          `}
               >
-                <td className="px-3 py-3 font-bold text-slate-700">{idx + 1}</td>
-                <td className="px-3 py-3 font-mono text-sm font-semibold text-red-600">
-                  {item.rucEmisor}
-                </td>
-                <td className="px-3 py-3 text-slate-900 max-w-[120px] truncate">
-                  {item.razonSocial}
-                </td>
-                <td className="px-3 py-3 font-mono text-sm font-semibold text-blue-600">
-                  {item.rucCliente}
-                </td>
-                <td className="px-3 py-3 text-slate-900 max-w-[120px] truncate">
-                  {item.razonSocialCliente || "—"}
-                </td>
-                <td className="px-3 py-3">
-                  <span className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                    {tiposComprobante[item.tipoComprobante]?.split(" ")[0] ||
-                      item.tipoComprobante}
+                {/* # */}
+                <td
+                  style={{ width: desktopColumnWidths.numero }}
+                  className="border-b border-slate-100 px-2 py-2.5 text-center"
+                >
+                  <span className="text-xs font-semibold text-slate-400">
+                    {String(idx + 1).padStart(2, "0")}
                   </span>
                 </td>
-                <td className="px-3 py-3 font-mono text-sm font-semibold text-slate-700">
-                  {item.serie}-{item.numero}
+
+                {/* RUC EMISOR */}
+                <td
+                  style={{ width: desktopColumnWidths.rucEmisor }}
+                  className="border-b border-slate-100 px-2 py-2.5 text-center"
+                >
+                  <span className="font-mono text-xs font-semibold text-slate-700">
+                    {item.rucEmisor || "—"}
+                  </span>
                 </td>
-                <td className="px-3 py-3 text-slate-700 text-sm">
-                  {item.fecha}
+
+                {/* CLIENTE */}
+                <td
+                  style={{ width: desktopColumnWidths.emisor }}
+                  className="border-b border-slate-100 px-2 py-2.5"
+                >
+                  <div
+                    className="truncate text-center text-xs font-semibold text-slate-800"
+                    title={item.emisor || ""}
+                  >
+                    {item.razonSocial || "—"}
+                  </div>
                 </td>
-                <td className="px-3 py-3 text-slate-700 font-semibold">
-                  S/ {item.igv}
+
+                {/* TIPO */}
+                <td
+                  style={{ width: desktopColumnWidths.tipo }}
+                  className="border-b border-slate-100 px-2 py-2.5 text-center"
+                >
+                  <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold uppercase text-amber-700">
+                    {tiposComprobante[item.tipoComprobante]?.split(" ")[0] ||
+                      item.tipoComprobante ||
+                      "—"}
+                  </span>
                 </td>
-                <td className="px-3 py-3 font-bold text-green-600 text-base">
-                  {monedas[item.moneda] || "PEN"} {item.total}
+
+                {/* COMPROBANTE */}
+                <td
+                  style={{ width: desktopColumnWidths.comprobante }}
+                  className="border-b border-slate-100 px-2 py-2.5 text-center"
+                >
+                  <div className="font-mono text-xs font-semibold text-slate-700">
+                    {item.serie || "—"}-{item.numero || "—"}
+                  </div>
                 </td>
-                <td className="px-3 py-3 text-center">
-                  <span className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+
+                {/* FECHA */}
+                <td
+                  style={{ width: desktopColumnWidths.fecha }}
+                  className="border-b border-slate-100 px-2 py-2.5 text-center"
+                >
+                  <span className="text-xs font-medium text-slate-600">
+                    {item.fecha || "—"}
+                  </span>
+                </td>
+
+                {/* TOTAL */}
+                <td
+                  style={{ width: desktopColumnWidths.total }}
+                  className="border-b border-slate-100 px-2 py-2.5 text-right"
+                >
+                  <span className="text-sm font-bold text-slate-800">
+                    {item.total || "0.00"}
+                  </span>
+                </td>
+
+                {/* MONEDA */}
+                <td
+                  style={{ width: desktopColumnWidths.moneda }}
+                  className="border-b border-slate-100 px-2 py-2.5 text-center"
+                >
+                  <span className="inline-flex min-w-[42px] items-center justify-center rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">
                     {monedas[item.moneda] || "PEN"}
                   </span>
                 </td>
-                <td className="px-3 py-3 text-center">
-                  {item.preview && (
+
+                {/* EVIDENCIA */}
+                <td
+                  style={{ width: desktopColumnWidths.evidencia }}
+                  className="border-b border-slate-100 px-2 py-2.5 text-center"
+                >
+                  {item.preview ? (
                     <button
+                      type="button"
                       onClick={() => setZoomImage(item.preview)}
-                      className="inline-flex items-center justify-center h-12 w-12 rounded-lg border border-slate-300 bg-white hover:border-blue-400 hover:bg-blue-50 transition cursor-pointer group"
-                      title="Haz clic para ampliar"
+                      className="
+                  group/evidence
+                  inline-flex h-11 w-11
+                  items-center justify-center
+                  overflow-hidden
+                  rounded-lg
+                  border border-slate-200
+                  bg-white
+                  shadow-sm
+                  transition-all
+                  hover:border-blue-400
+                  hover:shadow-md
+                  cursor-pointer
+                "
+                      title="Ver evidencia"
                     >
                       <img
                         src={item.preview}
                         alt="Evidencia"
-                        className="h-10 w-10 rounded object-cover group-hover:opacity-80"
+                        className="
+                    h-full w-full
+                    object-cover
+                    transition-transform
+                    duration-200
+                    group-hover/evidence:scale-110
+                  "
                       />
                     </button>
+                  ) : (
+                    <span className="text-xs text-slate-400">Sin imagen</span>
                   )}
                 </td>
-                <td className="px-3 py-3 text-center flex gap-2 justify-center">
-                  <button
-                    onClick={() => handleEdit(idx)}
-                    className="inline-flex items-center justify-center h-9 px-3 rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold transition cursor-pointer gap-1.5"
-                    title="Editar este registro"
-                  >
-                    <Edit2 className="h-4 w-4" />
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirmIndex(idx)}
-                    className="inline-flex items-center justify-center h-9 px-3 rounded-lg border border-red-300 bg-red-50 hover:bg-red-100 text-red-700 font-semibold transition cursor-pointer"
-                    title="Eliminar este gasto"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+
+                {/* ACCIONES */}
+                <td
+                  style={{ width: desktopColumnWidths.acciones }}
+                  className="border-b border-slate-100 px-2 py-2.5 text-center"
+                >
+                  <div className="flex items-center justify-center gap-1.5">
+                    {/* EDITAR */}
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(idx)}
+                      className="
+                  inline-flex h-8 w-8
+                  items-center justify-center
+                  rounded-lg
+                  border border-blue-200
+                  bg-blue-50
+                  text-blue-600
+                  transition-all
+                  hover:border-blue-300
+                  hover:bg-blue-100
+                  hover:text-blue-700
+                  hover:shadow-sm
+                  active:scale-95
+                  cursor-pointer
+                "
+                      title="Editar gasto"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+
+                    {/* ELIMINAR */}
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmIndex(idx)}
+                      className="
+                  inline-flex h-8 w-8
+                  items-center justify-center
+                  rounded-lg
+                  border border-red-200
+                  bg-red-50
+                  text-red-500
+                  transition-all
+                  hover:border-red-300
+                  hover:bg-red-100
+                  hover:text-red-600
+                  hover:shadow-sm
+                  active:scale-95
+                  cursor-pointer
+                "
+                      title="Quitar gasto"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </td>
+
+                {/*OBSERVACIONES */}
+                <td
+                  style={{ width: desktopColumnWidths.observaciones }}
+                  className="border-b border-slate-100 px-2 py-2.5"
+                >
+                  <div className={`text-center text-xs ${validarRucFacura(item.rucCliente).color}`}>
+                    {validarRucFacura(item.rucCliente).mensaje}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -197,13 +432,17 @@ export default function OcrResultsTable({
               </p>
               <div className="rounded-lg bg-slate-50 p-3">
                 <p className="text-sm">
-                  <strong>Emisor:</strong> {resultados[deleteConfirmIndex]?.razonSocial}
+                  <strong>Emisor:</strong>{" "}
+                  {resultados[deleteConfirmIndex]?.razonSocial}
                 </p>
                 <p className="text-sm">
-                  <strong>Comprobante:</strong> {resultados[deleteConfirmIndex]?.serie}-{resultados[deleteConfirmIndex]?.numero}
+                  <strong>Comprobante:</strong>{" "}
+                  {resultados[deleteConfirmIndex]?.serie}-
+                  {resultados[deleteConfirmIndex]?.numero}
                 </p>
                 <p className="text-sm">
-                  <strong>Total:</strong> {resultados[deleteConfirmIndex]?.total}
+                  <strong>Total:</strong>{" "}
+                  {resultados[deleteConfirmIndex]?.total}
                 </p>
               </div>
             </div>
