@@ -1,0 +1,31 @@
+{
+  "artboards": [
+    {
+      "file": "LoginOption1.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 720,
+      "title": "Opción 1: Corporativo de Dos Columnas"
+    },
+    {
+      "file": "LoginOption2.dc.html",
+      "x": 1360,
+      "y": 0,
+      "w": 540,
+      "h": 720,
+      "title": "Opción 2: Centrado Minimalista"
+    },
+    {
+      "file": "LoginOption3.dc.html",
+      "x": 1360,
+      "y": 800,
+      "w": 540,
+      "h": 720,
+      "title": "Opción 3: Dark Mode Moderno"
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

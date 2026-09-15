@@ -13,6 +13,7 @@ import PaginationControls from "./PaginationControls";
 import AnimatedList from "./AnimatedList";
 import { IconBroom } from "../../Icons/broom";
 import { IconClose } from "../../Icons/close";
+import EstadisticasIcon from "../../Icons/statistics";
 import {
   ExportGastosToolbar,
   ExportGastosBulkSelect,
@@ -20,6 +21,7 @@ import {
 import { IconEtiqueta } from "../../Icons/etiqueta";
 import Toast from "../shared/Toast";
 import { getWorkflowStatusBadgeClass } from "../shared/workflowStatus";
+import { FileText, Loader2 } from "lucide-react";
 export default function CrearGasto() {
   const DEFAULT_PAGE_SIZE = 10;
   const PAGE_SIZE_STORAGE_KEY = "gasto.pageSize";
@@ -54,10 +56,25 @@ export default function CrearGasto() {
   useEffect(() => {
     localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(pageSize));
   }, [pageSize]);
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === "Escape" && searchTerm) {
+        setSearchTerm("");
+      }
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [searchTerm]);
 
   const [previewGasto, setPreviewGasto] = useState(null);
   const [editGasto, setEditGasto] = useState(null);
   const [zoomSrc, setZoomSrc] = useState(null);
+
+  // ESTADOS PARA PREVIEW AL PASAR CURSOR (HOVER)
+  // hoverEvidenceSrc: URL de la imagen a mostrar en el preview
+  // hoverEvidencePos: Posición X,Y donde aparecerá el preview
+  const [hoverEvidenceSrc, setHoverEvidenceSrc] = useState(null);
+  const [hoverEvidencePos, setHoverEvidencePos] = useState({ x: 0, y: 0 });
   const modalRoot = typeof document !== "undefined" ? document.body : null;
   const isFetchingRef = useRef(false);
   const pendingForceRefreshRef = useRef(false);
@@ -78,29 +95,26 @@ export default function CrearGasto() {
   }, []);
 
   const getGlosaOrNota = useCallback(
-    (gasto) =>
-      firstDefined(
-        gasto?.obs,
-  
-      ),
+    (gasto) => firstDefined(gasto?.obs),
     [firstDefined],
   );
 
   const getTipoComprobante = useCallback(
-    (gasto) =>
-      firstDefined(gasto?.tipocomprobante),
+    (gasto) => firstDefined(gasto?.tipocomprobante),
     [firstDefined],
   );
 
-  const getGastoIdRend = useCallback( (gasto) => String(firstDefined( gasto?.idrend,),),[firstDefined],);
- const getMotivoRechazo = useCallback(
-        (gasto) =>
-          String(firstDefined(gasto?.motivorechazo, gasto?.rechazoRev)),
-        [firstDefined],
-      );
+  const getGastoIdRend = useCallback(
+    (gasto) => String(firstDefined(gasto?.idrend)),
+    [firstDefined],
+  );
+  const getMotivoRechazo = useCallback(
+    (gasto) => String(firstDefined(gasto?.motivorechazo, gasto?.rechazoRev)),
+    [firstDefined],
+  );
   const getGastoSelectionId = useCallback(
     (gasto) => {
-      const explicitId = firstDefined(gasto?.idrend,);
+      const explicitId = firstDefined(gasto?.idrend);
       if (explicitId) return String(explicitId);
 
       const fallback = [
@@ -131,10 +145,16 @@ export default function CrearGasto() {
 
   const isMovilidadGasto = useCallback(
     (gasto) => {
-      const categoriaRaw = normalizeText(firstDefined(gasto?.categoria),);
-      const tipoRaw = normalizeText(firstDefined(gasto?.tipogasto,gasto?.tipomovilidad,),);
-      const politicaRaw = normalizeText( firstDefined(gasto?.politica),);
-      const hasMovilidadFields = [gasto?.lugarorigen,gasto?.lugardestino,gasto?.tipomovilidad,].some((value) => String(value ?? "").trim() !== "");
+      const categoriaRaw = normalizeText(firstDefined(gasto?.categoria));
+      const tipoRaw = normalizeText(
+        firstDefined(gasto?.tipogasto, gasto?.tipomovilidad),
+      );
+      const politicaRaw = normalizeText(firstDefined(gasto?.politica));
+      const hasMovilidadFields = [
+        gasto?.lugarorigen,
+        gasto?.lugardestino,
+        gasto?.tipomovilidad,
+      ].some((value) => String(value ?? "").trim() !== "");
 
       const keywords = [
         "MOVILIDAD",
@@ -201,7 +221,7 @@ export default function CrearGasto() {
 
   const isGastoEditable = useCallback(
     (gasto) => {
-      const estado = normalizeEstadoFlow(firstDefined(gasto?.estadoActual,""),);
+      const estado = normalizeEstadoFlow(firstDefined(gasto?.estadoActual, ""));
       return estado === "BORRADOR";
     },
     [normalizeEstadoFlow, firstDefined],
@@ -209,7 +229,9 @@ export default function CrearGasto() {
 
   const mergeGastoEstadoByFlow = useCallback(
     (gasto) => {
-      const backendEstado = normalizeEstadoFlow(firstDefined(gasto?.estadoActual,"",),);
+      const backendEstado = normalizeEstadoFlow(
+        firstDefined(gasto?.estadoActual, ""),
+      );
 
       if (backendEstado) {
         return { ...gasto, estado: backendEstado, estadoActual: backendEstado };
@@ -275,7 +297,7 @@ export default function CrearGasto() {
         const userData = userRaw ? JSON.parse(userRaw) : null;
         const companyData = companyRaw ? JSON.parse(companyRaw) : null;
 
-         /* console.log("👤 USER COMPLETO:", userData);
+        /* console.log("👤 USER COMPLETO:", userData);
                     console.log("🏢 EMPRESA ACTUAL:", companyData);  */
 
         if (!userData || !companyData) {
@@ -285,21 +307,20 @@ export default function CrearGasto() {
         const resolvedUserId = String(
           firstDefined(userData?.usecod, userData?.id, userData?.idUser, ""),
         );
-        const resolvedRuc = String(
-          firstDefined(companyData?.ruc, "",),
-        );
+        const resolvedRuc = String(firstDefined(companyData?.ruc, ""));
 
         if (!resolvedUserId || !resolvedRuc) {
           throw new Error("No se pudo resolver user/ruc para listar gastos");
         }
+
         const data = await getListaGastos({
           id: "1",
           idrend: "1",
           user: resolvedUserId,
           ruc: resolvedRuc,
         });
-        
-                        /*         console.log("📌 RUC ENVIADO:", companyData.ruc);
+
+        /*         console.log("📌 RUC ENVIADO:", companyData.ruc);
                                 console.log("📥 GASTOS:", data); */
 
         const merged = (Array.isArray(data) ? data : []).map((g) =>
@@ -316,7 +337,7 @@ export default function CrearGasto() {
           hasMeaningfulChanges(prev, merged) ? merged : prev,
         );
       } catch (error) {
-     /*    console.error("❌ Error cargando gastos:", error.message); */
+        /*    console.error("❌ Error cargando gastos:", error.message); */
       } finally {
         if (!silent) {
           setLoadingGastos(false);
@@ -337,15 +358,22 @@ export default function CrearGasto() {
   }, [fetchGastos]);
 
   useEffect(() => {
+    let companyChangeTimeoutId;
+
     const onFocus = () => fetchGastos({ silent: true });
-    const onCompanyChanged = () => fetchGastos({ silent: true, force: true });
+    const onCompanyChanged = () => {
+      // Agregar pequeño delay para evitar bloqueos de UI
+      companyChangeTimeoutId = setTimeout(() => {
+        fetchGastos({ silent: true, force: true });
+      }, 150);
+    };
     const onInformeUpdated = () => fetchGastos({ silent: true, force: true });
     const onAuditoriaUpdated = () => fetchGastos({ silent: true, force: true });
     const onRevisionUpdated = (event) => {
       // Si es DESAPROBADO, NO usar silent para mostrar cambios inmediatamente
       const isDesaprobado = event?.detail?.decision === "RECHAZADO";
-      /*    console.log("📢 revision:updated evento:", { 
-                         isDesaprobado, 
+      /*    console.log("📢 revision:updated evento:", {
+                         isDesaprobado,
                          detail: event?.detail
                      }); */
       fetchGastos({ silent: !isDesaprobado, force: true });
@@ -358,6 +386,7 @@ export default function CrearGasto() {
     window.addEventListener("revision:updated", onRevisionUpdated);
 
     return () => {
+      clearTimeout(companyChangeTimeoutId);
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("company:changed", onCompanyChanged);
       window.removeEventListener("informe:updated", onInformeUpdated);
@@ -369,6 +398,7 @@ export default function CrearGasto() {
   const openCreateModal = async () => {
     setError(null);
 
+    // Cargar políticas solo si aún no están cargadas
     if (politicas.length === 0) {
       setLoading(true);
       try {
@@ -443,6 +473,25 @@ export default function CrearGasto() {
     setEditGasto(null);
   };
 
+  // FUNCIÓN: Mostrar preview al pasar cursor sobre evidencia
+  // e: evento del mouse
+  // imageSrc: URL de la imagen a mostrar
+  // Obtiene la posición X,Y de donde está la imagen pequeña para posicionar el preview
+  const handleEvidenceMouseEnter = (e, imageSrc) => {
+    if (!imageSrc) return;
+    const rect = e.currentTarget.getBoundingClientRect(); // Posición de la imagen
+    setHoverEvidenceSrc(imageSrc); // Guardar URL de la imagen
+    setHoverEvidencePos({
+      x: rect.left, // Posición horizontal (izquierda)
+      y: rect.top, // Posición vertical (arriba)
+    });
+  };
+
+  // FUNCIÓN: Ocultar preview cuando el cursor sale de la imagen
+  const handleEvidenceMouseLeave = () => {
+    setHoverEvidenceSrc(null);
+  };
+
   const handleEditSaved = async (updatedGasto) => {
     if (!updatedGasto) return;
 
@@ -485,7 +534,7 @@ export default function CrearGasto() {
 
     setPreviewGasto((prev) => {
       if (!prev) return prev;
-      const previewId = String( prev?.idrend ?? "");
+      const previewId = String(prev?.idrend ?? "");
       return previewId && updatedId && previewId === updatedId
         ? { ...prev, ...mergedGasto }
         : prev;
@@ -493,7 +542,7 @@ export default function CrearGasto() {
 
     setEditGasto((prev) => {
       if (!prev) return prev;
-      const editId = String( prev?.idrend?? "");
+      const editId = String(prev?.idrend ?? "");
       return editId && updatedId && editId === updatedId
         ? { ...prev, ...mergedGasto }
         : prev;
@@ -567,17 +616,23 @@ export default function CrearGasto() {
 
     const delimiter = ";";
     const columns = [
-      {header: "ID Rendición",getValue: (gasto) => getGastoIdRend(gasto),},
-      {header: "Política",getValue: (gasto) => gasto?.politica ?? "",},
-      {header: "Categoría",getValue: (gasto) => gasto?.categoria ?? "", },
-      {header: "Tipo de gasto",getValue: (gasto) => gasto?.tipogasto ?? "",},
-      {header: "Proveedor",getValue: (gasto) => gasto?.proveedor ?? "",},
-      {header: "Total",getValue: (gasto) => gasto?.total ?? "",},
-      {header: "Moneda",getValue: (gasto) => gasto?.moneda ?? "",},
-      {header: "Estado",getValue: (gasto) => normalizeEstadoLabel(gasto?.estado ?? ""),},
-      {header: "Fecha",getValue: (gasto) => gasto?.fecha?.split("T")[0] || "",},
-      {header: "Días",getValue: (gasto) => getDiasTranscurridos(gasto),},
-      {header: "Glosa",getValue: (gasto) => getGlosaOrNota(gasto),},
+      { header: "ID Rendición", getValue: (gasto) => getGastoIdRend(gasto) },
+      { header: "Política", getValue: (gasto) => gasto?.politica ?? "" },
+      { header: "Categoría", getValue: (gasto) => gasto?.categoria ?? "" },
+      { header: "Tipo de gasto", getValue: (gasto) => gasto?.tipogasto ?? "" },
+      { header: "Proveedor", getValue: (gasto) => gasto?.proveedor ?? "" },
+      { header: "Total", getValue: (gasto) => gasto?.total ?? "" },
+      { header: "Moneda", getValue: (gasto) => gasto?.moneda ?? "" },
+      {
+        header: "Estado",
+        getValue: (gasto) => normalizeEstadoLabel(gasto?.estado ?? ""),
+      },
+      {
+        header: "Fecha",
+        getValue: (gasto) => gasto?.fecha?.split("T")[0] || "",
+      },
+      { header: "Días", getValue: (gasto) => getDiasTranscurridos(gasto) },
+      { header: "Glosa", getValue: (gasto) => getGlosaOrNota(gasto) },
     ];
 
     const escapeCsvCell = (value) => {
@@ -690,21 +745,28 @@ export default function CrearGasto() {
   return (
     <>
       <div className="mx-auto flex min-h-full w-full flex-col space-y-1 px-2 sm:px-4 lg:px-6">
-        <div className="relative overflow-hidden rounded-2xl border p-2 bg-white border-blue-200/70  shadow-sm">
+        <div className="relative overflow-hidden rounded-2xl border p-2 bg-white border-sky-200/70  shadow-sm">
           <div className="flex items-center justify-between gap-2">
             {/* TEXTO */}
-            <div className="min-w-0">
-              <h1 className="truncate text-base font-semibold text-slate-800 sm:text-xl">
-                Gastos
-              </h1>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-sky-100 to-blue-100">
+                <EstadisticasIcon className="w-6 h-6 text-sky-500" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">
+                  Gastos
+                </h1>
+                <p className="text-xs text-slate-500">
+                  Gestiona tus rendiciones
+                </p>
+              </div>
             </div>
-
             {/* BOTÓN */}
             <button
               type="button"
               onClick={openCreateModal}
               disabled={loading}
-              className="inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-blue-900 px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-blue-800 active:scale-95 disabled:opacity-60 cursor-pointer"
+              className="inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-sky-700 active:scale-95 disabled:opacity-60 cursor-pointer"
             >
               {loading ? <>⏳ Cargando</> : <>＋ Nuevo</>}
             </button>
@@ -724,31 +786,42 @@ export default function CrearGasto() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por ID, política, categoría, tipo de gasto, proveedor, total, fecha, estado o glosa"
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 pr-10 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                // 1. Placeholder más conciso y legible
+                placeholder="Buscar por ID, política, categoría, estado..."
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 pr-10 text-sm text-slate-700 outline-none transition duration-200
+        placeholder:text-slate-400 placeholder:font-normal
+        focus:border-sky-500 focus:ring-2 focus:ring-sky-200 focus:shadow-md
+        hover:border-slate-400
+        disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
+                aria-label="Campo de búsqueda de gastos"
               />
 
+              {/* 2. Botón de limpiar mejorado */}
               {searchTerm && (
                 <button
                   type="button"
                   onClick={() => setSearchTerm("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition duration-200
+          hover:bg-slate-100 hover:text-slate-600
+          active:scale-95
+          focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:outline-none"
                   aria-label="Limpiar búsqueda"
+                  title="Limpiar (Esc)"
                 >
-                  ✕
+                  {/* 3. Icono X mejorado en lugar de símbolo */}
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
                 </button>
               )}
             </div>
 
-            {/*    <button
-              type="button"
-              title="Limpiar búsqueda"
-              onClick={() => setSearchTerm("")}
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 cursor-pointer sm:h-auto sm:w-auto sm:px-3 sm:py-2.5"
-            >
-              <IconBroom className="h-5 w-5" />
-            </button>
- */}
             <div className="flex shrink-0 items-center gap-2">
               <ExportGastosToolbar
                 isExportMode={isExportMode}
@@ -762,15 +835,38 @@ export default function CrearGasto() {
           </div>
 
           {loadingGastos && (
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600">
-              Cargando gastos...
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-6 space-y-2">
+              <div className="flex items-center gap-2 text-sm text-slate-600 justify-center mb-4">
+                <Loader2 className="w-4 h-4 animate-spin text-sky-500" />
+                <span>Cargando gastos...</span>
+              </div>
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div
+                    key={i}
+                    className="h-12 bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100 rounded-lg animate-pulse"
+                  />
+                ))}
+              </div>
             </div>
           )}
 
           {!loadingGastos && gastosFiltrados.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-              Crea tu primer gasto haciendo clic en el botón{" "}
-              <span className="font-bold  ">"＋ Nuevo" </span>
+            <div className="flex flex-col items-center justify-center py-16 px-4 rounded-2xl border border-dashed border-slate-300 bg-gradient-to-b from-white to-slate-50">
+              <FileText className="w-16 h-16 text-gray-300 mb-4" />
+              <p className="text-gray-700 font-semibold text-lg">
+                No hay gastos registrados
+              </p>
+              <p className="text-sm text-gray-500 mt-2 mb-6">
+                Crea tu primer gasto haciendo clic en "＋ Nuevo"
+              </p>
+              <button
+                onClick={openCreateModal}
+                disabled={loading}
+                className="inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-sky-700 active:scale-95 disabled:opacity-60 cursor-pointer"
+              >
+                ＋ Crear primer gasto
+              </button>
             </div>
           )}
 
@@ -795,7 +891,7 @@ export default function CrearGasto() {
                       <col style={{ width: desktopColumnWidths.evidencia }} />
                       <col style={{ width: desktopColumnWidths.acciones }} />
                     </colgroup>
-                    <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur">
+                    <thead className="sticky top-0 z-10 bg-gradient-to-r from-slate-50 to-white border-b border-sky-200/50 backdrop-blur">
                       <tr>
                         {isExportMode && (
                           <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
@@ -848,7 +944,7 @@ export default function CrearGasto() {
                       {gastosPaginados.map((gasto, index) => (
                         <tr
                           key={gasto.id || index}
-                          className={`odd:bg-white even:bg-slate-50/50 transition hover:bg-blue-50/60 ${selectedGastoIds.includes(getGastoSelectionId(gasto)) ? "ring-1 ring-emerald-200" : ""}`}
+                          className={`odd:bg-white even:bg-slate-50/50 transition-all duration-150 hover:bg-sky-50/60 ${selectedGastoIds.includes(getGastoSelectionId(gasto)) ? "ring-1 ring-emerald-200" : ""}`}
                         >
                           {isExportMode && (
                             <td className="border-b border-slate-100 px-2 py-1 text-center">
@@ -918,14 +1014,32 @@ export default function CrearGasto() {
                           <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700">
                             {getDiasTranscurridos(gasto)}
                           </td>
+                          {/* CELDA DE EVIDENCIA EN TABLA - Con preview al hover */}
                           <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700">
-                            <EvidenciaImagen
-                              key={`${gasto.id || gasto.idrend || gasto.evidenciaPath || gasto.evidenciaFileName || index}`}
-                              gasto={gasto}
-                              alt="Evidencia"
-                              className="mx-auto h-11 w-11 rounded-lg border border-slate-200 object-cover shadow-xs"
-                              fallback="-"
-                            />
+                            <div className="relative inline-block">
+                              <EvidenciaImagen
+                                key={`${gasto.id || gasto.idrend || gasto.evidenciaPath || gasto.evidenciaFileName || index}`}
+                                gasto={gasto}
+                                alt="Evidencia"
+                                className="mx-auto h-11 w-11 rounded-lg border border-slate-200 object-cover shadow-xs cursor-zoom-in hover:opacity-80 transition"
+                                fallback="-"
+                                // EVENTO: Al pasar cursor, muestra preview grande
+                                onMouseEnter={(e) => {
+                                  const img = e.currentTarget;
+                                  if (
+                                    img.src &&
+                                    !img.src.endsWith("undefined") &&
+                                    img.src !== ""
+                                  ) {
+                                    handleEvidenceMouseEnter(e, img.src);
+                                  }
+                                }}
+                                // EVENTO: Al salir cursor, oculta preview
+                                onMouseLeave={handleEvidenceMouseLeave}
+                                // EVENTO: Al hacer clic, abre zoom completo
+                                onClick={(e) => setZoomSrc(e.currentTarget.src)}
+                              />
+                            </div>
                           </td>
                           <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700">
                             <div className="flex items-center justify-center gap-2">
@@ -983,7 +1097,7 @@ export default function CrearGasto() {
                       String(gasto?.id || gasto?.idrend || index)
                     }
                     renderItem={(gasto) => (
-                      <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+                      <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md relative">
                         <div className="border-b border-slate-100 bg-white px-2.5 py-1 sm:px-4">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
@@ -1096,6 +1210,37 @@ export default function CrearGasto() {
             onToggleSelectAllFiltered={toggleSelectAllFiltered}
           />
         </div>
+
+        {/* PREVIEW FLOTANTE AL PASAR CURSOR SOBRE EVIDENCIA */}
+        {hoverEvidenceSrc && (
+          <div
+            className="fixed z-40 pointer-events-none"
+            style={{
+              // POSICIONAMIENTO:
+              // left: Se ajusta para no salir de la pantalla (ancho máximo: 320px)
+              // top: Se posiciona arriba de la imagen (resta 250px), ajustándose si es necesario
+              left:
+                Math.min(hoverEvidencePos.x, window.innerWidth - 320) + "px",
+              top:
+                Math.min(hoverEvidencePos.y - 250, window.innerHeight - 320) +
+                "px",
+            }}
+          >
+            {/* CONTENEDOR DEL PREVIEW */}
+            <div className="rounded-xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in fade-in duration-150">
+              {/* IMAGEN DEL PREVIEW */}
+              <img
+                src={hoverEvidenceSrc}
+                alt="Preview de evidencia"
+                className="h-64 w-64 object-contain"
+                // 👆 AQUÍ: Modificar tamaño
+                // h-64 = altura 256px (16rem)
+                // w-64 = ancho 256px (16rem)
+                // object-contain = mantiene proporción
+              />
+            </div>
+          </div>
+        )}
 
         {previewGasto &&
           modalRoot &&

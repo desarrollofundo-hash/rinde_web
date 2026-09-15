@@ -39,7 +39,7 @@ export default function RucValidationDialog({
               <p className="mt-1 font-mono text-sm font-bold text-red-600">
                 RUC: {rucClienteOcr}
               </p>
-              <p className="mt-1 text-sm font-semibold text-slate-900">
+              <p className="mt-1 text-sm font-bold   text-red-600">
                 {razonSocialOcr || "—"}
               </p>
             </div>
@@ -59,14 +59,24 @@ export default function RucValidationDialog({
               <p className="mt-1 font-mono text-sm font-bold text-blue-600">
                 RUC: {rucEmpresa}
               </p>
-              <p className="mt-1 text-sm font-semibold text-slate-900">
+              <p className="mt-1 text-sm font-bold  text-blue-600">
                 {razonSocialEmpresa || "—"}
               </p>
             </div>
           </div>
 
           <p className="text-xs text-slate-600 bg-yellow-50 p-2.5 rounded border border-yellow-200">
-            💡 Haz clic en "Cancelar" para cambiar de empresa. Cuando selecciones la empresa correcta, carga la factura nuevamente.
+            ⚠️ La factura corresponde a{" "}
+            <span className="font-semibold text-red-600">
+              {razonSocialOcr || "—"} (RUC: {rucClienteOcr || "—"})
+            </span>{" "}
+            , pero actualmente tienes seleccionada{" "}
+            <span className="font-semibold text-blue-600">
+              {razonSocialEmpresa || "—"}
+              (RUC: {rucEmpresa || "—"}).
+            </span>{" "}
+            <br />- Si deseas guardar el gasto en la empresa de la factura,
+            cambia la empresa seleccionada antes de continuar.
           </p>
         </div>
 

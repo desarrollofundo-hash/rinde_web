@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { normalizeWorkflowStatus } from "./workflowStatus";
 
 export default function Toast({
@@ -9,6 +9,7 @@ export default function Toast({
   duration = 3000,
 }) {
   const timerRef = useRef(null);
+  const [isExiting, setIsExiting] = useState(false);
 
   const validationPrefix = "Completa los campos obligatorios:";
   const isValidationMessage =
@@ -25,15 +26,28 @@ export default function Toast({
     : [];
 
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible) {
+      setIsExiting(false);
+      return;
+    }
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      onClose?.();
+      setIsExiting(true);
+      setTimeout(() => {
+        onClose?.();
+      }, 300);
     }, duration);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [isVisible, duration, onClose]);
+
+  const handleClose = () => {
+    setIsExiting(true);
+    setTimeout(() => {
+      onClose?.();
+    }, 300);
+  };
 
   if (!isVisible) return null;
 
@@ -73,7 +87,7 @@ export default function Toast({
       shadow: "shadow-amber-400/40",
     },
     info: {
-      bg: "bg-gradient-to-br from-sky-500 to-blue-600",
+      bg: "bg-gradient-to-br from-sky-500 to-sky-600",
       iconBg: "bg-white/20", iconColor: "text-white",
       titleColor: "text-sky-100", textColor: "text-white",
       progress: "bg-white/40", title: "Información",
@@ -88,11 +102,11 @@ export default function Toast({
       shadow: "shadow-orange-400/40",
     },
     auditoria: {
-      bg: "bg-gradient-to-br from-blue-500 to-blue-700",
+      bg: "bg-gradient-to-br from-sky-500 to-sky-700",
       iconBg: "bg-white/20", iconColor: "text-white",
-      titleColor: "text-blue-100", textColor: "text-white",
+      titleColor: "text-sky-100", textColor: "text-white",
       progress: "bg-white/40", title: "En auditoría",
-      shadow: "shadow-blue-500/40",
+      shadow: "shadow-sky-500/40",
     },
     informe: {
       bg: "bg-gradient-to-br from-amber-400 to-amber-600",
@@ -153,18 +167,23 @@ export default function Toast({
                     0%   { opacity: 0; transform: translateX(110%) scale(0.95); }
                     100% { opacity: 1; transform: translateX(0)   scale(1);    }
                 }
+                @keyframes toast-slide-out {
+                    0%   { opacity: 1; transform: translateX(0) scale(1); }
+                    100% { opacity: 0; transform: translateX(110%) scale(0.95); }
+                }
                 @keyframes toast-progress {
                     from { width: 100%; }
                     to   { width: 0%;   }
                 }
                 .toast-enter { animation: toast-slide-in 320ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+                .toast-exit { animation: toast-slide-out 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
                 .toast-progress { animation-name: toast-progress; animation-timing-function: linear; animation-fill-mode: forwards; }
-                @media (prefers-reduced-motion: reduce) { .toast-enter, .toast-progress { animation: none; } }
+                @media (prefers-reduced-motion: reduce) { .toast-enter, .toast-exit, .toast-progress { animation: none; } }
             `}</style>
 
       <div className="fixed bottom-5 right-4 z-50 w-[22rem] max-w-[calc(100vw-2rem)] sm:bottom-7 sm:right-6">
         <div
-          className={`toast-enter relative overflow-hidden rounded-2xl ${config.bg} shadow-2xl ${config.shadow}`}
+          className={`${isExiting ? 'toast-exit' : 'toast-enter'} relative overflow-hidden rounded-2xl ${config.bg} shadow-2xl ${config.shadow}`}
         >
           <div className="flex items-start gap-3.5 px-4 py-4 sm:px-5">
             <div
@@ -205,10 +224,8 @@ export default function Toast({
               )}
             </div>
             <button
-              onClick={() => {
-                onClose?.();
-              }}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white/80 transition hover:bg-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+              onClick={handleClose}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white/80 transition-all duration-200 hover:bg-white/30 hover:text-white active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
               aria-label="Cerrar notificación"
             >
               <svg
@@ -227,7 +244,7 @@ export default function Toast({
               </svg>
             </button>
           </div>
-          <div className="h-1 w-full bg-white/15">
+          <div className="h-1.5 w-full bg-white/20">
             <div
               className={`toast-progress h-full ${config.progress}`}
               style={{ animationDuration: `${duration}ms`, width: "100%" }}

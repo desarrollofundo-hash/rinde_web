@@ -1,0 +1,31 @@
+{
+  "artboards": [
+    {
+      "file": "LoginNueva1.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 960,
+      "h": 720,
+      "title": "Opción A: Editorial/Asimétrica"
+    },
+    {
+      "file": "LoginNueva2.dc.html",
+      "x": 1040,
+      "y": 0,
+      "w": 480,
+      "h": 720,
+      "title": "Opción B: Glassmorphism Premium"
+    },
+    {
+      "file": "LoginNueva3.dc.html",
+      "x": 1040,
+      "y": 800,
+      "w": 480,
+      "h": 720,
+      "title": "Opción C: Terminal/Sci-Fi"
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}
