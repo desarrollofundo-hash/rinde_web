@@ -776,15 +776,19 @@ export default function GastoGeneral({
     console.log("📋 Del OCR extraído:", datosOcr);
     console.log(`  • rucEmisor (limpio): "${rucEmisorLimpio}"`);
     console.log(`  • rucCliente (limpio): "${rucClienteOcr}"`);
+    console.log(`  • rucCliente (length): ${rucClienteOcr.length}`);
     console.log(`  • razonSocial: "${razonSocialOcr}"`);
     console.log("───────────────────────────────────────");
     console.log("🏢 De la empresa en sesión:");
     console.log(`  • rucEmpresa: "${rucEmpresa}"`);
+    console.log(`  • rucEmpresa (length): ${rucEmpresa.length}`);
+    console.log(`  • Tipos: OCR=${typeof rucClienteOcr} vs Empresa=${typeof rucEmpresa}`);
     console.log("───────────────────────────────────────");
 
     // Validación: Solo si ambos RUC existen y son diferentes
     if (rucClienteOcr && rucEmpresa) {
       console.log("✅ Ambos RUC presentes - Comparando...");
+      console.log(`Comparación: "${rucClienteOcr}" === "${rucEmpresa}" ? ${rucClienteOcr === rucEmpresa}`);
       if (rucClienteOcr !== rucEmpresa) {
         console.warn(
           `❌ RUC NO COINCIDEN: "${rucClienteOcr}" !== "${rucEmpresa}"`,
@@ -1426,7 +1430,7 @@ export default function GastoGeneral({
               </div>
             </div>
 
-            <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition group-hover:bg-blue-700">
+            <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition group-hover:bg-blue-700 cursor-pointer">
               Subir imagen o PDF
               <Camera className="h-3.5 w-3.5" />
             </div>
