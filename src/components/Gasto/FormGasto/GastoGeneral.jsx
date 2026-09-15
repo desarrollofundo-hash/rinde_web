@@ -19,6 +19,7 @@ import EvidenciaUploader from "./EvidenciaUploader";
 import EvidenciaCropModal from "./EvidenciaCropModal";
 import QrScannerModal from "./QrScannerModal";
 import OcrScannerModal from "./OcrScannerModal";
+import RucValidationDialog from "./RucValidationDialog";
 import Toast from "../../shared/Toast.jsx";
 import { Save, QrCode, Camera } from "lucide-react";
 
@@ -403,6 +404,12 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
     const [cropShape, setCropShape] = useState("rect");
     const [isQrOpen, setIsQrOpen] = useState(false);
     const [isOcrOpen, setIsOcrOpen] = useState(false);
+    const [rucValidationDialog, setRucValidationDialog] = useState({
+        isOpen: false,
+        rucClienteOcr: "",
+        rucEmpresa: "",
+        onConfirm: null,
+    });
     const [evidenciaInputResetKey, setEvidenciaInputResetKey] = useState(0);
     const [toastConfig, setToastConfig] = useState({ isVisible: false, message: "", type: "success" });
     const [facturaDuplicadaDialog, setFacturaDuplicadaDialog] = useState({ isOpen: false, message: "" });
@@ -646,6 +653,52 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
         }
     }, []);
 
+    const completarConDatosOcr = async (datosOcr) => {
+        const rucEmisorLimpio = String(datosOcr.rucEmisor || "").replace(/\D/g, "");
+        const razonSocialOcr = String(datosOcr.razonSocial || "").trim();
+
+        setFormData((prev) => ({
+            ...prev,
+            rucEmisor: rucEmisorLimpio || prev.rucEmisor,
+            tipoComprobante: datosOcr.tipoComprobante || prev.tipoComprobante,
+            serie: datosOcr.serie || prev.serie,
+            numero: datosOcr.numero || prev.numero,
+            igv: datosOcr.igv || prev.igv,
+            total: datosOcr.total || prev.total,
+            fecha: datosOcr.fecha || prev.fecha,
+            rucCliente: rucClienteOcr || prev.rucCliente,
+            razonSocial: razonSocialOcr || prev.razonSocial,
+            proveedor: razonSocialOcr || prev.proveedor,
+            moneda: datosOcr.moneda || prev.moneda,
+        }));
+
+        if (!razonSocialOcr && /^\d{11}$/.test(rucEmisorLimpio)) {
+            try {
+                const data = await getApiRuc({ ruc: rucEmisorLimpio });
+                const razonSocial =
+                    data?.razonSocial ||
+                    data?.nombre_o_razon_social ||
+                    data?.nombreORazonSocial ||
+                    data?.nombre ||
+                    data?.nombreComercial ||
+                    data?.nombreComercialSunat ||
+                    "";
+
+                if (razonSocial) {
+                    setFormData((prev) => ({
+                        ...prev,
+                        razonSocial,
+                        proveedor: razonSocial,
+                    }));
+                }
+            } catch (error) {
+                /* console.error("No se pudo autocompletar razon social por RUC:", error); */
+            }
+        }
+
+        showToast("✅ Factura escaneada. Se autocompletaron los datos detectados", "success");
+    };
+
     const handleOcrDetected = async (datosOcr) => {
         const rucEmisorLimpio = String(datosOcr.rucEmisor || "").replace(/\D/g, "");
         const rucClienteOcr = String(datosOcr.rucCliente || "").replace(/\D/g, "");
@@ -672,19 +725,21 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
             console.log("✅ Ambos RUC presentes - Comparando...");
             if (rucClienteOcr !== rucEmpresa) {
                 console.warn(`❌ RUC NO COINCIDEN: "${rucClienteOcr}" !== "${rucEmpresa}"`);
-                const confirmacion = window.confirm(
-                    `⚠️ ADVERTENCIA - RUC NO COINCIDE:\n\n` +
-                    `RUC cliente en factura: ${rucClienteOcr}\n` +
-                    `RUC empresa logueada: ${rucEmpresa}\n\n` +
-                    `¿Deseas continuar de todas formas?`
-                );
-                if (!confirmacion) {
-                    showToast("❌ Operación cancelada. Los RUC no coinciden.", "error");
-                    console.warn("✋ Usuario rechazó validación de RUC");
-                    return;
-                }
+
+                // Mostrar diálogo elegante en lugar de window.confirm()
+                setRucValidationDialog({
+                    isOpen: true,
+                    rucClienteOcr,
+                    rucEmpresa,
+                    onConfirm: () => {
+                        console.log("✋ Usuario aceptó continuar con RUC diferente");
+                        completarConDatosOcr(datosOcr);
+                    },
+                });
+                return;
             } else {
                 console.log("✅ RUC validado correctamente - coinciden perfectamente");
+                completarConDatosOcr(datosOcr);
             }
         } else {
             // Si falta el rucCliente, es un error - No se puede validar
@@ -1588,6 +1643,23 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
           isOpen={isOcrOpen}
           onClose={() => setIsOcrOpen(false)}
           onDetected={handleOcrDetected}
+        />
+
+        <RucValidationDialog
+          isOpen={rucValidationDialog.isOpen}
+          rucClienteOcr={rucValidationDialog.rucClienteOcr}
+          rucEmpresa={rucValidationDialog.rucEmpresa}
+          onAccept={() => {
+            if (rucValidationDialog.onConfirm) {
+              rucValidationDialog.onConfirm();
+            }
+            setRucValidationDialog({ ...rucValidationDialog, isOpen: false });
+          }}
+          onCancel={() => {
+            showToast("❌ Operación cancelada. Los RUC no coinciden.", "error");
+            console.warn("✋ Usuario rechazó validación de RUC");
+            setRucValidationDialog({ ...rucValidationDialog, isOpen: false });
+          }}
         />
 
         <Toast
