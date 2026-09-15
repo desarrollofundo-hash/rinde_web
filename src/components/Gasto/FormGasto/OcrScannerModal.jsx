@@ -167,6 +167,7 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
               }}
             />
           ) : (
+            <>
           {/* Upload area */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -241,6 +242,7 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
               </div>
             </div>
           )}
+            </>
           )}
         </div>
 
