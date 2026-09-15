@@ -653,17 +653,37 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
 
         // Validar que el RUC cliente de la factura coincida con la empresa logueada
         const rucEmpresa = getRucEmpresaSesion();
-        if (rucClienteOcr && rucEmpresa && rucClienteOcr !== rucEmpresa) {
-            const confirmacion = window.confirm(
-                `⚠️ ADVERTENCIA:\n\n` +
-                `RUC en factura: ${rucClienteOcr}\n` +
-                `RUC empresa activa: ${rucEmpresa}\n\n` +
-                `Los RUC no coinciden. ¿Deseas continuar de todas formas?`
-            );
-            if (!confirmacion) {
-                showToast("Operación cancelada. Los RUC no coinciden.", "error");
-                return;
+
+        // DEBUG: Mostrar valores para troubleshooting
+        console.log("🔍 OCR Validación RUC:", {
+            rucClienteOcr,
+            rucEmpresa,
+            razonSocialOcr,
+            datosOcrCompletos: datosOcr,
+        });
+
+        // Validación: Solo si ambos RUC existen y son diferentes
+        if (rucClienteOcr && rucEmpresa) {
+            if (rucClienteOcr !== rucEmpresa) {
+                const confirmacion = window.confirm(
+                    `⚠️ ADVERTENCIA - RUC NO COINCIDE:\n\n` +
+                    `RUC cliente en factura: ${rucClienteOcr}\n` +
+                    `RUC empresa logueada: ${rucEmpresa}\n\n` +
+                    `¿Deseas continuar de todas formas?`
+                );
+                if (!confirmacion) {
+                    showToast("❌ Operación cancelada. Los RUC no coinciden.", "error");
+                    console.warn("✋ Usuario rechazó validación de RUC");
+                    return;
+                }
+            } else {
+                console.log("✅ RUC validado correctamente - coinciden");
             }
+        } else {
+            console.warn("⚠️ RUC incompleto - No se puede validar", {
+                rucClienteOcr: rucClienteOcr || "VACÍO",
+                rucEmpresa: rucEmpresa || "VACÍO",
+            });
         }
 
         setFormData((prev) => ({
