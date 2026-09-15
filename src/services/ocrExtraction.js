@@ -190,9 +190,17 @@ export async function extraerDatosComprobante(file) {
   const mimeType = file.type || "image/jpeg";
   const campos = await extraerCamposConOpenAI(base64Imagen, mimeType);
 
+  // VALIDACIÓN CRÍTICA: rucCliente es obligatorio para validar contra empresa
+  const rucClienteExtraido = String(campos.rucCliente || "").replace(/\D/g, "").trim();
+
+  if (!rucClienteExtraido) {
+    console.warn("⚠️ ADVERTENCIA: No se pudo extraer el RUC del Cliente de la factura");
+    console.log("Campos recibidos:", campos);
+  }
+
   return {
     rucEmisor: String(campos.rucEmisor || ""),
-    /*  rucCliente: String(campos.rucCliente || ""), */
+    rucCliente: rucClienteExtraido, // Importante: puede estar vacío si no se extrae
     tipoComprobante: String(campos.tipoComprobante || ""),
     serie: String(campos.serie || ""),
     numero: String(campos.numero || ""),

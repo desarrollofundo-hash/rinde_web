@@ -687,10 +687,26 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
                 console.log("✅ RUC validado correctamente - coinciden perfectamente");
             }
         } else {
-            console.warn("❌ RUC INCOMPLETO - No se puede validar:");
-            console.warn(`  • rucClienteOcr: "${rucClienteOcr || '∅ VACÍO'}" (tipo: ${typeof rucClienteOcr})`);
-            console.warn(`  • rucEmpresa: "${rucEmpresa || '∅ VACÍO'}" (tipo: ${typeof rucEmpresa})`);
-            console.log("═══════════════════════════════════════");
+            // Si falta el rucCliente, es un error - No se puede validar
+            if (!rucClienteOcr) {
+                console.error("❌ ERROR CRÍTICO: No se extrajo RUC Cliente de la factura");
+                console.warn(`  • rucClienteOcr: "${rucClienteOcr || '∅ VACÍO'}" (tipo: ${typeof rucClienteOcr})`);
+                console.warn(`  • rucEmpresa: "${rucEmpresa || '∅ VACÍO'}" (tipo: ${typeof rucEmpresa})`);
+                console.log("═══════════════════════════════════════");
+
+                showToast(
+                    "⚠️ No se pudo extraer el RUC del Cliente. Verifica que la factura sea clara y legible.",
+                    "error"
+                );
+                return; // BLOQUEAR: No permitir continuar sin RUC Cliente
+            }
+
+            // Si falta rucEmpresa (no hay empresa logueada)
+            if (!rucEmpresa) {
+                console.warn("❌ No se encontró empresa en sesión");
+                showToast("Error: No hay empresa activa en sesión.", "error");
+                return;
+            }
         }
 
         setFormData((prev) => ({
