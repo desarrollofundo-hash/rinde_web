@@ -1,5 +1,5 @@
-import { X, Save, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { X, Save, Trash2, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
 
 export default function OcrEditModal({
   isOpen,
@@ -10,8 +10,75 @@ export default function OcrEditModal({
   onClose,
 }) {
   const [formData, setFormData] = useState(item || {});
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+
+  // Actualizar formData cuando cambia el item
+  useEffect(() => {
+    if (item) {
+      setFormData({ ...item });
+      setShowConfirmDelete(false);
+    }
+  }, [item, isOpen]);
 
   if (!isOpen || !item) return null;
+
+  // Modal de confirmación de eliminación
+  if (showConfirmDelete) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="mx-4 max-w-sm rounded-xl bg-white shadow-2xl">
+          <div className="flex items-start gap-4 border-b border-slate-200 px-6 py-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+              <AlertCircle className="h-6 w-6 text-red-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">
+                ¿Quitar este gasto?
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Esta acción no se puede deshacer
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3 px-6 py-4">
+            <p className="text-sm text-slate-700">
+              <strong>Registro #{index + 1}</strong>
+            </p>
+            <div className="rounded-lg bg-slate-50 p-3">
+              <p className="text-sm">
+                <strong>Emisor:</strong> {formData.razonSocial}
+              </p>
+              <p className="text-sm">
+                <strong>Comprobante:</strong> {formData.serie}-{formData.numero}
+              </p>
+              <p className="text-sm">
+                <strong>Total:</strong> {formData.total}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
+            <button
+              onClick={() => setShowConfirmDelete(false)}
+              className="flex-1 rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-100 cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => {
+                onDelete(index);
+                setShowConfirmDelete(false);
+              }}
+              className="flex-1 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white transition hover:bg-red-700 cursor-pointer"
+            >
+              Sí, quitar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({
@@ -228,7 +295,7 @@ export default function OcrEditModal({
         {/* Footer */}
         <div className="sticky bottom-0 flex gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
           <button
-            onClick={() => onDelete(index)}
+            onClick={() => setShowConfirmDelete(true)}
             className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-red-300 bg-red-50 px-4 py-2 font-semibold text-red-700 transition hover:bg-red-100 active:scale-95 cursor-pointer"
           >
             <Trash2 className="h-4 w-4" />
