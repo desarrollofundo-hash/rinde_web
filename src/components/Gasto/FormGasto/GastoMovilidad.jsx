@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { centerCrop, makeAspectCrop } from "react-image-crop";
-import { Save } from "lucide-react";
+import { Save, QrCode, Camera } from "lucide-react";
 import { GlobalWorkerOptions, getDocument } from "pdfjs-dist/build/pdf.mjs";
 import EvidenciaUploader from "./EvidenciaUploader";
 import EvidenciaCropModal from "./EvidenciaCropModal";
 import QrScannerModal from "./QrScannerModal";
+import OcrScannerModal from "./OcrScannerModal";
 import Toast from "../../shared/Toast";
 import useMovilidadForm from "../../../services/hooks/useMovilidadForm";
 
@@ -191,6 +192,7 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
     const [selectedPreset, setSelectedPreset] = useState("doc");
     const [cropShape, setCropShape] = useState("rect");
     const [isQrOpen, setIsQrOpen] = useState(false);
+    const [isOcrOpen, setIsOcrOpen] = useState(false);
     const [evidenciaInputResetKey, setEvidenciaInputResetKey] = useState(0);
     const [movilidadMontoDialog, setMovilidadMontoDialog] = useState({ isOpen: false, message: "" });
     const imageCropRef = useRef(null);
@@ -222,8 +224,31 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
         setSelectedPreset("doc");
         setCropShape("rect");
         setIsQrOpen(false);
+        setIsOcrOpen(false);
         imageCropRef.current = null;
         setEvidenciaInputResetKey((prev) => prev + 1);
+    };
+
+    const handleOcrDetected = (datosOcr) => {
+        const rucEmisorLimpio = String(datosOcr.rucEmisor || "").replace(/\D/g, "");
+        const razonSocialOcr = String(datosOcr.razonSocial || "").trim();
+
+        setFormData((prev) => ({
+            ...prev,
+            rucEmisor: rucEmisorLimpio || prev.rucEmisor,
+            tipoComprobante: datosOcr.tipoComprobante || prev.tipoComprobante,
+            serie: datosOcr.serie || prev.serie,
+            numero: datosOcr.numero || prev.numero,
+            igv: datosOcr.igv || prev.igv,
+            total: datosOcr.total || prev.total,
+            fecha: datosOcr.fecha || prev.fecha,
+            rucCliente: datosOcr.rucCliente || prev.rucCliente,
+            razonSocial: razonSocialOcr || prev.razonSocial,
+            proveedor: razonSocialOcr || prev.proveedor,
+            moneda: datosOcr.moneda || prev.moneda,
+        }));
+
+        setErrorMessage("Factura escaneada. Se autocompletaron los datos detectados");
     };
 
     const handleChange = async (e) => {
@@ -410,21 +435,58 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
                     />
 
                     {!isPlanillaMovilidad && (
-                        <div className="h-full rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
-                            <div className="flex h-full flex-col justify-center gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2.5">
-                                <div className="min-w-0 text-left sm:flex-1">
-                                    <p className="text-sm font-semibold text-slate-700">Lector de código QR</p>
-                                    <p className="mt-0.5 text-xs leading-4 text-slate-500">Escanea para autocompletar datos del comprobante.</p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            {/* QR Scanner Card */}
+                            <button
+                                type="button"
+                                onClick={() => setIsQrOpen(true)}
+                                className="group relative overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm transition hover:shadow-md hover:border-slate-300"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-br from-slate-700/5 to-transparent opacity-0 transition group-hover:opacity-100" />
+
+                                <div className="relative flex flex-col gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700 text-white">
+                                            <QrCode className="h-5 w-5" />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="font-semibold text-slate-900">Lector QR</p>
+                                            <p className="text-xs text-slate-500">Escanear código</p>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <button
-                                    type="button"
-                                    className="inline-flex w-full shrink-0 items-center justify-center rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 sm:w-auto cursor-pointer"
-                                    onClick={() => setIsQrOpen(true)}
-                                >
-                                    Escanear QR
-                                </button>
-                            </div>
+                                <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white transition group-hover:bg-slate-800">
+                                    Abrir escáner
+                                    <QrCode className="h-3.5 w-3.5" />
+                                </div>
+                            </button>
+
+                            {/* OCR Scanner Card */}
+                            <button
+                                type="button"
+                                onClick={() => setIsOcrOpen(true)}
+                                className="group relative overflow-hidden rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm transition hover:shadow-md hover:border-blue-300"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent opacity-0 transition group-hover:opacity-100" />
+
+                                <div className="relative flex flex-col gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white">
+                                            <Camera className="h-5 w-5" />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="font-semibold text-slate-900">OCR Factura</p>
+                                            <p className="text-xs text-slate-500">Foto automática</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition group-hover:bg-blue-700">
+                                    Subir imagen
+                                    <Camera className="h-3.5 w-3.5" />
+                                </div>
+                            </button>
                         </div>
                     )}
                 </div>
@@ -727,6 +789,12 @@ export default function GastoMovilidad({ selectedPolitica: selectedPoliticaProp 
                     isOpen={isQrOpen}
                     onClose={() => setIsQrOpen(false)}
                     onDetected={handleQrDetected}
+                />
+
+                <OcrScannerModal
+                    isOpen={isOcrOpen}
+                    onClose={() => setIsOcrOpen(false)}
+                    onDetected={handleOcrDetected}
                 />
             </form>
 
