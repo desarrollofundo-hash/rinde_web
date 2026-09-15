@@ -657,6 +657,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
 
     const completarConDatosOcr = async (datosOcr) => {
         const rucEmisorLimpio = String(datosOcr.rucEmisor || "").replace(/\D/g, "");
+        const rucClienteLimpio = String(datosOcr.rucCliente || "").replace(/\D/g, "");
         const razonSocialOcr = String(datosOcr.razonSocial || "").trim();
 
         setFormData((prev) => ({
@@ -668,7 +669,7 @@ export default function GastoGeneral({ selectedPolitica: selectedPoliticaProp = 
             igv: datosOcr.igv || prev.igv,
             total: datosOcr.total || prev.total,
             fecha: datosOcr.fecha || prev.fecha,
-            rucCliente: rucClienteOcr || prev.rucCliente,
+            rucCliente: rucClienteLimpio || prev.rucCliente,
             razonSocial: razonSocialOcr || prev.razonSocial,
             proveedor: razonSocialOcr || prev.proveedor,
             moneda: datosOcr.moneda || prev.moneda,
