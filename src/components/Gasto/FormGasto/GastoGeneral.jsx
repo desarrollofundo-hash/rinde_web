@@ -1395,9 +1395,10 @@ export default function GastoGeneral({
 
             <div className="relative flex flex-col gap-3">
               <div className="flex items-center gap-3">
-                <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700 text-white">
-                  <QrCode className="h-5 w-5" />
-                </div>
+                <RiveAnimation
+                  src="/animations/barcode-scanner.riv"
+                  className="h-12 w-12"
+                />
                 <div className="text-left">
                   <p className="font-semibold text-slate-900">Lector QR</p>
                   <p className="text-xs text-slate-500">Escanear código</p>
