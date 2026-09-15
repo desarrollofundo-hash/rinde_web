@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { X, Upload, Loader, AlertCircle } from "lucide-react";
 import { extraerDatosComprobante } from "../../../services/ocrExtraction";
+import OcrResultsTable from "./OcrResultsTable";
 import * as pdfjsLib from "pdfjs-dist";
 
 export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
@@ -8,6 +9,8 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
   const [previews, setPreviews] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(null);
+  const [resultados, setResultados] = useState([]);
+  const [mostrando, setMostrando] = useState("upload"); // "upload" o "results"
   const fileInputRef = useRef(null);
 
   const handleFileChange = async (e) => {
@@ -83,14 +86,29 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
 
     try {
       const todosLosDatos = [];
-      for (const archivo of archivos) {
+
+      // Procesar cada archivo
+      for (let i = 0; i < archivos.length; i++) {
+        const archivo = archivos[i];
         const datos = await extraerDatosComprobante(archivo);
-        todosLosDatos.push(datos);
+
+        // Agregar la vista previa del archivo
+        todosLosDatos.push({
+          ...datos,
+          preview: previews[i]?.preview || null,
+        });
       }
 
-      onDetected(todosLosDatos.length === 1 ? todosLosDatos[0] : todosLosDatos);
-      limpiar();
-      onClose();
+      // Si hay 2 o más, mostrar tabla de resultados
+      if (todosLosDatos.length >= 2) {
+        setResultados(todosLosDatos);
+        setMostrando("results");
+      } else {
+        // Si es solo 1, devolver directamente
+        onDetected(todosLosDatos[0]);
+        limpiar();
+        onClose();
+      }
     } catch (err) {
       setError(err.message || "Error al procesar las imágenes");
     } finally {
@@ -101,6 +119,8 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
   const limpiar = () => {
     setArchivos([]);
     setPreviews([]);
+    setResultados([]);
+    setMostrando("upload");
     setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -116,7 +136,9 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="mx-4 w-full max-w-md rounded-xl bg-white shadow-xl">
+      <div className={`mx-4 w-full rounded-xl bg-white shadow-xl ${
+        mostrando === "results" ? "max-w-5xl max-h-[90vh] overflow-y-auto" : "max-w-md"
+      }`}>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <h2 className="text-lg font-bold text-slate-900">OpenScan IA </h2>
@@ -131,6 +153,20 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
 
         {/* Body */}
         <div className="space-y-4 p-6">
+          {mostrando === "results" ? (
+            <OcrResultsTable
+              resultados={resultados}
+              onConfirm={() => {
+                onDetected(resultados);
+                limpiar();
+                onClose();
+              }}
+              onCancel={() => {
+                setMostrando("upload");
+                setResultados([]);
+              }}
+            />
+          ) : (
           {/* Upload area */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -204,6 +240,7 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
                 <p>{error}</p>
               </div>
             </div>
+          )}
           )}
         </div>
 
