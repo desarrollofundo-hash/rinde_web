@@ -1,4 +1,4 @@
-import { Check, X, Edit2, Trash2 } from "lucide-react";
+import { Check, X, Edit2, Trash2, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import ImageZoomLightbox from "../ImageZoomLightbox";
 import OcrEditModal from "./OcrEditModal";
@@ -11,6 +11,7 @@ export default function OcrResultsTable({
   const [resultados, setResultados] = useState(initialResultados);
   const [zoomImage, setZoomImage] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
+  const [deleteConfirmIndex, setDeleteConfirmIndex] = useState(null);
 
   const tiposComprobante = {
     "01": "FACTURA ELECTRONICA",
@@ -41,6 +42,7 @@ export default function OcrResultsTable({
     const newResultados = resultados.filter((_, i) => i !== idx);
     setResultados(newResultados);
     setEditingIndex(null);
+    setDeleteConfirmIndex(null);
   };
 
   return (
@@ -145,7 +147,7 @@ export default function OcrResultsTable({
                     Editar
                   </button>
                   <button
-                    onClick={() => handleDeleteGasto(idx)}
+                    onClick={() => setDeleteConfirmIndex(idx)}
                     className="inline-flex items-center justify-center h-9 px-3 rounded-lg border border-red-300 bg-red-50 hover:bg-red-100 text-red-700 font-semibold transition cursor-pointer"
                     title="Eliminar este gasto"
                   >
@@ -170,6 +172,61 @@ export default function OcrResultsTable({
         onDelete={handleDeleteGasto}
         onClose={() => setEditingIndex(null)}
       />
+
+      {/* Modal de Confirmación de Eliminación en Tabla */}
+      {deleteConfirmIndex !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="mx-4 max-w-sm rounded-xl bg-white shadow-2xl">
+            <div className="flex items-start gap-4 border-b border-slate-200 px-6 py-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                <AlertCircle className="h-6 w-6 text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  ¿Eliminar este gasto?
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Esta acción no se puede deshacer
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 px-6 py-4">
+              <p className="text-sm text-slate-700">
+                <strong>Registro #{deleteConfirmIndex + 1}</strong>
+              </p>
+              <div className="rounded-lg bg-slate-50 p-3">
+                <p className="text-sm">
+                  <strong>Emisor:</strong> {resultados[deleteConfirmIndex]?.razonSocial}
+                </p>
+                <p className="text-sm">
+                  <strong>Comprobante:</strong> {resultados[deleteConfirmIndex]?.serie}-{resultados[deleteConfirmIndex]?.numero}
+                </p>
+                <p className="text-sm">
+                  <strong>Total:</strong> {resultados[deleteConfirmIndex]?.total}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
+              <button
+                onClick={() => setDeleteConfirmIndex(null)}
+                className="flex-1 rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-100 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  handleDeleteGasto(deleteConfirmIndex);
+                }}
+                className="flex-1 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white transition hover:bg-red-700 cursor-pointer"
+              >
+                Sí, eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Botones de acción */}
       <div className="flex gap-3 pt-4 border-t border-slate-200">
