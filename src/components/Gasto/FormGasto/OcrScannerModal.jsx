@@ -156,18 +156,14 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
           {mostrando === "results" ? (
             <OcrResultsTable
               resultados={resultados}
-              onConfirm={() => {
-                onDetected(resultados);
+              onConfirm={(updatedResultados) => {
+                onDetected(updatedResultados.length === 1 ? updatedResultados[0] : updatedResultados);
                 limpiar();
                 onClose();
               }}
               onCancel={() => {
                 setMostrando("upload");
                 setResultados([]);
-              }}
-              onEdit={(idx, item) => {
-                console.log("Editar registro", idx, item);
-                // TODO: Implementar modal de edición
               }}
             />
           ) : (

@@ -1,14 +1,16 @@
-import { Check, X, ZoomIn, Plus, Minus, Edit2 } from "lucide-react";
+import { Check, X, Edit2, Trash2 } from "lucide-react";
 import { useState } from "react";
+import ImageZoomLightbox from "../ImageZoomLightbox";
+import OcrEditModal from "./OcrEditModal";
 
 export default function OcrResultsTable({
-  resultados,
+  resultados: initialResultados,
   onConfirm,
   onCancel,
-  onEdit,
 }) {
+  const [resultados, setResultados] = useState(initialResultados);
   const [zoomImage, setZoomImage] = useState(null);
-  const [zoomLevel, setZoomLevel] = useState(1);
+  const [editingIndex, setEditingIndex] = useState(null);
 
   const tiposComprobante = {
     "01": "FACTURA ELECTRONICA",
@@ -24,17 +26,21 @@ export default function OcrResultsTable({
     "03": "USD",
   };
 
-  const handleZoomIn = () => {
-    setZoomLevel((prev) => Math.min(prev + 0.2, 3));
+  const handleEdit = (idx) => {
+    setEditingIndex(idx);
   };
 
-  const handleZoomOut = () => {
-    setZoomLevel((prev) => Math.max(prev - 0.2, 0.5));
+  const handleSaveEdit = (idx, updatedData) => {
+    const newResultados = [...resultados];
+    newResultados[idx] = updatedData;
+    setResultados(newResultados);
+    setEditingIndex(null);
   };
 
-  const handleOpenZoom = (preview) => {
-    setZoomImage(preview);
-    setZoomLevel(1);
+  const handleDeleteGasto = (idx) => {
+    const newResultados = resultados.filter((_, i) => i !== idx);
+    setResultados(newResultados);
+    setEditingIndex(null);
   };
 
   return (
@@ -117,7 +123,7 @@ export default function OcrResultsTable({
                 <td className="px-3 py-3 text-center">
                   {item.preview && (
                     <button
-                      onClick={() => handleOpenZoom(item.preview)}
+                      onClick={() => setZoomImage(item.preview)}
                       className="inline-flex items-center justify-center h-12 w-12 rounded-lg border border-slate-300 bg-white hover:border-blue-400 hover:bg-blue-50 transition cursor-pointer group"
                       title="Haz clic para ampliar"
                     >
@@ -129,14 +135,21 @@ export default function OcrResultsTable({
                     </button>
                   )}
                 </td>
-                <td className="px-3 py-3 text-center">
+                <td className="px-3 py-3 text-center flex gap-2 justify-center">
                   <button
-                    onClick={() => onEdit?.(idx, item)}
+                    onClick={() => handleEdit(idx)}
                     className="inline-flex items-center justify-center h-9 px-3 rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold transition cursor-pointer gap-1.5"
                     title="Editar este registro"
                   >
                     <Edit2 className="h-4 w-4" />
                     Editar
+                  </button>
+                  <button
+                    onClick={() => handleDeleteGasto(idx)}
+                    className="inline-flex items-center justify-center h-9 px-3 rounded-lg border border-red-300 bg-red-50 hover:bg-red-100 text-red-700 font-semibold transition cursor-pointer"
+                    title="Eliminar este gasto"
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </td>
               </tr>
@@ -145,76 +158,18 @@ export default function OcrResultsTable({
         </table>
       </div>
 
-      {/* Modal de Zoom */}
-      {zoomImage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
-          onClick={() => setZoomImage(null)}
-        >
-          <div
-            className="relative mx-4 flex flex-col items-center gap-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Controles de zoom */}
-            <div className="flex items-center gap-3 rounded-lg bg-white/95 backdrop-blur px-4 py-2 shadow-lg">
-              <button
-                onClick={handleZoomOut}
-                disabled={zoomLevel <= 0.5}
-                className="inline-flex items-center justify-center h-8 w-8 rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
-                title="Alejar"
-              >
-                <Minus className="h-4 w-4 text-slate-700" />
-              </button>
+      {/* Modal de Zoom usando componente existente */}
+      <ImageZoomLightbox src={zoomImage} onClose={() => setZoomImage(null)} />
 
-              <span className="min-w-[60px] text-center font-semibold text-slate-700">
-                {Math.round(zoomLevel * 100)}%
-              </span>
-
-              <button
-                onClick={handleZoomIn}
-                disabled={zoomLevel >= 3}
-                className="inline-flex items-center justify-center h-8 w-8 rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
-                title="Acercar"
-              >
-                <Plus className="h-4 w-4 text-slate-700" />
-              </button>
-
-              <div className="w-px h-6 bg-slate-300" />
-
-              <button
-                onClick={() => setZoomLevel(1)}
-                className="px-3 py-1 rounded bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold transition cursor-pointer"
-                title="Restablecer zoom"
-              >
-                Restablecer
-              </button>
-            </div>
-
-            {/* Imagen con zoom */}
-            <div className="overflow-auto max-h-[70vh] max-w-[90vw] rounded-xl border-4 border-white shadow-2xl bg-white">
-              <img
-                src={zoomImage}
-                alt="Zoom evidencia"
-                style={{
-                  transform: `scale(${zoomLevel})`,
-                  transformOrigin: "center",
-                  transition: "transform 0.2s ease-out",
-                }}
-                className="w-full object-contain"
-              />
-            </div>
-
-            {/* Botón cerrar */}
-            <button
-              onClick={() => setZoomImage(null)}
-              className="absolute right-4 top-4 inline-flex items-center justify-center h-10 w-10 rounded-full bg-white shadow-lg hover:bg-slate-100 transition cursor-pointer z-10"
-              title="Cerrar"
-            >
-              <X className="h-5 w-5 text-slate-700" />
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Modal de Edición */}
+      <OcrEditModal
+        isOpen={editingIndex !== null}
+        item={resultados[editingIndex] || null}
+        index={editingIndex}
+        onSave={handleSaveEdit}
+        onDelete={handleDeleteGasto}
+        onClose={() => setEditingIndex(null)}
+      />
 
       {/* Botones de acción */}
       <div className="flex gap-3 pt-4 border-t border-slate-200">
@@ -226,8 +181,9 @@ export default function OcrResultsTable({
           Cancelar
         </button>
         <button
-          onClick={onConfirm}
-          className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-2.5 font-semibold text-white transition hover:from-green-600 hover:to-emerald-700 active:scale-95 cursor-pointer shadow-md"
+          onClick={() => onConfirm(resultados)}
+          disabled={resultados.length === 0}
+          className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-2.5 font-semibold text-white transition hover:from-green-600 hover:to-emerald-700 active:scale-95 cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Check className="h-4 w-4" />
           Guardar todos ({resultados.length})
