@@ -1,29 +1,41 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+// Middleware
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-app.post('/api/ocr/extract', async (req, res) => {
+// CORS solo para desarrollo local
+if (process.env.NODE_ENV !== "production") {
+  app.use(cors());
+}
+
+// Servir archivos estáticos del frontend
+app.use(express.static(path.join(__dirname, "dist")));
+
+app.post("/api/ocr/extract", async (req, res) => {
   try {
     const { base64Image, mimeType } = req.body;
 
     if (!base64Image || !mimeType) {
       return res.status(400).json({
-        error: 'base64Image y mimeType son requeridos',
+        error: "base64Image y mimeType son requeridos",
       });
     }
 
     const apiKey = process.env.VITE_OPENAI_API_KEY;
     if (!apiKey) {
       return res.status(500).json({
-        error: 'VITE_OPENAI_API_KEY no configurada en servidor',
+        error: "VITE_OPENAI_API_KEY no configurada en servidor",
       });
     }
 
@@ -91,21 +103,21 @@ EXTRACCIÓN OBLIGATORIA DE CAMPOS:
 
 IMPORTANTE: NO INVENTAR. Si está claro que falta un dato, usa null exacto.`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o",
         messages: [
           {
-            role: 'user',
+            role: "user",
             content: [
-              { type: 'text', text: prompt },
+              { type: "text", text: prompt },
               {
-                type: 'image_url',
+                type: "image_url",
                 image_url: {
                   url: `data:${mimeType};base64,${base64Image}`,
                 },
@@ -121,12 +133,12 @@ IMPORTANTE: NO INVENTAR. Si está claro que falta un dato, usa null exacto.`;
     if (!response.ok) {
       const errorData = await response.json();
       return res.status(response.status).json({
-        error: `OpenAI respondió con error ${response.status}: ${errorData.error?.message || 'Error desconocido'}`,
+        error: `OpenAI respondió con error ${response.status}: ${errorData.error?.message || "Error desconocido"}`,
       });
     }
 
     const data = await response.json();
-    let contenido = data.choices?.[0]?.message?.content || '';
+    let contenido = data.choices?.[0]?.message?.content || "";
 
     // Intentar extraer JSON de varias formas posibles
     let json = null;
@@ -150,9 +162,9 @@ IMPORTANTE: NO INVENTAR. Si está claro que falta un dato, usa null exacto.`;
     } catch (e) {
       // 4. Si falla, intentar limpiar caracteres problemáticos
       const cleaned = contenido
-        .replace(/[\r\n]+/g, ' ')
-        .replace(/,\s*}/g, '}')
-        .replace(/,\s*]/g, ']')
+        .replace(/[\r\n]+/g, " ")
+        .replace(/,\s*}/g, "}")
+        .replace(/,\s*]/g, "]")
         .trim();
 
       try {
@@ -165,19 +177,25 @@ IMPORTANTE: NO INVENTAR. Si está claro que falta un dato, usa null exacto.`;
       }
     }
   } catch (err) {
-    console.error('Error en OCR extraction:', err);
+    console.error("Error en OCR extraction:", err);
     res.status(500).json({
-      error: err.message || 'Error interno del servidor',
+      error: err.message || "Error interno del servidor",
     });
   }
 });
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Servidor OCR funcionando' });
+app.get("/health", (req, res) => {
+  res.json({ status: "OK", message: "Servidor OCR funcionando" });
+});
+
+// Fallback para SPA: servir index.html para cualquier ruta no coincidente
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor OCR ejecutándose en http://localhost:${PORT}`);
-  console.log(`📝 Endpoint: POST http://localhost:${PORT}/api/ocr/extract`);
+  console.log(`🚀 Servidor ejecutándose en http://localhost:${PORT}`);
+  console.log(`📝 Frontend: http://localhost:${PORT}`);
+  console.log(`📝 API OCR: POST http://localhost:${PORT}/api/ocr/extract`);
 });

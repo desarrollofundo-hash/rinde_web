@@ -137,7 +137,8 @@ IMPORTANTE: NO INVENTAR. Si está claro que falta un dato, usa null exacto.`;
 }
 
 async function extraerCamposConOpenAI(base64Imagen, mimeType) {
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+  // En producción (IIS), usar URL relativa. En desarrollo, usar localhost.
+  const backendUrl = import.meta.env.DEV ? (import.meta.env.VITE_BACKEND_URL || "http://localhost:3001") : "";
 
   const respuesta = await fetch(`${backendUrl}/api/ocr/extract`, {
     method: "POST",
