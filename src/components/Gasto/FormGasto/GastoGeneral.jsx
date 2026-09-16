@@ -1478,8 +1478,7 @@ export default function GastoGeneral({
 
           {/* OCR Scanner Card */}
           <div
-            onClick={() => setIsOcrOpen(true)}
-            className="group relative overflow-hidden rounded-xl border border-blue-200 bg-linear-to-br from-blue-50 to-white p-4 shadow-sm transition hover:shadow-md hover:border-blue-300 cursor-pointer"
+            className="group relative overflow-hidden rounded-xl border border-blue-200 bg-linear-to-br from-blue-50 to-white p-4 shadow-sm transition hover:shadow-md hover:border-blue-300"
           >
             <div className="absolute inset-0 bg-linear-to-br from-blue-600/5 to-transparent opacity-0 transition group-hover:opacity-100" />
 
