@@ -401,11 +401,11 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
               </p>
             </div>
 
-            {/* Animación de progreso - Bolas de colores */}
-            <div className="flex justify-center items-center bg-white rounded-lg p-2" style={{ mixBlendMode: 'screen' }}>
+            {/* Animación de progreso - Barra lineal */}
+            <div className="w-full">
               <RiveAnimation
-                src="/animations/color-balls-loading.riv"
-                className="h-20 w-40"
+                src="/animations/linear-progress.riv"
+                className="h-12"
               />
             </div>
           </div>
