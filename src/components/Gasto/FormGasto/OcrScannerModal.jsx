@@ -20,7 +20,8 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    setArchivos(files);
+    // AGREGAR a los archivos existentes, no reemplazar
+    setArchivos((archivosAnteriores) => [...archivosAnteriores, ...files]);
     setError(null);
     setCargando(true);
 
@@ -68,7 +69,8 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
         }
       }
 
-      setPreviews(newPreviews);
+      // AGREGAR a los previews existentes
+      setPreviews((previewsAnteriores) => [...previewsAnteriores, ...newPreviews]);
       setCargando(false);
     } catch (err) {
       setError(`Error al procesar archivos: ${err.message}`);
@@ -230,10 +232,21 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
 
               {/* Previews */}
               {previews.length > 0 && (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <p className="mb-3 text-xs font-semibold text-slate-600">
-                    Vista previa ({previews.length}) - Haz click para ampliar
-                  </p>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-slate-600">
+                      Vista previa ({previews.length}) - Haz click para ampliar
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-600 hover:bg-blue-200 transition cursor-pointer"
+                      title="Agregar más archivos"
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                      Agregar más
+                    </button>
+                  </div>
                   <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto">
                     {previews.map((item, idx) => (
                       <div
