@@ -65,73 +65,73 @@ export default function OcrEditModal({
 
           {/* Body - Scrollable */}
           <div className="flex-1 overflow-y-auto">
-            <div className="space-y-4 p-4 sm:p-6">
+            <div className="space-y-3 p-4 sm:p-6">
               {/* Fila 1: RUC Emisor y Razón Social */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1">
                     RUC Emisor
                   </label>
                   <input
                     type="text"
                     value={formData.rucEmisor || ""}
                     onChange={(e) => handleChange("rucEmisor", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
                     placeholder="10077149231"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1">
                     Razón Social Emisor
                   </label>
                   <input
                     type="text"
                     value={formData.razonSocial || ""}
                     onChange={(e) => handleChange("razonSocial", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
                     placeholder="GUES HOUSE"
                   />
                 </div>
               </div>
 
               {/* Fila 2: RUC Cliente y Razón Social Cliente */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1">
                     RUC Cliente
                   </label>
                   <input
                     type="text"
                     value={formData.rucCliente || ""}
                     onChange={(e) => handleChange("rucCliente", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
                     placeholder="20603461534"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1">
                     Razón Social Cliente
                   </label>
                   <input
                     type="text"
                     value={formData.razonSocialCliente || ""}
                     onChange={(e) => handleChange("razonSocialCliente", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
                     placeholder="AGRICOLA SANTA AZUL S.A.C"
                   />
                 </div>
               </div>
 
               {/* Fila 3: Tipo y Moneda */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1">
                     Tipo de Comprobante
                   </label>
                   <select
                     value={formData.tipoComprobante || ""}
                     onChange={(e) => handleChange("tipoComprobante", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
                   >
                     <option value="">Selecciona tipo</option>
                     {Object.entries(tiposComprobante).map(([code, name]) => (
@@ -142,13 +142,13 @@ export default function OcrEditModal({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1">
                     Moneda
                   </label>
                   <select
                     value={formData.moneda || ""}
                     onChange={(e) => handleChange("moneda", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
                   >
                     <option value="">Selecciona moneda</option>
                     {Object.entries(monedas).map(([code, name]) => (
@@ -161,48 +161,48 @@ export default function OcrEditModal({
               </div>
 
               {/* Fila 4: Serie, Número, Fecha */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1">
                     Serie
                   </label>
                   <input
                     type="text"
                     value={formData.serie || ""}
                     onChange={(e) => handleChange("serie", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
                     placeholder="FPP1"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1">
                     Número
                   </label>
                   <input
                     type="text"
                     value={formData.numero || ""}
                     onChange={(e) => handleChange("numero", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
                     placeholder="002356"
                   />
                 </div>
                 <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1">
                     Fecha
                   </label>
                   <input
                     type="date"
                     value={formData.fecha || ""}
                     onChange={(e) => handleChange("fecha", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
                   />
                 </div>
               </div>
 
               {/* Fila 5: IGV y Total */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1">
                     IGV
                   </label>
                   <input
@@ -210,12 +210,12 @@ export default function OcrEditModal({
                     step="0.01"
                     value={formData.igv || ""}
                     onChange={(e) => handleChange("igv", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                    className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
                     placeholder="0.77"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1">
                     Total
                   </label>
                   <input
@@ -223,7 +223,7 @@ export default function OcrEditModal({
                     step="0.01"
                     value={formData.total || ""}
                     onChange={(e) => handleChange("total", e.target.value)}
-                    className="w-full rounded-lg border-2 border-emerald-500 px-3 py-2 text-sm font-bold text-emerald-600 bg-emerald-50 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200 outline-none"
+                    className="w-full rounded-lg border-2 border-emerald-500 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-bold text-emerald-600 bg-emerald-50 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200 outline-none"
                     placeholder="27.00"
                   />
                 </div>
@@ -232,30 +232,37 @@ export default function OcrEditModal({
           </div>
 
           {/* Footer */}
-          <div className="sticky bottom-0 z-10 flex flex-col sm:flex-row gap-2 border-t border-slate-200 bg-slate-50 p-4 sm:p-4">
+          <div className="sticky bottom-0 z-10 flex gap-2 border-t border-slate-200 bg-slate-50 p-2.5 sm:p-4">
+            {/* Botón Quitar - Solo icono en móvil */}
             <button
               onClick={() => setShowConfirmDelete(true)}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 active:scale-95 transition cursor-pointer"
+              title="Quitar gasto"
+              className="inline-flex items-center justify-center rounded-lg border border-red-300 bg-red-50 hover:bg-red-100 active:scale-95 transition cursor-pointer sm:gap-2 sm:px-3 h-10 w-10 sm:h-auto sm:w-auto sm:py-2"
             >
-              <Trash2 className="h-4 w-4" />
-              Quitar
+              <Trash2 className="h-4 w-4 sm:h-4 sm:w-4 text-red-700" />
+              <span className="hidden sm:inline text-sm font-semibold text-red-700">Quitar</span>
             </button>
 
-            <div className="flex-1 hidden sm:block" />
+            <div className="flex-1" />
 
+            {/* Botón Cancelar - Solo icono en móvil */}
             <button
               onClick={onClose}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 transition cursor-pointer"
+              title="Cancelar"
+              className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white hover:bg-slate-100 active:scale-95 transition cursor-pointer sm:gap-2 sm:px-3 h-10 w-10 sm:h-auto sm:w-auto sm:py-2"
             >
-              Cancelar
+              <X className="h-4 w-4 sm:h-4 sm:w-4 text-slate-700" />
+              <span className="hidden sm:inline text-sm font-semibold text-slate-700">Cancelar</span>
             </button>
 
+            {/* Botón Guardar - Solo icono en móvil */}
             <button
               onClick={() => onSave(index, formData)}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 active:scale-95 transition cursor-pointer"
+              title="Guardar cambios"
+              className="inline-flex items-center justify-center rounded-lg bg-blue-600 hover:bg-blue-700 active:scale-95 transition cursor-pointer sm:gap-2 sm:px-3 h-10 w-10 sm:h-auto sm:w-auto sm:py-2"
             >
-              <Save className="h-4 w-4" />
-              Guardar
+              <Save className="h-4 w-4 sm:h-4 sm:w-4 text-white" />
+              <span className="hidden sm:inline text-sm font-semibold text-white">Guardar</span>
             </button>
           </div>
         </div>
