@@ -501,7 +501,7 @@ export default function GastoGeneral({
       ctx.drawImage(videoRef.current, 0, 0);
 
       canvasRef.current.toBlob(
-        (blob) => {
+        async (blob) => {
           if (blob) {
             const file = new File([blob], "captura_camara.jpg", {
               type: "image/jpeg",
@@ -509,10 +509,32 @@ export default function GastoGeneral({
             setFormData((prev) => ({ ...prev, evidencia: file }));
             setEvidenciaPreviewUrl(URL.createObjectURL(blob));
             stopCamera();
-            showToast("Foto capturada - Abriendo OCR...", "success");
-            // Abrir OCR modal automáticamente después de capturar
-            setTimeout(() => {
-              setIsOcrOpen(true);
+            showToast("Procesando foto con OCR...", "info");
+
+            // Procesar directamente con OCR
+            setTimeout(async () => {
+              try {
+                const datos = await extraerDatosComprobante(file);
+                if (datos) {
+                  showToast("Datos extraídos exitosamente", "success");
+                  // Auto-llenar los datos en el formulario
+                  setFormData((prev) => ({
+                    ...prev,
+                    rucEmisor: datos.rucEmisor || "",
+                    razonSocial: datos.razonSocial || "",
+                    rucCliente: datos.rucCliente || "",
+                    tipoComprobante: datos.tipoComprobante || "01",
+                    serie: datos.serie || "",
+                    numero: datos.numero || "",
+                    fecha: datos.fecha || "",
+                    total: datos.total || "",
+                    moneda: datos.moneda || "01",
+                    igv: datos.igv || "",
+                  }));
+                }
+              } catch (err) {
+                showToast("Error procesando OCR: " + err.message, "error");
+              }
             }, 500);
           }
         },
