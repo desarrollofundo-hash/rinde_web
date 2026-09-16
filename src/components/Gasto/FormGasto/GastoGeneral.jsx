@@ -500,17 +500,21 @@ export default function GastoGeneral({
       canvasRef.current.height = videoRef.current.videoHeight;
       ctx.drawImage(videoRef.current, 0, 0);
 
-      canvasRef.current.toBlob((blob) => {
-        if (blob) {
-          const file = new File([blob], "captura_camara.jpg", {
-            type: "image/jpeg",
-          });
-          setFormData((prev) => ({ ...prev, evidencia: file }));
-          setEvidenciaPreviewUrl(URL.createObjectURL(blob));
-          stopCamera();
-          showToast("Foto capturada exitosamente", "success");
-        }
-      }, "image/jpeg", 0.95);
+      canvasRef.current.toBlob(
+        (blob) => {
+          if (blob) {
+            const file = new File([blob], "captura_camara.jpg", {
+              type: "image/jpeg",
+            });
+            setFormData((prev) => ({ ...prev, evidencia: file }));
+            setEvidenciaPreviewUrl(URL.createObjectURL(blob));
+            stopCamera();
+            showToast("Foto capturada exitosamente", "success");
+          }
+        },
+        "image/jpeg",
+        0.95,
+      );
     }
   };
 
@@ -1473,10 +1477,9 @@ export default function GastoGeneral({
           </button>
 
           {/* OCR Scanner Card */}
-          <button
-            type="button"
+          <div
             onClick={() => setIsOcrOpen(true)}
-            className="group relative overflow-hidden rounded-xl border border-blue-200 bg-linear-to-br from-blue-50 to-white p-4 shadow-sm transition hover:shadow-md hover:border-blue-300 "
+            className="group relative overflow-hidden rounded-xl border border-blue-200 bg-linear-to-br from-blue-50 to-white p-4 shadow-sm transition hover:shadow-md hover:border-blue-300 cursor-pointer"
           >
             <div className="absolute inset-0 bg-linear-to-br from-blue-600/5 to-transparent opacity-0 transition group-hover:opacity-100" />
 
@@ -1494,12 +1497,13 @@ export default function GastoGeneral({
                 </div>
               </div>
             </div>
-            <div className="flex flex-wrap gap-1 mt-2">
+            <div className="flex flex-wrap gap-1 mt-2" onClick={(e) => e.stopPropagation()}>
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  document.querySelector('input[accept="image/*,.pdf"]')?.click();
+                onClick={() => {
+                  document
+                    .querySelector('input[accept="image/*,.pdf"]')
+                    ?.click();
                 }}
                 className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 transition cursor-pointer border border-blue-200"
               >
@@ -1508,17 +1512,14 @@ export default function GastoGeneral({
               </button>
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleOpenCamera();
-                }}
+                onClick={handleOpenCamera}
                 className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 transition cursor-pointer border border-blue-200"
               >
                 <Camera className="h-3 w-3" />
                 Cámara
               </button>
             </div>
-          </button>
+          </div>
         </div>
       </div>
 
@@ -2044,7 +2045,9 @@ export default function GastoGeneral({
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
-              <h2 className="text-lg font-bold text-slate-900">Capturar Foto</h2>
+              <h2 className="text-lg font-bold text-slate-900">
+                Capturar Foto
+              </h2>
               <button
                 onClick={stopCamera}
                 className="text-slate-400 hover:text-slate-600 transition cursor-pointer"
