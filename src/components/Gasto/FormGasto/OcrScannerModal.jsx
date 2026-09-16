@@ -120,11 +120,14 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
     } catch (err) {
       setError(err.message || "Error al procesar las imágenes");
     } finally {
-      // ⏱️ AQUÍ ESTÁ EL TIEMPO - Cambia 2000 por el tiempo que quieras
-      // 1000 = 1 segundo, 2000 = 2 segundos, 3000 = 3 segundos
+      // ⏱️ TIEMPO DINÁMICO según cantidad de archivos
+      // Base: 2000ms + 500ms por cada archivo
+      // 1 archivo = 2000ms | 2 archivos = 2500ms | 3 archivos = 3000ms
+      const tiempoDelay = 2000 + (archivos.length * 500);
+
       setTimeout(() => {
         setCargando(false);
-      }, 2000); // 👈 CAMBIAR ESTE NÚMERO
+      }, tiempoDelay);
     }
   };
 
@@ -167,12 +170,16 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
           <div className="flex items-center justify-between">
             {/* Título y descripción */}
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white">
-                <Camera className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">OpenScan IA</h2>
-                <p className="text-xs text-slate-500">Extrae datos de facturas automáticamente</p>
+              <div className="flex items-center gap-3">
+                <RiveAnimation
+                  src="/animations/robot-bouncing.riv"
+                  className="h-12 w-12"
+                />
+                <div className="text-left">
+                  <h2 className="text-lg font-bold text-slate-900">
+                    OpenScan IA
+                  </h2>
+                </div>
               </div>
             </div>
 
