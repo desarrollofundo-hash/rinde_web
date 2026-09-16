@@ -509,7 +509,11 @@ export default function GastoGeneral({
             setFormData((prev) => ({ ...prev, evidencia: file }));
             setEvidenciaPreviewUrl(URL.createObjectURL(blob));
             stopCamera();
-            showToast("Foto capturada exitosamente", "success");
+            showToast("Foto capturada - Abriendo OCR...", "success");
+            // Abrir OCR modal automáticamente después de capturar
+            setTimeout(() => {
+              setIsOcrOpen(true);
+            }, 500);
           }
         },
         "image/jpeg",
@@ -1500,11 +1504,7 @@ export default function GastoGeneral({
             <div className="flex flex-wrap gap-1 mt-2">
               <div className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 cursor-pointer hover:bg-blue-100">
                 <Camera className="h-3 w-3" />
-                Subir
-              </div>
-              <div className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 cursor-pointer hover:bg-blue-100">
-                <Camera className="h-3 w-3" />
-                Cámara
+                Subir Imagen o PDF
               </div>
             </div>
           </div>
