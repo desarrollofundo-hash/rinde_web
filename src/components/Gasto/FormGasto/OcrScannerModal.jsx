@@ -401,10 +401,11 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
               </p>
             </div>
 
-            {/* Barra de progreso */}
-            <div className="w-full bg-slate-200 rounded-full h-1 overflow-hidden">
-              <div className="h-full bg-linear-to-r from-blue-500 to-blue-600 animate-pulse"></div>
-            </div>
+            {/* Animación de progreso - Bolas de colores */}
+            <RiveAnimation
+              src="/animations/color-balls-loading.riv"
+              className="h-16 w-32"
+            />
           </div>
         </div>
       )}
