@@ -1497,20 +1497,14 @@ export default function GastoGeneral({
               </div>
             </div>
             <div className="flex flex-wrap gap-1 mt-2">
-              <button
-                onClick={() => document.getElementById('evidencia-input').click()}
-                className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 transition cursor-pointer border border-blue-200"
-              >
+              <div className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 cursor-pointer hover:bg-blue-100">
                 <Camera className="h-3 w-3" />
                 Subir
-              </button>
-              <button
-                onClick={handleOpenCamera}
-                className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 transition cursor-pointer border border-blue-200"
-              >
+              </div>
+              <div className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 cursor-pointer hover:bg-blue-100">
                 <Camera className="h-3 w-3" />
                 Cámara
-              </button>
+              </div>
             </div>
           </div>
         </div>
