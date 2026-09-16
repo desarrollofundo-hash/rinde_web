@@ -107,27 +107,28 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
         });
       }
 
-      // Si hay 2 o más, mostrar tabla de resultados
-      if (todosLosDatos.length >= 2) {
-        setResultados(todosLosDatos);
-        setMostrando("results");
-      } else {
-        // Si es solo 1, devolver directamente
-        onDetected(todosLosDatos[0]);
-        limpiar();
-        onClose();
-      }
-    } catch (err) {
-      setError(err.message || "Error al procesar las imágenes");
-    } finally {
       // ⏱️ TIEMPO DINÁMICO según cantidad de archivos
       // Base: 2000ms + 500ms por cada archivo
-      // 1 archivo = 2000ms | 2 archivos = 2500ms | 3 archivos = 3000ms
       const tiempoDelay = 2000 + (archivos.length * 500);
 
+      // Mostrar loading durante el delay, LUEGO mostrar resultados
       setTimeout(() => {
         setCargando(false);
+
+        // Ahora mostrar resultados DESPUÉS del delay
+        if (todosLosDatos.length >= 2) {
+          setResultados(todosLosDatos);
+          setMostrando("results");
+        } else {
+          // Si es solo 1, devolver directamente
+          onDetected(todosLosDatos[0]);
+          limpiar();
+          onClose();
+        }
       }, tiempoDelay);
+    } catch (err) {
+      setError(err.message || "Error al procesar las imágenes");
+      setCargando(false);
     }
   };
 
