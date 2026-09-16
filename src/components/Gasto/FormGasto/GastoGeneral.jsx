@@ -1500,9 +1500,7 @@ export default function GastoGeneral({
               <button
                 type="button"
                 onClick={() => {
-                  document
-                    .querySelector('input[accept="image/*,.pdf"]')
-                    ?.click();
+                  document.getElementById('evidencia-input')?.click();
                 }}
                 className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 transition cursor-pointer border border-blue-200"
               >

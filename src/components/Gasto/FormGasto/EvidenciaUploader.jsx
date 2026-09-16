@@ -24,6 +24,7 @@ export default function EvidenciaUploader({
 
             <div className="relative mt-2 overflow-hidden rounded-lg border border-dashed border-slate-300 bg-linear-to-br from-slate-50 to-white transition hover:border-cyan-400 hover:bg-cyan-50/40 focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-100">
                 <input
+                    id="evidencia-input"
                     key={inputResetKey}
                     type="file"
                     name="evidencia"
