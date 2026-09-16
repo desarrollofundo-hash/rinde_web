@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { X, Upload, Loader, AlertCircle } from "lucide-react";
+import { X, Upload, Loader, AlertCircle, Trash2 } from "lucide-react";
 import { extraerDatosComprobante } from "../../../services/ocrExtraction";
 import OcrResultsTable from "./OcrResultsTable";
 import RiveAnimation from "../../RiveAnimation";
@@ -139,6 +139,13 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
     onClose();
   };
 
+  const eliminarArchivo = (idxAEliminar) => {
+    const nuevosArchivos = archivos.filter((_, idx) => idx !== idxAEliminar);
+    const nuevosPreviews = previews.filter((_, idx) => idx !== idxAEliminar);
+    setArchivos(nuevosArchivos);
+    setPreviews(nuevosPreviews);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -229,29 +236,49 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
                   </p>
                   <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto">
                     {previews.map((item, idx) => (
-                      <button
+                      <div
                         key={idx}
-                        type="button"
-                        onClick={() => setZoomImage(item.preview)}
-                        className="group overflow-hidden rounded-lg border border-slate-200 bg-white hover:border-blue-400 hover:shadow-md transition-all cursor-pointer active:scale-95"
+                        className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white hover:border-blue-400 hover:shadow-md transition-all"
                       >
-                        <div className="relative overflow-hidden h-32 bg-slate-100">
-                          <img
-                            src={item.preview}
-                            alt={`Vista previa ${idx + 1}`}
-                            className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-200"
-                          />
-                          {/* Indicador de zoom */}
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors">
-                            <div className="text-white text-2xl opacity-0 group-hover:opacity-100 transition-opacity">
-                              🔍
+                        {/* Botón de eliminar */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            eliminarArchivo(idx);
+                          }}
+                          className="absolute top-2 right-2 z-10 h-7 w-7 flex items-center justify-center rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-md cursor-pointer active:scale-95"
+                          title="Eliminar archivo"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+
+                        {/* Preview clickeable */}
+                        <button
+                          type="button"
+                          onClick={() => setZoomImage(item.preview)}
+                          className="w-full text-left hover:opacity-95 transition-opacity active:scale-95 cursor-pointer"
+                        >
+                          <div className="relative overflow-hidden h-32 bg-slate-100">
+                            <img
+                              src={item.preview}
+                              alt={`Vista previa ${idx + 1}`}
+                              className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-200"
+                            />
+                            {/* Indicador de zoom */}
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors">
+                              <div className="text-white text-2xl opacity-0 group-hover:opacity-100 transition-opacity">
+                                🔍
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        </button>
+
+                        {/* Nombre del archivo */}
                         <p className="truncate bg-white px-2 py-2 text-xs text-slate-600 font-medium">
                           {item.file.name}
                         </p>
-                      </button>
+                      </div>
                     ))}
                   </div>
                 </div>
