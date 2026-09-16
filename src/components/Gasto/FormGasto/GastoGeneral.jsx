@@ -1508,6 +1508,31 @@ export default function GastoGeneral({
               </div>
             </div>
           </div>
+          {/*CAMARA*/}
+          <div
+            onClick={handleOpenCamera}
+            className="group relative overflow-hidden rounded-xl border border-blue-200 bg-linear-to-br from-blue-50 to-white p-4 shadow-sm transition hover:shadow-md hover:border-blue-300 cursor-pointer"
+          >
+            <div className="absolute inset-0 bg-linear-to-br from-blue-600/5 to-transparent opacity-0 transition group-hover:opacity-100" />
+
+            <div className="relative flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <RiveAnimation
+                  src="/animations/robot-bouncing.riv"
+                  className="h-12 w-12"
+                />
+                <div className="text-left">
+                  <p className="font-semibold text-slate-900">Abrir Cámara</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1 mt-2">
+              <div className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 cursor-pointer hover:bg-blue-100">
+                <Camera className="h-3 w-3" />
+                Cámara
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
