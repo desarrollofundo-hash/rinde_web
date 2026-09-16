@@ -15,6 +15,7 @@ import { saveRendicionGasto } from "../../../services/save/saveGasto";
 import { saveDetalleGasto } from "../../../services/save_detalle/saveGastoDetalle";
 import { saveEvidenciaGasto } from "../../../services/evidencia";
 import { getApiRuc } from "../../../services/ruc/api_ruc";
+import { extraerDatosComprobante } from "../../../services/ocrExtraction";
 import EvidenciaUploader from "./EvidenciaUploader";
 import EvidenciaCropModal from "./EvidenciaCropModal";
 import QrScannerModal from "./QrScannerModal";
