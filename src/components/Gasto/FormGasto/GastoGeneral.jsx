@@ -1438,19 +1438,19 @@ export default function GastoGeneral({
                 </div>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row gap-1.5 mt-2">
+            <div className="flex flex-wrap gap-1 mt-2">
               <button
                 type="button"
-                className="inline-flex items-center justify-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700 active:scale-95 transition cursor-pointer"
+                className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 transition cursor-pointer border border-blue-200"
               >
-                <Camera className="h-3.5 w-3.5" />
-                Subir imagen o PDF
+                <Camera className="h-3 w-3" />
+                Subir
               </button>
               <button
                 type="button"
-                className="inline-flex items-center justify-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700 active:scale-95 transition cursor-pointer"
+                className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 transition cursor-pointer border border-blue-200"
               >
-                <Camera className="h-3.5 w-3.5" />
+                <Camera className="h-3 w-3" />
                 Cámara
               </button>
             </div>
