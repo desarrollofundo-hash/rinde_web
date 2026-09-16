@@ -1,7 +1,5 @@
 import { useState, useRef } from "react";
 import { X, Upload, Loader, AlertCircle, Trash2, Camera } from "lucide-react";
-import Lottie from "react-lottie-player";
-import lineProgressAnimation from "../../../public/animations/line-progress.json";
 import { extraerDatosComprobante } from "../../../services/ocrExtraction";
 import OcrResultsTable from "./OcrResultsTable";
 import RiveAnimation from "../../RiveAnimation";
@@ -403,14 +401,19 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
               </p>
             </div>
 
-            {/* Animación de progreso - Lottie */}
-            <div className="flex justify-center w-full">
-              <Lottie
-                loop
-                play
-                animationData={lineProgressAnimation}
-                style={{ height: 160, width: "100%", maxWidth: 300 }}
-              />
+            {/* Animación de progreso - Barra */}
+            <div className="w-full space-y-3">
+              <div className="relative h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full animate-pulse" style={{
+                  animation: 'slideProgress 2s ease-in-out infinite'
+                }} />
+              </div>
+              <style>{`
+                @keyframes slideProgress {
+                  0%, 100% { left: 0; width: 33%; }
+                  50% { left: 67%; width: 33%; }
+                }
+              `}</style>
             </div>
           </div>
         </div>
