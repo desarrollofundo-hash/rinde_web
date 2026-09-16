@@ -455,6 +455,9 @@ export default function GastoGeneral({
     isOpen: false,
     message: "",
   });
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
   const imageCropRef = useRef(null);
 
   const showToast = (message, type = "success") => {
@@ -463,6 +466,59 @@ export default function GastoGeneral({
 
   const closeToast = () => {
     setToastConfig((prev) => ({ ...prev, isVisible: false }));
+  };
+
+  const handleOpenCamera = async () => {
+    try {
+      setIsCameraOpen(true);
+      setTimeout(() => {
+        if (videoRef.current) {
+          navigator.mediaDevices
+            .getUserMedia({ video: { facingMode: "environment" } })
+            .then((stream) => {
+              videoRef.current.srcObject = stream;
+              videoRef.current.play();
+            })
+            .catch((err) => {
+              console.error("Error al acceder a la cámara:", err);
+              showToast("No se pudo acceder a la cámara", "error");
+              setIsCameraOpen(false);
+            });
+        }
+      }, 100);
+    } catch (err) {
+      console.error("Error:", err);
+      showToast("Error al abrir la cámara", "error");
+      setIsCameraOpen(false);
+    }
+  };
+
+  const handleCaptureFoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const ctx = canvasRef.current.getContext("2d");
+      canvasRef.current.width = videoRef.current.videoWidth;
+      canvasRef.current.height = videoRef.current.videoHeight;
+      ctx.drawImage(videoRef.current, 0, 0);
+
+      canvasRef.current.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], "captura_camara.jpg", {
+            type: "image/jpeg",
+          });
+          setFormData((prev) => ({ ...prev, evidencia: file }));
+          setEvidenciaPreviewUrl(URL.createObjectURL(blob));
+          stopCamera();
+          showToast("Foto capturada exitosamente", "success");
+        }
+      }, "image/jpeg", 0.95);
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
+    }
+    setIsCameraOpen(false);
   };
 
   const loadCentrosCosto = useCallback(async () => {
@@ -1448,6 +1504,7 @@ export default function GastoGeneral({
               </button>
               <button
                 type="button"
+                onClick={handleOpenCamera}
                 className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 transition cursor-pointer border border-blue-200"
               >
                 <Camera className="h-3 w-3" />
@@ -1968,6 +2025,50 @@ export default function GastoGeneral({
                 className="rounded-xl bg-red-500 px-6 py-2 text-sm font-semibold text-white transition hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300"
               >
                 Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Cámara */}
+      {isCameraOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
+              <h2 className="text-lg font-bold text-slate-900">Capturar Foto</h2>
+              <button
+                onClick={stopCamera}
+                className="text-slate-400 hover:text-slate-600 transition cursor-pointer"
+              >
+                <span className="text-2xl">×</span>
+              </button>
+            </div>
+
+            {/* Video */}
+            <div className="relative bg-black">
+              <video
+                ref={videoRef}
+                className="w-full aspect-video object-cover"
+                playsInline
+              />
+              <canvas ref={canvasRef} className="hidden" />
+            </div>
+
+            {/* Footer */}
+            <div className="flex gap-3 border-t border-slate-200 bg-slate-50 p-4">
+              <button
+                onClick={stopCamera}
+                className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCaptureFoto}
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition cursor-pointer"
+              >
+                Capturar
               </button>
             </div>
           </div>
