@@ -3,6 +3,7 @@ import { X, Upload, Loader, AlertCircle } from "lucide-react";
 import { extraerDatosComprobante } from "../../../services/ocrExtraction";
 import OcrResultsTable from "./OcrResultsTable";
 import RiveAnimation from "../../RiveAnimation";
+import ImageZoomLightbox from "../ImageZoomLightbox";
 import * as pdfjsLib from "pdfjs-dist";
 
 export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
@@ -12,6 +13,7 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
   const [error, setError] = useState(null);
   const [resultados, setResultados] = useState([]);
   const [mostrando, setMostrando] = useState("upload"); // "upload" o "results"
+  const [zoomImage, setZoomImage] = useState(null); // Para el zoom de previews
   const fileInputRef = useRef(null);
 
   const handleFileChange = async (e) => {
@@ -113,7 +115,11 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
     } catch (err) {
       setError(err.message || "Error al procesar las imágenes");
     } finally {
-      setCargando(false);
+      // ⏱️ AQUÍ ESTÁ EL TIEMPO - Cambia 2000 por el tiempo que quieras
+      // 1000 = 1 segundo, 2000 = 2 segundos, 3000 = 3 segundos
+      setTimeout(() => {
+        setCargando(false);
+      }, 2000); // 👈 CAMBIAR ESTE NÚMERO
     }
   };
 
@@ -219,23 +225,33 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
               {previews.length > 0 && (
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                   <p className="mb-3 text-xs font-semibold text-slate-600">
-                    Vista previa ({previews.length}):
+                    Vista previa ({previews.length}) - Haz click para ampliar
                   </p>
                   <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto">
                     {previews.map((item, idx) => (
-                      <div
+                      <button
                         key={idx}
-                        className="overflow-hidden rounded-lg border border-slate-200"
+                        type="button"
+                        onClick={() => setZoomImage(item.preview)}
+                        className="group overflow-hidden rounded-lg border border-slate-200 bg-white hover:border-blue-400 hover:shadow-md transition-all cursor-pointer active:scale-95"
                       >
-                        <img
-                          src={item.preview}
-                          alt={`Vista previa ${idx + 1}`}
-                          className="h-32 w-full object-cover"
-                        />
-                        <p className="truncate bg-white px-2 py-1 text-xs text-slate-600">
+                        <div className="relative overflow-hidden h-32 bg-slate-100">
+                          <img
+                            src={item.preview}
+                            alt={`Vista previa ${idx + 1}`}
+                            className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-200"
+                          />
+                          {/* Indicador de zoom */}
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors">
+                            <div className="text-white text-2xl opacity-0 group-hover:opacity-100 transition-opacity">
+                              🔍
+                            </div>
+                          </div>
+                        </div>
+                        <p className="truncate bg-white px-2 py-2 text-xs text-slate-600 font-medium">
                           {item.file.name}
                         </p>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -296,9 +312,12 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
         </div>
       </div>
 
+      {/* Zoom de Previews */}
+      <ImageZoomLightbox src={zoomImage} onClose={() => setZoomImage(null)} />
+
       {/* Modal de Loading con Rive */}
       {cargando && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-6 rounded-2xl bg-white p-8 shadow-2xl max-w-sm w-full mx-4">
             {/* Animación Rive */}
             <RiveAnimation
@@ -312,13 +331,14 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
                 Extrayendo datos...
               </h3>
               <p className="text-sm text-slate-500">
-                Analizando {archivos.length} {archivos.length === 1 ? "archivo" : "archivos"}
+                Analizando {archivos.length}{" "}
+                {archivos.length === 1 ? "archivo" : "archivos"}
               </p>
             </div>
 
             {/* Barra de progreso */}
             <div className="w-full bg-slate-200 rounded-full h-1 overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-blue-500 to-blue-600 animate-pulse"></div>
+              <div className="h-full bg-linear-to-r from-blue-500 to-blue-600 animate-pulse"></div>
             </div>
           </div>
         </div>
