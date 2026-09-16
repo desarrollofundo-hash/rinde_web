@@ -332,48 +332,48 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
                   </div>
                 </div>
               )}
+
+              {/* Footer - Solo en modo upload */}
+              <div className="flex gap-3 border-t border-slate-200 px-6 py-4">
+                <button
+                  onClick={handleClose}
+                  disabled={cargando}
+                  className="
+      flex-1 rounded-lg
+      border border-red-300
+      bg-red
+      px-4 py-2
+      font-semibold text-slate-700
+      transition-all duration-200
+      hover:border-red-300
+      hover:bg-red-50
+      hover:text-red-600
+      active:scale-95
+      disabled:cursor-not-allowed
+      disabled:opacity-50
+      cursor-pointer
+    "
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={procesarImagen}
+                  disabled={archivos.length === 0 || cargando}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {cargando ? (
+                    <>
+                      <Loader className="h-4 w-4 animate-spin" />
+                      Procesando {archivos.length}{" "}
+                      {archivos.length === 1 ? "archivo" : "archivos"}...
+                    </>
+                  ) : (
+                    `Extraer datos`
+                  )}
+                </button>
+              </div>
             </>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex gap-3 border-t border-slate-200 px-6 py-4">
-          <button
-            onClick={handleClose}
-            disabled={cargando}
-            className="
-    flex-1 rounded-lg
-    border border-red-300
-    bg-red
-    px-4 py-2
-    font-semibold text-slate-700
-    transition-all duration-200
-    hover:border-red-300
-    hover:bg-red-50
-    hover:text-red-600
-    active:scale-95
-    disabled:cursor-not-allowed
-    disabled:opacity-50
-    cursor-pointer
-  "
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={procesarImagen}
-            disabled={archivos.length === 0 || cargando}
-            className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed cursor-pointer"
-          >
-            {cargando ? (
-              <>
-                <Loader className="h-4 w-4 animate-spin" />
-                Procesando {archivos.length}{" "}
-                {archivos.length === 1 ? "archivo" : "archivos"}...
-              </>
-            ) : (
-              `Extraer datos`
-            )}
-          </button>
         </div>
       </div>
 
