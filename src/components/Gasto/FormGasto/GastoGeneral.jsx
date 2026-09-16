@@ -1497,6 +1497,10 @@ export default function GastoGeneral({
             <div className="flex flex-wrap gap-1 mt-2">
               <button
                 type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  document.querySelector('input[accept="image/*,.pdf"]')?.click();
+                }}
                 className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 transition cursor-pointer border border-blue-200"
               >
                 <Camera className="h-3 w-3" />
@@ -1504,7 +1508,10 @@ export default function GastoGeneral({
               </button>
               <button
                 type="button"
-                onClick={handleOpenCamera}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenCamera();
+                }}
                 className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 transition cursor-pointer border border-blue-200"
               >
                 <Camera className="h-3 w-3" />
