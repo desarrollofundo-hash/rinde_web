@@ -783,13 +783,17 @@ export default function GastoGeneral({
     console.log("🏢 De la empresa en sesión:");
     console.log(`  • rucEmpresa: "${rucEmpresa}"`);
     console.log(`  • rucEmpresa (length): ${rucEmpresa.length}`);
-    console.log(`  • Tipos: OCR=${typeof rucClienteOcr} vs Empresa=${typeof rucEmpresa}`);
+    console.log(
+      `  • Tipos: OCR=${typeof rucClienteOcr} vs Empresa=${typeof rucEmpresa}`,
+    );
     console.log("───────────────────────────────────────");
 
     // Validación: Solo si ambos RUC existen y son diferentes
     if (rucClienteOcr && rucEmpresa) {
       console.log("✅ Ambos RUC presentes - Comparando...");
-      console.log(`Comparación: "${rucClienteOcr}" === "${rucEmpresa}" ? ${rucClienteOcr === rucEmpresa}`);
+      console.log(
+        `Comparación: "${rucClienteOcr}" === "${rucEmpresa}" ? ${rucClienteOcr === rucEmpresa}`,
+      );
       if (rucClienteOcr !== rucEmpresa) {
         console.warn(
           `❌ RUC NO COINCIDEN: "${rucClienteOcr}" !== "${rucEmpresa}"`,
@@ -1389,7 +1393,7 @@ export default function GastoGeneral({
           <button
             type="button"
             onClick={() => setIsQrOpen(true)}
-            className="group relative overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm transition hover:shadow-md hover:border-slate-300"
+            className="group relative overflow-hidden rounded-xl border border-slate-200 bg-linear-to-br from-slate-50 to-white p-4 shadow-sm transition hover:shadow-md hover:border-slate-300 cursor-pointer"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-slate-700/5 to-transparent opacity-0 transition group-hover:opacity-100" />
 
@@ -1416,7 +1420,7 @@ export default function GastoGeneral({
           <button
             type="button"
             onClick={() => setIsOcrOpen(true)}
-            className="group relative overflow-hidden rounded-xl border border-blue-200 bg-linear-to-br from-blue-50 to-white p-4 shadow-sm transition hover:shadow-md hover:border-blue-300"
+            className="group relative overflow-hidden rounded-xl border border-blue-200 bg-linear-to-br from-blue-50 to-white p-4 shadow-sm transition hover:shadow-md hover:border-blue-300 "
           >
             <div className="absolute inset-0 bg-linear-to-br from-blue-600/5 to-transparent opacity-0 transition group-hover:opacity-100" />
 
@@ -1428,14 +1432,27 @@ export default function GastoGeneral({
                 />
                 <div className="text-left">
                   <p className="font-semibold text-slate-900">Scaner IA</p>
-                  <p className="text-xs text-slate-500">Extrae datos automáticamente</p>
+                  <p className="text-xs text-slate-500">
+                    Extrae datos automáticamente
+                  </p>
                 </div>
               </div>
             </div>
-
-            <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition group-hover:bg-blue-700 cursor-pointer">
-              Subir imagen o PDF
-              <Camera className="h-3.5 w-3.5" />
+            <div className="flex flex-col sm:flex-row gap-2 mt-3">
+              <button
+                type="button"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 active:scale-95 transition cursor-pointer flex-1 sm:flex-none"
+              >
+                <Camera className="h-4 w-4" />
+                Subir imagen o PDF
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 active:scale-95 transition cursor-pointer flex-1 sm:flex-none"
+              >
+                <Camera className="h-4 w-4" />
+                Cámara
+              </button>
             </div>
           </button>
         </div>
