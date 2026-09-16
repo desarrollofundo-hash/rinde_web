@@ -402,10 +402,10 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
             </div>
 
             {/* Animación de progreso - Barra lineal */}
-            <div className="w-full">
+            <div className="w-full flex items-center justify-center">
               <RiveAnimation
                 src="/animations/linear-progress.riv"
-                className="h-12"
+                className="h-32 w-full"
               />
             </div>
           </div>
