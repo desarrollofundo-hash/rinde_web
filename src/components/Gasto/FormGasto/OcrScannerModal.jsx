@@ -109,7 +109,7 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
 
       // ⏱️ TIEMPO DINÁMICO según cantidad de archivos
       // Base: 2000ms + 500ms por cada archivo
-      const tiempoDelay = 2000 + (archivos.length * 500);
+      const tiempoDelay = 2000 + archivos.length * 500;
 
       // Mostrar loading durante el delay, LUEGO mostrar resultados
       setTimeout(() => {
@@ -222,7 +222,7 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
                   Selecciona imágenes o PDFs de facturas (puedes cargar varias):
                 </label>
-                <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center transition hover:border-blue-400 hover:bg-blue-50/50">
+                <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center transition hover:border-blue-400 hover:bg-blue-50/50 cursor-pointer">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -403,10 +403,13 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
 
             {/* Animación de progreso - Loader */}
             <div className="flex justify-center">
-              <RiveAnimation
-                src="/animations/loader.riv"
-                className="h-24 w-24"
-              />
+              <div className="h-40 w-40">
+                <RiveAnimation
+                  src="/animations/loader.riv"
+                  className="h-full w-full"
+                  autoplay={true}
+                />
+              </div>
             </div>
           </div>
         </div>
