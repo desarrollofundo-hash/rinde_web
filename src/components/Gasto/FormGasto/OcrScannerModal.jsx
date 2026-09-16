@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { X, Upload, Loader, AlertCircle, Trash2, Camera } from "lucide-react";
+import Lottie from "react-lottie-player";
 import { extraerDatosComprobante } from "../../../services/ocrExtraction";
 import OcrResultsTable from "./OcrResultsTable";
 import RiveAnimation from "../../RiveAnimation";
@@ -401,15 +402,14 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
               </p>
             </div>
 
-            {/* Animación de progreso - Loader */}
+            {/* Animación de progreso - Lottie */}
             <div className="flex justify-center">
-              <div className="h-40 w-40">
-                <RiveAnimation
-                  src="/animations/loader.riv"
-                  className="h-full w-full"
-                  autoplay={true}
-                />
-              </div>
+              <Lottie
+                loop
+                play
+                src="/animations/line-progress.lottie"
+                style={{ height: 160, width: "100%" }}
+              />
             </div>
           </div>
         </div>
