@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { X, Upload, Loader, AlertCircle, Trash2 } from "lucide-react";
+import { X, Upload, Loader, AlertCircle, Trash2, Camera } from "lucide-react";
 import { extraerDatosComprobante } from "../../../services/ocrExtraction";
 import OcrResultsTable from "./OcrResultsTable";
 import RiveAnimation from "../../RiveAnimation";
@@ -70,7 +70,10 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
       }
 
       // AGREGAR a los previews existentes
-      setPreviews((previewsAnteriores) => [...previewsAnteriores, ...newPreviews]);
+      setPreviews((previewsAnteriores) => [
+        ...previewsAnteriores,
+        ...newPreviews,
+      ]);
       setCargando(false);
     } catch (err) {
       setError(`Error al procesar archivos: ${err.message}`);
@@ -160,15 +163,29 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-          <h2 className="text-lg font-bold text-slate-900">OpenScan IA </h2>
-          <button
-            onClick={handleClose}
-            className="text-slate-400 hover:text-slate-600"
-            aria-label="Cerrar"
-          >
-            <X className="h-5 w-5 cursor-pointer text-gray-500 transition-all duration-200 hover:scale-110 hover:text-red-500 hover:bg-red-50 rounded-full p-1" />{" "}
-          </button>
+        <div className="bg-gradient-to-r from-blue-50 to-slate-50 border-b border-slate-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* Título y descripción */}
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white">
+                <Camera className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">OpenScan IA</h2>
+                <p className="text-xs text-slate-500">Extrae datos de facturas automáticamente</p>
+              </div>
+            </div>
+
+            {/* Botón cerrar mejorado */}
+            <button
+              onClick={handleClose}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 transition hover:bg-red-50 hover:border-red-300 hover:text-red-600 cursor-pointer"
+              aria-label="Cerrar"
+              title="Cerrar"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Body */}
@@ -235,7 +252,7 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-slate-600">
-                      Vista previa ({previews.length}) - Haz click para ampliar
+                      Vista previa: {/*  ({previews.length})  */}
                     </p>
                     <button
                       type="button"
