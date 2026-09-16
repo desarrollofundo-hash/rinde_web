@@ -106,16 +106,28 @@ export default function OcrResultsTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-slate-900">
-          Resultados del Scanit: {/* ({resultados.length} registros) */}
-        </h3>
-        <p className="text-xs text-red-600">
-          Revisa los datos extraídos antes de guardar
-        </p>
+      {/* Header */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+            <Check className="h-5 w-5 text-blue-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">
+              Resultados del Scanit
+            </h3>
+            <p className="text-xs text-slate-500">
+              {resultados.length} {resultados.length === 1 ? "registro" : "registros"}
+            </p>
+          </div>
+        </div>
+        <div className="rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 border border-amber-200">
+          ⚠️ Revisa antes de guardar
+        </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      {/* Desktop Table View */}
+      <div className="hidden lg:block overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full table-fixed border-separate border-spacing-0 text-sm">
           {/* ================= HEADER ================= */}
           <thead>
@@ -407,6 +419,113 @@ export default function OcrResultsTable({
         </table>
       </div>
 
+      {/* Mobile/Tablet Card View */}
+      <div className="lg:hidden grid gap-3 sm:grid-cols-2">
+        {resultados.map((item, idx) => (
+          <div
+            key={idx}
+            className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+          >
+            {/* Card Header */}
+            <div className="bg-gradient-to-r from-blue-50 to-slate-50 px-4 py-3 border-b border-slate-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-slate-900">Registro #{idx + 1}</p>
+                  <p className="text-xs text-slate-500">{item.razonSocial || "Sin nombre"}</p>
+                </div>
+                <span className="inline-flex items-center rounded-lg bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-700">
+                  {item.serie}-{item.numero}
+                </span>
+              </div>
+            </div>
+
+            {/* Card Body */}
+            <div className="p-4 space-y-3">
+              {/* RUC y Tipo */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-slate-500 font-semibold mb-1">RUC</p>
+                  <p className="font-mono text-sm font-bold text-slate-700">{item.rucEmisor || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 font-semibold mb-1">Tipo</p>
+                  <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold uppercase text-amber-700">
+                    {tiposComprobante[item.tipoComprobante]?.split(" ")[0] || "—"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Fecha y Moneda */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-slate-500 font-semibold mb-1">Fecha</p>
+                  <p className="text-sm font-medium text-slate-700">{item.fecha || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 font-semibold mb-1">Moneda</p>
+                  <span className="inline-flex items-center justify-center rounded-md bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
+                    {monedas[item.moneda] || "PEN"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Total */}
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 border border-green-200">
+                <p className="text-xs text-green-600 font-semibold mb-1">Total</p>
+                <p className="text-lg font-bold text-green-700">S/ {item.total || "0.00"}</p>
+              </div>
+
+              {/* Evidencia */}
+              {item.preview && (
+                <button
+                  type="button"
+                  onClick={() => setZoomImage(item.preview)}
+                  className="w-full h-32 rounded-lg border-2 border-dashed border-slate-300 overflow-hidden hover:border-blue-400 transition-colors group"
+                  title="Click para ampliar"
+                >
+                  <img
+                    src={item.preview}
+                    alt="Evidencia"
+                    className="h-full w-full object-cover group-hover:scale-110 transition-transform"
+                  />
+                </button>
+              )}
+
+              {/* Observación */}
+              <div className={`rounded-lg p-3 text-center text-sm font-semibold border-2 ${
+                validarRucFacura(item.rucCliente).color.includes("green")
+                  ? "bg-green-50 border-green-200 text-green-700"
+                  : "bg-red-50 border-red-200 text-red-700"
+              }`}>
+                {validarRucFacura(item.rucCliente).mensaje}
+              </div>
+
+              {/* Acciones */}
+              <div className="flex gap-2 pt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => handleEdit(idx)}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-600 py-2 font-semibold transition hover:bg-blue-100 active:scale-95 cursor-pointer"
+                  title="Editar"
+                >
+                  <Edit2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Editar</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmIndex(idx)}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 text-red-500 py-2 font-semibold transition hover:bg-red-100 active:scale-95 cursor-pointer"
+                  title="Eliminar"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Eliminar</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Modal de Zoom usando componente existente */}
       <ImageZoomLightbox src={zoomImage} onClose={() => setZoomImage(null)} />
 
@@ -480,21 +599,21 @@ export default function OcrResultsTable({
       )}
 
       {/* Botones de acción */}
-      <div className="flex gap-3 pt-4 border-t border-slate-200">
+      <div className="flex flex-col gap-2 sm:flex-row sm:gap-3 pt-4 border-t border-slate-200">
         <button
           onClick={onCancel}
-          className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border-2 border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 cursor-pointer"
+          className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border-2 border-slate-300 bg-white px-4 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 cursor-pointer"
         >
           <X className="h-4 w-4" />
-          Cancelar
+          <span>Cancelar</span>
         </button>
         <button
           onClick={() => onConfirm(resultados)}
           disabled={resultados.length === 0}
-          className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-2.5 font-semibold text-white transition hover:from-green-600 hover:to-emerald-700 active:scale-95 cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-3 font-semibold text-white transition hover:from-green-600 hover:to-emerald-700 active:scale-95 cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Check className="h-4 w-4" />
-          Guardar todos ({resultados.length})
+          <span>Guardar {resultados.length > 0 && `(${resultados.length})`}</span>
         </button>
       </div>
     </div>
