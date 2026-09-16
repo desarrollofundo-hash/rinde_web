@@ -402,10 +402,12 @@ export default function OcrScannerModal({ isOpen, onClose, onDetected }) {
             </div>
 
             {/* Animación de progreso - Bolas de colores */}
-            <RiveAnimation
-              src="/animations/color-balls-loading.riv"
-              className="h-16 w-32"
-            />
+            <div className="flex justify-center overflow-hidden rounded-lg">
+              <RiveAnimation
+                src="/animations/color-balls-loading.riv"
+                className="h-20 w-40"
+              />
+            </div>
           </div>
         </div>
       )}
