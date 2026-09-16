@@ -1496,11 +1496,14 @@ export default function GastoGeneral({
                 </div>
               </div>
             </div>
-            <div className="flex flex-wrap gap-1 mt-2" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-wrap gap-1 mt-2">
               <button
                 type="button"
                 onClick={() => {
-                  document.getElementById('evidencia-input')?.click();
+                  const input = document.getElementById('evidencia-input');
+                  if (input) {
+                    input.click();
+                  }
                 }}
                 className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 transition cursor-pointer border border-blue-200"
               >
@@ -1509,7 +1512,7 @@ export default function GastoGeneral({
               </button>
               <button
                 type="button"
-                onClick={handleOpenCamera}
+                onClick={() => handleOpenCamera()}
                 className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 transition cursor-pointer border border-blue-200"
               >
                 <Camera className="h-3 w-3" />
