@@ -21,6 +21,7 @@ import EvidenciaCropModal from "./EvidenciaCropModal";
 import QrScannerModal from "./QrScannerModal";
 import OcrScannerModal from "./OcrScannerModal";
 import RucValidationDialog from "./RucValidationDialog";
+import UploadWarningMessage from "./UploadWarningMessage";
 import Toast from "../../shared/Toast.jsx";
 import RiveAnimation from "../../RiveAnimation";
 import { Save, QrCode, Camera } from "lucide-react";
@@ -472,21 +473,30 @@ export default function GastoGeneral({
   const handleOpenCamera = async () => {
     try {
       setIsCameraOpen(true);
-      setTimeout(() => {
+      setTimeout(async () => {
         if (videoRef.current) {
-          navigator.mediaDevices
-            .getUserMedia({ video: { facingMode: "environment" } })
-            .then((stream) => {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: "environment" },
+            });
+            videoRef.current.srcObject = stream;
+            await videoRef.current.play().catch(() => {});
+          } catch (err) {
+            console.error("Error con facingMode environment:", err);
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+              });
               videoRef.current.srcObject = stream;
-              videoRef.current.play();
-            })
-            .catch((err) => {
-              console.error("Error al acceder a la cámara:", err);
+              await videoRef.current.play().catch(() => {});
+            } catch (fallbackErr) {
+              console.error("Error al acceder a la cámara:", fallbackErr);
               showToast("No se pudo acceder a la cámara", "error");
               setIsCameraOpen(false);
-            });
+            }
+          }
         }
-      }, 100);
+      }, 300);
     } catch (err) {
       console.error("Error:", err);
       showToast("Error al abrir la cámara", "error");
@@ -496,29 +506,54 @@ export default function GastoGeneral({
 
   const handleCaptureFoto = () => {
     if (videoRef.current && canvasRef.current) {
-      const ctx = canvasRef.current.getContext("2d");
-      canvasRef.current.width = videoRef.current.videoWidth;
-      canvasRef.current.height = videoRef.current.videoHeight;
-      ctx.drawImage(videoRef.current, 0, 0);
+      try {
+        const ctx = canvasRef.current.getContext("2d");
+        if (!ctx) {
+          showToast("Error: no se pudo obtener contexto del canvas", "error");
+          return;
+        }
 
-      canvasRef.current.toBlob(
-        async (blob) => {
-          if (blob) {
+        const videoWidth = videoRef.current.videoWidth;
+        const videoHeight = videoRef.current.videoHeight;
+
+        if (!videoWidth || !videoHeight) {
+          showToast("Error: video no está listo", "error");
+          return;
+        }
+
+        canvasRef.current.width = videoWidth;
+        canvasRef.current.height = videoHeight;
+        ctx.drawImage(videoRef.current, 0, 0);
+
+        canvasRef.current.toBlob(
+          async (blob) => {
+            if (!blob) {
+              showToast("Error al capturar la foto", "error");
+              return;
+            }
+
             const file = new File([blob], "captura_camara.jpg", {
               type: "image/jpeg",
             });
+
             setFormData((prev) => ({ ...prev, evidencia: file }));
             setEvidenciaPreviewUrl(URL.createObjectURL(blob));
             stopCamera();
             showToast("Procesando foto con OCR...", "info");
 
-            // Procesar directamente con OCR
             setTimeout(async () => {
               try {
+                console.log(
+                  "📸 Enviando foto para OCR:",
+                  file.name,
+                  file.type,
+                  file.size,
+                );
+                showToast("Enviando a OpenAI...", "info");
                 const datos = await extraerDatosComprobante(file);
+                console.log("✅ OCR completado:", datos);
                 if (datos) {
                   showToast("Datos extraídos exitosamente", "success");
-                  // Auto-llenar los datos en el formulario
                   setFormData((prev) => ({
                     ...prev,
                     rucEmisor: datos.rucEmisor || "",
@@ -532,16 +567,23 @@ export default function GastoGeneral({
                     moneda: datos.moneda || "01",
                     igv: datos.igv || "",
                   }));
+                } else {
+                  showToast("⚠️ No se extrajeron datos", "warning");
                 }
               } catch (err) {
-                showToast("Error procesando OCR: " + err.message, "error");
+                console.error("❌ Error OCR:", err);
+                const errorMsg = err?.message || String(err);
+                showToast(`❌ Error: ${errorMsg.substring(0, 100)}`, "error");
               }
-            }, 500);
-          }
-        },
-        "image/jpeg",
-        0.95,
-      );
+            }, 1000);
+          },
+          "image/jpeg",
+          0.9,
+        );
+      } catch (err) {
+        console.error("Error capturando foto:", err);
+        showToast("Error al capturar la foto", "error");
+      }
     }
   };
 
@@ -915,30 +957,22 @@ export default function GastoGeneral({
         completarConDatosOcr(datosOcr);
       }
     } else {
-      // Si falta el rucCliente, es un error - No se puede validar
-      if (!rucClienteOcr) {
-        console.error(
-          "❌ ERROR CRÍTICO: No se extrajo RUC Cliente de la factura",
-        );
-        console.warn(
-          `  • rucClienteOcr: "${rucClienteOcr || "∅ VACÍO"}" (tipo: ${typeof rucClienteOcr})`,
-        );
-        console.warn(
-          `  • rucEmpresa: "${rucEmpresa || "∅ VACÍO"}" (tipo: ${typeof rucEmpresa})`,
-        );
-        console.log("═══════════════════════════════════════");
-
-        showToast(
-          "⚠️ No se pudo extraer el RUC del Cliente. Verifica que la factura sea clara y legible.",
-          "error",
-        );
-        return; // BLOQUEAR: No permitir continuar sin RUC Cliente
-      }
-
-      // Si falta rucEmpresa (no hay empresa logueada)
+      // Si no hay empresa logueada, es un error crítico
       if (!rucEmpresa) {
         console.warn("❌ No se encontró empresa en sesión");
         showToast("Error: No hay empresa activa en sesión.", "error");
+        return;
+      }
+
+      // Si falta rucCliente, usar el de la empresa logueada como fallback
+      if (!rucClienteOcr) {
+        console.warn(
+          "⚠️ No se pudo extraer el RUC del Cliente de la factura, usando RUC de la empresa logueada como fallback",
+        );
+        console.log(`  • Usando como cliente: "${rucEmpresa}"`);
+
+        // Usar el RUC de la empresa logueada como cliente
+        completarConDatosOcr({ ...datosOcr, rucCliente: rucEmpresa });
         return;
       }
     }
@@ -1451,110 +1485,189 @@ export default function GastoGeneral({
       onSubmit={handleSubmit}
       className="mx-auto w-full max-w-6xl space-y-2  p-4 pb-16  sm:p-6 sm:pb-6 lg:p-2 lg:pb-2"
     >
-      {/*   <div className="rounded-2xl border border-slate-200 bg-white/80 p-2 shadow-sm sm:p-3">
-                <h2 className="text-2xl font-bold tracking-tight text-slate-800">Formulario de Gasto General</h2>
-                <p className="mt-1 text-sm text-slate-600">Completa los datos de rendición y guarda el comprobante.</p>
-            </div> */}
+      <UploadWarningMessage />
 
-      {/* Evidencia y QR */}
-      <div className="grid grid-cols-1 items-stretch gap-2 lg:grid-cols-2">
-        <EvidenciaUploader
-          labelClass={labelClass}
-          formData={formData}
-          hasEvidencia={hasEvidencia}
-          canCropImage={canCropImage}
-          inputResetKey={evidenciaInputResetKey}
-          onFileChange={handleChange}
-          onOpenPreview={() => {
-            setIsPreviewOpen(true);
-            setIsCropMode(false);
-          }}
-          onStartCrop={() => {
-            setIsPreviewOpen(true);
-            setIsCropMode(true);
-          }}
-        />
+      {/* Evidencia y Métodos de Captura */}
+      <div className="space-y-3 sm:space-y-6">
+        {/* Título de sección */}
+        <div>
+          <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-0.5 sm:mb-1">
+            Captura de documentos
+          </h3>
+          <p className="text-xs sm:text-sm text-slate-500">
+            Elige cómo deseas capturar o cargar la factura
+          </p>
+        </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          {/* QR Scanner Card */}
-          <button
-            type="button"
-            onClick={() => setIsQrOpen(true)}
-            className="group relative overflow-hidden rounded-xl border border-slate-200 bg-linear-to-br from-slate-50 to-white p-4 shadow-sm transition hover:shadow-md hover:border-slate-300 cursor-pointer"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-700/5 to-transparent opacity-0 transition group-hover:opacity-100" />
-
-            <div className="relative flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <RiveAnimation
-                  src="/animations/barcode-scanner.riv"
-                  className="h-12 w-12"
-                />
-                <div className="text-left">
-                  <p className="font-semibold text-slate-900">Lector QR</p>
-                  <p className="text-xs text-slate-500">Escanear código</p>
+        {/* Grid Principal */}
+        <div className="grid grid-cols-1 gap-3 sm:gap-6 lg:grid-cols-4">
+          {/* Evidencia Uploader - Columna 1 */}
+          <div className="lg:col-span-1">
+            <div className="h-full rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/50 hover:border-slate-400 hover:bg-slate-50 transition-all p-3 sm:p-6 flex flex-col">
+              <div className="flex-1">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="p-2.5 bg-slate-200 rounded-lg">
+                    <svg
+                      className="w-6 h-6 text-slate-700"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900 text-sm">
+                      Subir archivo
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">Imagen o PDF</p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white transition group-hover:bg-slate-800">
-              Abrir escáner
-              <QrCode className="h-3.5 w-3.5" />
-            </div>
-          </button>
-
-          {/* OCR Scanner Card */}
-          <div
-            onClick={() => setIsOcrOpen(true)}
-            className="group relative overflow-hidden rounded-xl border border-blue-200 bg-linear-to-br from-blue-50 to-white p-4 shadow-sm transition hover:shadow-md hover:border-blue-300 cursor-pointer"
-          >
-            <div className="absolute inset-0 bg-linear-to-br from-blue-600/5 to-transparent opacity-0 transition group-hover:opacity-100" />
-
-            <div className="relative flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <RiveAnimation
-                  src="/animations/robot-bouncing.riv"
-                  className="h-12 w-12"
-                />
-                <div className="text-left">
-                  <p className="font-semibold text-slate-900">Scaner IA</p>
-                  <p className="text-xs text-slate-500">
-                    Extrae datos automáticamente
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-1 mt-2">
-              <div className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 cursor-pointer hover:bg-blue-100">
-                <Camera className="h-3 w-3" />
-                Subir Imagen o PDF
-              </div>
+              <EvidenciaUploader
+                labelClass={labelClass}
+                formData={formData}
+                hasEvidencia={hasEvidencia}
+                canCropImage={canCropImage}
+                inputResetKey={evidenciaInputResetKey}
+                onFileChange={handleChange}
+                onOpenPreview={() => {
+                  setIsPreviewOpen(true);
+                  setIsCropMode(false);
+                }}
+                onStartCrop={() => {
+                  setIsPreviewOpen(true);
+                  setIsCropMode(true);
+                }}
+              />
             </div>
           </div>
-          {/*CAMARA*/}
-          <div
-            onClick={handleOpenCamera}
-            className="group relative overflow-hidden rounded-xl border border-blue-200 bg-linear-to-br from-blue-50 to-white p-4 shadow-sm transition hover:shadow-md hover:border-blue-300 cursor-pointer"
-          >
-            <div className="absolute inset-0 bg-linear-to-br from-blue-600/5 to-transparent opacity-0 transition group-hover:opacity-100" />
 
-            <div className="relative flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <RiveAnimation
-                  src="/animations/robot-bouncing.riv"
-                  className="h-12 w-12"
-                />
-                <div className="text-left">
-                  <p className="font-semibold text-slate-900">Abrir Cámara</p>
+          {/* Scanners - 3 Columnas */}
+          <div className="lg:col-span-3 grid gap-2 sm:gap-5 grid-cols-1 sm:grid-cols-3">
+            {/* QR Scanner */}
+            <button
+              type="button"
+              onClick={() => setIsQrOpen(true)}
+              className="group relative h-full rounded-xl sm:rounded-2xl border border-slate-200 bg-white p-3 sm:p-6 shadow-sm hover:shadow-xl hover:border-slate-300 transition-all duration-300 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-linear-to-br from-slate-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+              <div className="relative flex flex-col h-full gap-2 sm:gap-4">
+                <div className="flex items-start gap-2">
+                  <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl group-hover:from-slate-200 transition-colors flex-shrink-0">
+                    <RiveAnimation
+                      src="/animations/barcode-scanner.riv"
+                      className="h-8 sm:h-8 w-8 sm:w-8 scale-180"
+                    />
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className="font-bold text-slate-900 text-xs sm:text-sm leading-tight">
+                      Código QR
+                    </p>
+                    <p className="text-xs text-slate-600 mt-1 leading-snug">
+                      Escanea el QR SUNAT
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-1 sm:pt-2 border-t border-slate-100">
+                  <button className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white px-3 py-2 sm:py-2.5 text-xs font-semibold transition-colors">
+                    <QrCode className="h-3 sm:h-3.5 w-3 sm:w-3.5" />
+                    <span className="hidden sm:inline">Abrir escáner</span>
+                    <span className="sm:hidden">Abrir</span>
+                  </button>
                 </div>
               </div>
-            </div>
-            <div className="flex flex-wrap gap-1 mt-2">
-              <div className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 cursor-pointer hover:bg-blue-100">
-                <Camera className="h-3 w-3" />
-                Cámara
+            </button>
+
+            {/* OCR Scanner */}
+            <button
+              type="button"
+              onClick={() => setIsOcrOpen(true)}
+              className="group relative h-full rounded-xl sm:rounded-2xl border-2 border-cyan-300 bg-gradient-to-br from-cyan-50 via-blue-50 to-cyan-50 p-3 sm:p-6 shadow-sm hover:shadow-xl hover:border-cyan-400 transition-all duration-300 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+              <div className="relative flex flex-col h-full gap-2 sm:gap-4">
+                <div className="flex items-start gap-2">
+                  <div className="p-2 sm:p-3 bg-gradient-to-br from-cyan-200 to-blue-100 rounded-lg sm:rounded-xl group-hover:from-cyan-300 transition-colors flex-shrink-0">
+                    <RiveAnimation
+                      src="/animations/robot-bouncing.riv"
+                      className="h-6 sm:h-8 w-6 sm:w-8"
+                    />
+                  </div>
+                  <div className="text-left flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-slate-900 text-xs sm:text-sm leading-tight">
+                        Scanner IA
+                      </p>
+                      <span className="text-xs font-semibold text-cyan-700 bg-cyan-100 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs flex-shrink-0">
+                        IA
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-1 leading-snug">
+                      Reconocimiento automático
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-1 sm:pt-2 border-t border-cyan-200">
+                  <button className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-3 py-2 sm:py-2.5 text-xs font-semibold transition-all">
+                    <Camera className="h-3 sm:h-3.5 w-3 sm:w-3.5" />
+                    <span className="hidden sm:inline">Subir imagen</span>
+                    <span className="sm:hidden">Subir</span>
+                  </button>
+                </div>
               </div>
-            </div>
+            </button>
+
+            {/* Cámara */}
+            <button
+              type="button"
+              onClick={handleOpenCamera}
+              className="group relative h-full rounded-xl sm:rounded-2xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-50 p-3 sm:p-6 shadow-sm hover:shadow-xl hover:border-blue-400 transition-all duration-300 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+              <div className="relative flex flex-col h-full gap-2 sm:gap-4">
+                <div className="flex items-start gap-2">
+                  <div className="p-2 sm:p-3 bg-gradient-to-br from-blue-200 to-indigo-100 rounded-lg sm:rounded-xl group-hover:from-blue-300 transition-colors flex-shrink-0">
+                    <RiveAnimation
+                      src="/animations/robot-bouncing.riv"
+                      className="h-6 sm:h-8 w-6 sm:w-8"
+                    />
+                  </div>
+                  <div className="text-left flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-slate-900 text-xs sm:text-sm leading-tight">
+                        Cámara
+                      </p>
+                      <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs flex-shrink-0">
+                        Tiempo real
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-1 leading-snug">
+                      Captura en tiempo real
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-1 sm:pt-2 border-t border-blue-200">
+                  <button className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-3 py-2 sm:py-2.5 text-xs font-semibold transition-all">
+                    <Camera className="h-3 sm:h-3.5 w-3 sm:w-3.5" />
+                    <span className="hidden sm:inline">Abrir cámara</span>
+                    <span className="sm:hidden">Abrir</span>
+                  </button>
+                </div>
+              </div>
+            </button>
           </div>
         </div>
       </div>
@@ -2078,10 +2191,10 @@ export default function GastoGeneral({
       {/* Modal de Cámara */}
       {isCameraOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
+          <div className="w-[98vw] sm:w-full sm:max-w-2xl h-[100dvh] rounded-2xl bg-white shadow-2xl overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
-              <h2 className="text-lg font-bold text-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 sm:px-6 py-3 sm:py-4">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900">
                 Capturar Foto
               </h2>
               <button
@@ -2093,10 +2206,12 @@ export default function GastoGeneral({
             </div>
 
             {/* Video */}
-            <div className="relative bg-black">
+            <div className="relative bg-black flex-1 w-full overflow-hidden">
               <video
                 ref={videoRef}
-                className="w-full aspect-video object-cover"
+                className="w-full h-full object-cover"
+                autoPlay
+                muted
                 playsInline
               />
               <canvas ref={canvasRef} className="hidden" />

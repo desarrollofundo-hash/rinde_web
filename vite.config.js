@@ -28,8 +28,11 @@ export default defineConfig({
     },
   },
   server: {
+    host: "0.0.0.0",
     hmr: {
       overlay: false,
+      host: "10.51.136.4",
+      port: 5175,
     },
   },
 });
