@@ -1555,11 +1555,11 @@ export default function GastoGeneral({
             <button
               type="button"
               onClick={() => setIsQrOpen(true)}
-              className="group relative h-full rounded-xl sm:rounded-2xl border border-slate-200 bg-white p-3 sm:p-6 shadow-sm hover:shadow-xl hover:border-slate-300 transition-all duration-300 overflow-hidden"
+              className="group relative rounded-xl sm:rounded-2xl border border-slate-200 bg-white p-3 sm:p-6 shadow-sm hover:shadow-xl hover:border-slate-300 transition-all duration-300 overflow-hidden"
             >
               <div className="absolute inset-0 bg-linear-to-br from-slate-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-              <div className="relative flex flex-col h-full gap-2 sm:gap-4">
+              <div className="relative flex flex-col gap-2 sm:gap-4">
                 <div className="flex items-start gap-2">
                   <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl group-hover:from-slate-200 transition-colors flex-shrink-0">
                     <RiveAnimation
@@ -1591,11 +1591,11 @@ export default function GastoGeneral({
             <button
               type="button"
               onClick={() => setIsOcrOpen(true)}
-              className="group relative h-full rounded-xl sm:rounded-2xl border-2 border-cyan-300 bg-gradient-to-br from-cyan-50 via-blue-50 to-cyan-50 p-3 sm:p-6 shadow-sm hover:shadow-xl hover:border-cyan-400 transition-all duration-300 overflow-hidden"
+              className="group relative rounded-xl sm:rounded-2xl border-2 border-cyan-300 bg-gradient-to-br from-cyan-50 via-blue-50 to-cyan-50 p-3 sm:p-6 shadow-sm hover:shadow-xl hover:border-cyan-400 transition-all duration-300 overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-              <div className="relative flex flex-col h-full gap-2 sm:gap-4">
+              <div className="relative flex flex-col gap-2 sm:gap-4">
                 <div className="flex items-start gap-2">
                   <div className="p-2 sm:p-3 bg-gradient-to-br from-cyan-200 to-blue-100 rounded-lg sm:rounded-xl group-hover:from-cyan-300 transition-colors flex-shrink-0">
                     <RiveAnimation
@@ -1632,11 +1632,11 @@ export default function GastoGeneral({
             <button
               type="button"
               onClick={handleOpenCamera}
-              className="group relative h-full rounded-xl sm:rounded-2xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-50 p-3 sm:p-6 shadow-sm hover:shadow-xl hover:border-blue-400 transition-all duration-300 overflow-hidden"
+              className="group relative rounded-xl sm:rounded-2xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-50 p-3 sm:p-6 shadow-sm hover:shadow-xl hover:border-blue-400 transition-all duration-300 overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-              <div className="relative flex flex-col h-full gap-2 sm:gap-4">
+              <div className="relative flex flex-col gap-2 sm:gap-4">
                 <div className="flex items-start gap-2">
                   <div className="p-2 sm:p-3 bg-gradient-to-br from-blue-200 to-indigo-100 rounded-lg sm:rounded-xl group-hover:from-blue-300 transition-colors flex-shrink-0">
                     <RiveAnimation
