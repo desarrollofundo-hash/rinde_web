@@ -1550,38 +1550,37 @@ export default function GastoGeneral({
           </div>
 
           {/* Scanners - 3 Columnas */}
-          <div className="lg:col-span-3 grid gap-2 sm:gap-5 grid-cols-1 sm:grid-cols-3">
+          <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
             {/* QR Scanner */}
             <button
               type="button"
               onClick={() => setIsQrOpen(true)}
-              className="group relative rounded-lg sm:rounded-xl border border-slate-200 bg-white p-1.5 sm:p-2.5 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 overflow-hidden"
+              className="group relative h-[72px] sm:h-[76px] rounded-lg border border-slate-200 bg-white px-2 py-1.5 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 overflow-hidden"
             >
-              <div className="absolute inset-0 bg-linear-to-br from-slate-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="absolute inset-0 bg-gradient-to-br from-slate-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-              <div className="relative flex flex-col gap-1 sm:gap-2">
-                <div className="flex items-start gap-1.5">
-                  <div className="p-1 sm:p-1.5 rounded-md sm:rounded-lg group-hover:from-slate-200 transition-colors flex-shrink-0">
-                    <RiveAnimation
-                      src="/animations/barcode-scanner.riv"
-                      className="h-5 sm:h-7 w-5 sm:w-7 scale-180"
-                    />
-                  </div>
-                  <div className="text-left flex-1">
-                    <p className="font-bold text-slate-900 text-[11px] sm:text-xs leading-tight">
-                      Código QR
-                    </p>
-                    <p className="text-[10px] sm:text-xs text-slate-600 mt-0.5 leading-snug">
-                      Escanea QR
-                    </p>
-                  </div>
+              <div className="relative h-full flex items-center gap-2">
+                <div className="p-1 rounded-md flex-shrink-0">
+                  <RiveAnimation
+                    src="/animations/barcode-scanner.riv"
+                    className="h-6 w-6 sm:h-7 sm:w-7 scale-150"
+                  />
                 </div>
 
-                <div className="pt-0.5 sm:pt-1 border-t border-slate-100">
-                  <button className="w-full inline-flex items-center justify-center gap-0.5 rounded-md bg-slate-900 hover:bg-slate-800 text-white px-2 py-1 sm:py-1.5 text-[10px] sm:text-xs font-semibold transition-colors">
-                    <QrCode className="h-3 sm:h-3 w-3 sm:w-3" />
+                <div className="text-left flex-1 min-w-0">
+                  <p className="font-bold text-slate-900 text-[11px] sm:text-xs leading-tight">
+                    Código QR
+                  </p>
+                  <p className="text-[9px] sm:text-[10px] text-slate-600 leading-tight">
+                    Escanea QR
+                  </p>
+                </div>
+
+                <div className="flex-shrink-0">
+                  <span className="inline-flex items-center justify-center gap-1 rounded-md bg-slate-900 text-white px-2 py-1 text-[9px] sm:text-[10px] font-semibold">
+                    <QrCode className="h-3 w-3" />
                     <span className="hidden sm:inline">Abrir</span>
-                  </button>
+                  </span>
                 </div>
               </div>
             </button>
@@ -1590,38 +1589,39 @@ export default function GastoGeneral({
             <button
               type="button"
               onClick={() => setIsOcrOpen(true)}
-              className="group relative rounded-lg sm:rounded-xl border-2 border-cyan-300 bg-gradient-to-br from-cyan-50 via-blue-50 to-cyan-50 p-1.5 sm:p-2.5 shadow-sm hover:shadow-md hover:border-cyan-400 transition-all duration-300 overflow-hidden"
+              className="group relative h-[72px] sm:h-[76px] rounded-lg border-2 border-cyan-300 bg-gradient-to-br from-cyan-50 via-blue-50 to-cyan-50 px-2 py-1.5 shadow-sm hover:shadow-md hover:border-cyan-400 transition-all duration-300 overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-              <div className="relative flex flex-col gap-1 sm:gap-2">
-                <div className="flex items-start gap-1.5">
-                  <div className="p-1 sm:p-1.5 bg-gradient-to-br from-cyan-200 to-blue-100 rounded-md sm:rounded-lg group-hover:from-cyan-300 transition-colors flex-shrink-0">
-                    <RiveAnimation
-                      src="/animations/robot-bouncing.riv"
-                      className="h-5 sm:h-7 w-5 sm:w-7"
-                    />
-                  </div>
-                  <div className="text-left flex-1">
-                    <div className="flex items-center gap-1">
-                      <p className="font-bold text-slate-900 text-[11px] sm:text-xs leading-tight">
-                        IA
-                      </p>
-                      <span className="text-[9px] font-semibold text-cyan-700 bg-cyan-100 px-1 py-0.5 rounded-full flex-shrink-0">
-                        Auto
-                      </span>
-                    </div>
-                    <p className="text-[10px] sm:text-xs text-slate-600 mt-0.5 leading-snug">
-                      Lectura automática
-                    </p>
-                  </div>
+              <div className="relative h-full flex items-center gap-2">
+                <div className="p-1 bg-gradient-to-br from-cyan-200 to-blue-100 rounded-md flex-shrink-0">
+                  <RiveAnimation
+                    src="/animations/robot-bouncing.riv"
+                    className="h-6 w-6 sm:h-7 sm:w-7"
+                  />
                 </div>
 
-                <div className="pt-0.5 sm:pt-1 border-t border-cyan-200">
-                  <button className="w-full inline-flex items-center justify-center gap-0.5 rounded-md bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-2 py-1 sm:py-1.5 text-[10px] sm:text-xs font-semibold transition-all">
-                    <Camera className="h-3 sm:h-3 w-3 sm:w-3" />
+                <div className="text-left flex-1 min-w-0">
+                  <div className="flex items-center gap-1">
+                    <p className="font-bold text-slate-900 text-[11px] sm:text-xs leading-tight">
+                      IA
+                    </p>
+
+                    <span className="text-[8px] font-semibold text-cyan-700 bg-cyan-100 px-1 py-0.5 rounded-full">
+                      Auto
+                    </span>
+                  </div>
+
+                  <p className="text-[9px] sm:text-[10px] text-slate-600 leading-tight">
+                    Lectura automática
+                  </p>
+                </div>
+
+                <div className="flex-shrink-0">
+                  <span className="inline-flex items-center justify-center gap-1 rounded-md bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-2 py-1 text-[9px] sm:text-[10px] font-semibold">
+                    <Camera className="h-3 w-3" />
                     <span className="hidden sm:inline">Subir</span>
-                  </button>
+                  </span>
                 </div>
               </div>
             </button>
@@ -1630,38 +1630,39 @@ export default function GastoGeneral({
             <button
               type="button"
               onClick={handleOpenCamera}
-              className="group relative rounded-lg sm:rounded-xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-50 p-1.5 sm:p-2.5 shadow-sm hover:shadow-md hover:border-blue-400 transition-all duration-300 overflow-hidden"
+              className="group relative h-[72px] sm:h-[76px] rounded-lg border-2 border-blue-300 bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-50 px-2 py-1.5 shadow-sm hover:shadow-md hover:border-blue-400 transition-all duration-300 overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-              <div className="relative flex flex-col gap-1 sm:gap-2">
-                <div className="flex items-start gap-1.5">
-                  <div className="p-1 sm:p-1.5 bg-gradient-to-br from-blue-200 to-indigo-100 rounded-md sm:rounded-lg group-hover:from-blue-300 transition-colors flex-shrink-0">
-                    <RiveAnimation
-                      src="/animations/robot-bouncing.riv"
-                      className="h-5 sm:h-7 w-5 sm:w-7"
-                    />
-                  </div>
-                  <div className="text-left flex-1">
-                    <div className="flex items-center gap-1">
-                      <p className="font-bold text-slate-900 text-[11px] sm:text-xs leading-tight">
-                        Cámara
-                      </p>
-                      <span className="text-[9px] font-semibold text-blue-700 bg-blue-100 px-1 py-0.5 rounded-full flex-shrink-0">
-                        Live
-                      </span>
-                    </div>
-                    <p className="text-[10px] sm:text-xs text-slate-600 mt-0.5 leading-snug">
-                      Captura directa
-                    </p>
-                  </div>
+              <div className="relative h-full flex items-center gap-2">
+                <div className="p-1 bg-gradient-to-br from-blue-200 to-indigo-100 rounded-md flex-shrink-0">
+                  <RiveAnimation
+                    src="/animations/robot-bouncing.riv"
+                    className="h-6 w-6 sm:h-7 sm:w-7"
+                  />
                 </div>
 
-                <div className="pt-0.5 sm:pt-1 border-t border-blue-200">
-                  <button className="w-full inline-flex items-center justify-center gap-0.5 rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-2 py-1 sm:py-1.5 text-[10px] sm:text-xs font-semibold transition-all">
-                    <Camera className="h-3 sm:h-3 w-3 sm:w-3" />
+                <div className="text-left flex-1 min-w-0">
+                  <div className="flex items-center gap-1">
+                    <p className="font-bold text-slate-900 text-[11px] sm:text-xs leading-tight">
+                      Cámara
+                    </p>
+
+                    <span className="text-[8px] font-semibold text-blue-700 bg-blue-100 px-1 py-0.5 rounded-full">
+                      Live
+                    </span>
+                  </div>
+
+                  <p className="text-[9px] sm:text-[10px] text-slate-600 leading-tight">
+                    Captura directa
+                  </p>
+                </div>
+
+                <div className="flex-shrink-0">
+                  <span className="inline-flex items-center justify-center gap-1 rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-2 py-1 text-[9px] sm:text-[10px] font-semibold">
+                    <Camera className="h-3 w-3" />
                     <span className="hidden sm:inline">Abrir</span>
-                  </button>
+                  </span>
                 </div>
               </div>
             </button>
