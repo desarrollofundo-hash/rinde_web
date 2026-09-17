@@ -16,10 +16,10 @@ export default function ScannerCardsGrid({
   onStartCrop,
 }) {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:gap-6 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:gap-6 lg:gap-4 lg:grid-cols-4">
       {/* Evidencia Uploader - Columna 1 */}
       <div className="lg:col-span-1">
-        <div className="h-full rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/50 hover:border-slate-400 hover:bg-slate-50 transition-all p-3 sm:p-6 flex flex-col">
+        <div className="h-full rounded-lg sm:rounded-xl lg:rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/50 hover:border-slate-400 hover:bg-slate-50 transition-all p-3 sm:p-5 lg:p-6 flex flex-col">
           <div className="flex-1">
             <div className="flex items-start gap-3 mb-4">
               <div className="p-2.5 bg-slate-200 rounded-lg">
@@ -60,12 +60,12 @@ export default function ScannerCardsGrid({
       </div>
 
       {/* Scanners - 3 Columnas */}
-      <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-2 lg:gap-3">
         {/* QR Scanner */}
         <button
           type="button"
           onClick={onQrClick}
-          className="group relative h-[72px] sm:h-[76px] rounded-lg border border-slate-200 bg-white px-2 py-1.5 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 overflow-hidden"
+          className="group relative h-[72px] sm:h-[76px] lg:h-[80px] rounded-lg border border-slate-200 bg-white px-2 py-1.5 lg:px-3 lg:py-2 shadow-sm hover:shadow-lg hover:border-slate-300 transition-all duration-300 overflow-hidden"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-slate-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
@@ -99,7 +99,7 @@ export default function ScannerCardsGrid({
         <button
           type="button"
           onClick={onOcrClick}
-          className="group relative h-[72px] sm:h-[76px] rounded-lg border-2 border-cyan-300 bg-gradient-to-br from-cyan-50 via-blue-50 to-cyan-50 px-2 py-1.5 shadow-sm hover:shadow-md hover:border-cyan-400 transition-all duration-300 overflow-hidden"
+          className="group relative h-[72px] sm:h-[76px] lg:h-[80px] rounded-lg border-2 border-cyan-300 bg-gradient-to-br from-cyan-50 via-blue-50 to-cyan-50 px-2 py-1.5 lg:px-3 lg:py-2 shadow-sm hover:shadow-lg hover:border-cyan-400 transition-all duration-300 overflow-hidden"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
@@ -140,7 +140,7 @@ export default function ScannerCardsGrid({
         <button
           type="button"
           onClick={onCameraClick}
-          className="group relative h-[72px] sm:h-[76px] rounded-lg border-2 border-blue-300 bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-50 px-2 py-1.5 shadow-sm hover:shadow-md hover:border-blue-400 transition-all duration-300 overflow-hidden"
+          className="group relative h-[72px] sm:h-[76px] lg:h-[80px] rounded-lg border-2 border-blue-300 bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-50 px-2 py-1.5 lg:px-3 lg:py-2 shadow-sm hover:shadow-lg hover:border-blue-400 transition-all duration-300 overflow-hidden"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
