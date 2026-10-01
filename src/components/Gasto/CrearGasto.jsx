@@ -6,11 +6,11 @@ import GastoMovilidad from "./FormGasto/GastoMovilidad";
 import { getListaGastos } from "../../services/listar/listar_gasto";
 import { IconEye } from "../../Icons/preview";
 import { IconEdit } from "../../Icons/edit";
+import AnimatedList from "./AnimatedList";
 import EditarGastoModal from "./EditarGastoModal";
 import EvidenciaImagen from "./EvidenciaImagen";
-import ImageZoomLightbox from "./ImageZoomLightbox";
+import ImageZoomLightbox from "../ImagZoom/ImageZoomLightbox";
 import PaginationControls from "./PaginationControls";
-import AnimatedList from "./AnimatedList";
 import { IconBroom } from "../../Icons/broom";
 import { IconClose } from "../../Icons/close";
 import EstadisticasIcon from "../../Icons/statistics";
@@ -21,11 +21,11 @@ import {
 import { IconEtiqueta } from "../../Icons/etiqueta";
 import Toast from "../shared/Toast";
 import { getWorkflowStatusBadgeClass } from "../shared/workflowStatus";
-import { FileText, Loader2 } from "lucide-react";
+import { FileText, Loader2, Plus, Save } from "lucide-react";
 export default function CrearGasto() {
   const DEFAULT_PAGE_SIZE = 10;
   const PAGE_SIZE_STORAGE_KEY = "gasto.pageSize";
-  const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100];
+  const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
   //ESTADOS DE POLITICAS
   const [politicas, setPoliticas] = useState([]);
   //ESTADOS PARA MOSTRAR EL MODAL DE CREACION DE GASTO
@@ -369,6 +369,9 @@ export default function CrearGasto() {
     };
     const onInformeUpdated = () => fetchGastos({ silent: true, force: true });
     const onAuditoriaUpdated = () => fetchGastos({ silent: true, force: true });
+    // Al crear/guardar un gasto (formulario o escáner OCR) se dispara este
+    // evento para refrescar la lista sin recargar la página.
+    const onGastoUpdated = () => fetchGastos({ silent: true, force: true });
     const onRevisionUpdated = (event) => {
       // Si es DESAPROBADO, NO usar silent para mostrar cambios inmediatamente
       const isDesaprobado = event?.detail?.decision === "RECHAZADO";
@@ -384,6 +387,7 @@ export default function CrearGasto() {
     window.addEventListener("informe:updated", onInformeUpdated);
     window.addEventListener("auditoria:updated", onAuditoriaUpdated);
     window.addEventListener("revision:updated", onRevisionUpdated);
+    window.addEventListener("gasto:updated", onGastoUpdated);
 
     return () => {
       clearTimeout(companyChangeTimeoutId);
@@ -392,6 +396,7 @@ export default function CrearGasto() {
       window.removeEventListener("informe:updated", onInformeUpdated);
       window.removeEventListener("auditoria:updated", onAuditoriaUpdated);
       window.removeEventListener("revision:updated", onRevisionUpdated);
+      window.removeEventListener("gasto:updated", onGastoUpdated);
     };
   }, [fetchGastos]);
 
@@ -452,6 +457,12 @@ export default function CrearGasto() {
       politicas.find((p) => String(p.id) === String(politicaId)) || null;
     setSelectedPolitica(politica);
   };
+
+  // Movilidad tiene su propio formulario; el resto usa el de gastos generales.
+  const esPoliticaMovilidad = (politica) =>
+    String(politica?.name ?? "")
+      .toLowerCase()
+      .includes("movilidad");
 
   const getEstadoStyle = (estado = "") => {
     return getWorkflowStatusBadgeClass(estado, true);
@@ -728,112 +739,100 @@ export default function CrearGasto() {
 
   // Ajusta estos porcentajes para reducir/ensanchar columnas del modo tabla (desktop).
   const desktopColumnWidths = {
-    seleccion: "4%",
+    seleccion: "3%",
     id: "4%",
-    proveedor: "20%",
-    categoria: "11%",
-    tipoGasto: "10%",
-    total: "4%",
-    moneda: "4%",
-    estado: "11%",
-    fecha: "6%",
+    proveedor: "16%",
+    categoria: "10%",
+    tipoGasto: "9%",
+    total: "5%",
+    moneda: "5%",
+    estado: "10%",
+    fecha: "7%",
     dias: "4%",
-    evidencia: "7%",
-    acciones: "6%",
+    evidencia: "6%",
+    acciones: "7%",
   };
 
   return (
     <>
-      <div className="mx-auto flex min-h-full w-full flex-col space-y-1 px-2 sm:px-4 lg:px-6">
-        <div className="relative overflow-hidden rounded-2xl border p-2 bg-white border-sky-200/70  shadow-sm">
-          <div className="flex items-center justify-between gap-2">
-            {/* TEXTO */}
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-sky-100 to-blue-100">
-                <EstadisticasIcon className="w-6 h-6 text-sky-500" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">
-                  Gastos
-                </h1>
-                <p className="text-xs text-slate-500">
-                  Gestiona tus rendiciones
-                </p>
-              </div>
+      <div className="mx-auto flex h-full w-full flex-col px-2 sm:px-4 lg:px-6">
+        {/* ── TOOLBAR: título + buscador + acciones ── */}
+        <div className="shrink-0 flex items-center gap-2.5 border-b border-slate-200 py-2.5">
+          {/* Icono + título */}
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100">
+              <EstadisticasIcon className="w-5 h-5 text-sky-500" />
             </div>
-            {/* BOTÓN */}
-            <button
-              type="button"
-              onClick={openCreateModal}
-              disabled={loading}
-              className="inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-sky-700 active:scale-95 disabled:opacity-60 cursor-pointer"
-            >
-              {loading ? <>⏳ Cargando</> : <>＋ Nuevo</>}
-            </button>
+            <div className="hidden sm:block leading-tight">
+              <h1 className="text-sm font-bold text-slate-800">Gastos</h1>
+              <p className="text-[11px] text-slate-400">
+                Gestiona tus rendiciones
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col p-2 sm:p-2">
-          {/*    <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:p-2"> */}
-          {/*  <div className="mb-3 flex flex-col gap-1 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
-                    <h2 className="text-lg font-bold text-slate-800 sm:text-xl">Lista de gastos</h2>
-                    <p className="text-xs text-slate-500 sm:text-sm">
-                        Mostrando {currentFrom}-{currentTo} de {gastosFiltrados.length} (total {gastos.length})
-                    </p>
-                </div> */}
-          <div className="mb-4 flex min-w-0 items-center gap-2">
-            <div className="relative min-w-0 flex-1">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                // 1. Placeholder más conciso y legible
-                placeholder="Buscar por ID, política, categoría, estado..."
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 pr-10 text-sm text-slate-700 outline-none transition duration-200
-        placeholder:text-slate-400 placeholder:font-normal
-        focus:border-sky-500 focus:ring-2 focus:ring-sky-200 focus:shadow-md
-        hover:border-slate-400
-        disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
-                aria-label="Campo de búsqueda de gastos"
-              />
 
-              {/* 2. Botón de limpiar mejorado */}
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition duration-200
-          hover:bg-slate-100 hover:text-slate-600
-          active:scale-95
-          focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:outline-none"
-                  aria-label="Limpiar búsqueda"
-                  title="Limpiar (Esc)"
+          <div className="hidden sm:block w-px h-6 bg-slate-200 shrink-0" />
+
+          {/* Buscador */}
+          <div className="relative min-w-0 flex-1">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por ID, política, categoría, estado..."
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 pr-9 text-sm text-slate-700 outline-none transition duration-200 placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 hover:border-slate-400"
+              aria-label="Campo de búsqueda de gastos"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 active:scale-95"
+                aria-label="Limpiar búsqueda"
+                title="Limpiar (Esc)"
+              >
+                <svg
+                  className="h-3.5 w-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
                 >
-                  {/* 3. Icono X mejorado en lugar de símbolo */}
-                  <svg
-                    className="h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                  >
-                    <path d="M18 6L6 18M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-
-            <div className="flex shrink-0 items-center gap-2">
-              <ExportGastosToolbar
-                isExportMode={isExportMode}
-                selectedCount={selectedGastoIds.length}
-                onExportClick={
-                  isExportMode ? exportSelectedGastos : toggleExportMode
-                }
-                onCancelClick={toggleExportMode}
-              />
-            </div>
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
 
+          {/* Export */}
+          <ExportGastosToolbar
+            isExportMode={isExportMode}
+            selectedCount={selectedGastoIds.length}
+            onExportClick={
+              isExportMode ? exportSelectedGastos : toggleExportMode
+            }
+            onCancelClick={toggleExportMode}
+          />
+
+          {/* Nuevo */}
+          <button
+            type="button"
+            onClick={openCreateModal}
+            disabled={loading}
+            className="shrink-0 inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-sky-600 px-3.5 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-sky-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Plus className="h-4 w-4" aria-hidden="true" />
+            )}
+            <span className="hidden sm:inline">
+              {loading ? "Cargando" : "Nuevo"}
+            </span>
+          </button>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col py-2">
           {loadingGastos && (
             <div className="rounded-2xl border border-slate-200 bg-white px-4 py-6 space-y-2">
               <div className="flex items-center gap-2 text-sm text-slate-600 justify-center mb-4">
@@ -858,21 +857,22 @@ export default function CrearGasto() {
                 No hay gastos registrados
               </p>
               <p className="text-sm text-gray-500 mt-2 mb-6">
-                Crea tu primer gasto haciendo clic en "＋ Nuevo"
+                Empieza registrando tu primer gasto
               </p>
               <button
                 onClick={openCreateModal}
                 disabled={loading}
-                className="inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-sky-700 active:scale-95 disabled:opacity-60 cursor-pointer"
+                className="inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-sky-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-2"
               >
-                ＋ Crear primer gasto
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Crear primer gasto
               </button>
             </div>
           )}
 
           {!loadingGastos && gastosFiltrados.length > 0 && (
             <>
-              <div className="hidden overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm 2xl:flex 2xl:max-h-[71vh] 2xl:flex-col">
+              <div className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm xl:flex flex-1 min-h-0 xl:flex-col">
                 <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                   <table className="w-full table-fixed border-separate border-spacing-0 bg-white">
                     <colgroup>
@@ -891,7 +891,7 @@ export default function CrearGasto() {
                       <col style={{ width: desktopColumnWidths.evidencia }} />
                       <col style={{ width: desktopColumnWidths.acciones }} />
                     </colgroup>
-                    <thead className="sticky top-0 z-10 bg-gradient-to-r from-slate-50 to-white border-b border-sky-200/50 backdrop-blur">
+                    <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur">
                       <tr>
                         {isExportMode && (
                           <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
@@ -962,19 +962,15 @@ export default function CrearGasto() {
                           <td className="border-b border-slate-100 px-2 py-1 text-center text-sm font-semibold text-slate-800">
                             {gasto.idrend ?? "-"}
                           </td>
-                          <td className="border-b border-slate-100 px-2 py-1 text-left text-sm font-semibold text-slate-800">
-                            <p className="truncate" title={gasto.ruc || "-"}>
-                              {gasto.proveedor ||
-                                gasto.ruc ||
-                                gasto.ruccliente ||
-                                "-"}
+                          <td className="border-b border-slate-100 px-2 py-1 text-left">
+                            <p className="truncate text-sm font-semibold leading-tight text-slate-800" title={gasto.proveedor || gasto.ruc || gasto.ruccliente || "-"}>
+                              {gasto.proveedor || gasto.ruc || gasto.ruccliente || "-"}
                             </p>
-                            <p
-                              className="mt-0.5 truncate text-xs font-medium text-slate-500"
-                              title={getGlosaOrNota(gasto) || "-"}
-                            >
-                              {getGlosaOrNota(gasto) || "-"}
-                            </p>
+                            {getGlosaOrNota(gasto) && (
+                              <p className="truncate text-[10px] leading-tight text-slate-400" title={getGlosaOrNota(gasto)}>
+                                {getGlosaOrNota(gasto)}
+                              </p>
+                            )}
                           </td>
                           <td className="border-b border-slate-100 py-1 text-center text-sm text-slate-700">
                             <p
@@ -1021,7 +1017,7 @@ export default function CrearGasto() {
                                 key={`${gasto.id || gasto.idrend || gasto.evidenciaPath || gasto.evidenciaFileName || index}`}
                                 gasto={gasto}
                                 alt="Evidencia"
-                                className="mx-auto h-11 w-11 rounded-lg border border-slate-200 object-cover shadow-xs cursor-zoom-in hover:opacity-80 transition"
+                                className="mx-auto h-8 w-8 rounded-md border border-slate-200 object-cover shadow-xs cursor-zoom-in hover:opacity-80 transition"
                                 fallback="-"
                                 // EVENTO: Al pasar cursor, muestra preview grande
                                 onMouseEnter={(e) => {
@@ -1084,7 +1080,7 @@ export default function CrearGasto() {
                 </div>
               </div>
 
-              <div className="2xl:hidden max-h-[71vh] overflow-hidden flex flex-col">
+              <div className="xl:hidden flex-1 min-h-0 overflow-hidden flex flex-col">
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y">
                   <AnimatedList
                     items={gastosPaginados}
@@ -1097,23 +1093,25 @@ export default function CrearGasto() {
                       String(gasto?.id || gasto?.idrend || index)
                     }
                     renderItem={(gasto) => (
-                      <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md relative">
-                        <div className="border-b border-slate-100 bg-white px-2.5 py-1 sm:px-4">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
+                      <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+                        <div className="px-3 py-2.5 sm:px-4 sm:py-3">
+                          <div className="flex items-start justify-between gap-3">
+                            {/* Info principal */}
+                            <div className="min-w-0 flex-1">
                               <p
-                                className="text-[11px] font-semibold uppercase tracking-wide text-black"
+                                className="text-sm font-semibold text-slate-800 truncate"
                                 title={gasto.proveedor || gasto.ruc}
                               >
                                 {gasto.proveedor ||
                                   gasto.rucEmisor ||
                                   gasto.rucemisor ||
-                                  gasto.ruc}
+                                  gasto.ruc ||
+                                  "—"}
                               </p>
-                              <div className="mt-0.5 flex items-center gap-0.5">
-                                <IconEtiqueta className="h-3.5 w-3.5 shrink-0" />
+                              <div className="mt-0.5 flex items-center gap-1">
+                                <IconEtiqueta className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                                 <p
-                                  className="text-[10px] font-semibold uppercase tracking-wide text-slate-700"
+                                  className="text-xs text-slate-500 truncate"
                                   title={gasto.categoria || "-"}
                                 >
                                   {gasto.categoria || "-"}
@@ -1121,8 +1119,9 @@ export default function CrearGasto() {
                               </div>
                             </div>
 
+                            {/* Acciones */}
                             <div
-                              className="flex items-center gap-1"
+                              className="flex shrink-0 items-center gap-1.5"
                               onClick={(event) => event.stopPropagation()}
                             >
                               {isExportMode && (
@@ -1158,22 +1157,19 @@ export default function CrearGasto() {
                             </div>
                           </div>
 
-                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                            <span className="inline-flex rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                          {/* Metadatos */}
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500">
                               {gasto.fecha?.split("T")[0] || "-"}
                             </span>
-                            <span className="inline-flex rounded-full border border-red-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-red-600">
-                              <p className="text-red-800">
-                                {getDiasTranscurridos(gasto)} Días
-                              </p>
+                            <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-700">
+                              {getDiasTranscurridos(gasto)} días
                             </span>
-
-                            <span className="inline-flex rounded-full border border-blue-400 bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-800">
+                            <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700">
                               {gasto.total ?? "-"} {gasto.moneda || "-"}
                             </span>
-
                             <span
-                              className={`ml-auto inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${getEstadoStyle(gasto.estado)}`}
+                              className={`ml-auto inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${getEstadoStyle(gasto.estado)}`}
                             >
                               {normalizeEstadoLabel(
                                 gasto.estado || "Sin estado",
@@ -1249,11 +1245,11 @@ export default function CrearGasto() {
               <button
                 type="button"
                 aria-label="Cerrar modal"
-                className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px]"
+                className="fixed inset-0 z-[60] bg-slate-950/45 backdrop-blur-[2px]"
                 onClick={closePreview}
               />
 
-              <div className="fixed inset-0 z-50 flex items-center justify-center overflow-auto p-4">
+              <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-auto p-4">
                 <div className="flex w-full max-w-2xl flex-col overflow-hidden bg-transparent shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] backdrop-blur-sm max-h-[88vh] rounded-2xl p-0 sm:rounded-[1.35rem]">
                   <div className="min-h-0 flex-1 overflow-y-auto bg-linear-to-b from-white to-slate-50/70">
                     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -1501,11 +1497,24 @@ export default function CrearGasto() {
             <button
               type="button"
               aria-label="Cerrar modal"
-              className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px]"
+              className="fixed inset-0 z-[60] bg-slate-950/45 backdrop-blur-[2px]"
               onClick={closeModal}
             />
-            <div className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden p-0 sm:items-start sm:overflow-auto sm:p-8">
-              <div className="flex max-h-[88dvh] w-full max-w-6xl flex-col overflow-hidden border border-slate-200/80 bg-white shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] ring-1 ring-white/60 backdrop-blur-sm sm:h-auto sm:max-h-[88vh] rounded-t-2xl sm:rounded-[1.35rem]">
+            <div className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden p-0 sm:items-start sm:overflow-auto sm:p-8">
+              <div
+                className="
+    flex w-full max-w-6xl flex-col
+    max-h-[92dvh]
+    overflow-hidden
+    rounded-2xl
+    border border-slate-200/90
+    bg-white
+    shadow-[0_24px_80px_-24px_rgba(15,23,42,0.5)]
+    ring-1 ring-black/5
+    sm:max-h-[92vh]
+    sm:rounded-[1.35rem]
+  "
+              >
                 <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-2 border-b border-blue-100 bg-linear-to-r from-blue-50 via-white to-indigo-50 px-2.5 py-2.5 sm:gap-3 sm:px-6 sm:py-3">
                   <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
                     <span className="h-9 w-1 rounded-full bg-linear-to-b from-blue-600 via-blue-700 to-indigo-500" />
@@ -1513,8 +1522,30 @@ export default function CrearGasto() {
                       <h2 className="text-base font-extrabold leading-tight text-slate-800 sm:truncate sm:text-xl">
                         Crear Nuevo Gasto
                       </h2>
+                      {selectedPolitica && (
+                        <span className="mt-0.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-blue-200 bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                          <IconEtiqueta className="h-3 w-3 shrink-0" />
+                          <span className="truncate">
+                            {selectedPolitica.name}
+                          </span>
+                        </span>
+                      )}
                     </div>
                   </div>
+                  {selectedPolitica && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        document
+                          .querySelector("[data-gasto-form]")
+                          ?.requestSubmit()
+                      }
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-95 cursor-pointer"
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      Guardar
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={closeModal}
@@ -1524,25 +1555,25 @@ export default function CrearGasto() {
                   </button>
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-linear-to-b from-white to-slate-50/70 p-3 pb-3 sm:p-6 sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50 p-3 pb-3 sm:p-6 sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                   {error && (
                     <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
                       {error}
                     </p>
                   )}
 
-                  <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-[220px_1fr] sm:items-center">
+                  <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                     <label
-                      className="text-sm font-semibold text-slate-700"
+                      className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400"
                       htmlFor="politica-select"
                     >
-                      Seleccionar política
+                      Política
                     </label>
                     <select
                       id="politica-select"
                       value={selectedPolitica?.id || ""}
                       onChange={handlePoliticaChange}
-                      className="w-full cursor-pointer rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      className="min-w-0 flex-1 cursor-pointer bg-transparent text-sm text-slate-700 outline-none"
                     >
                       <option value="">Selecciona una política</option>
                       {politicas.map((p) => (
@@ -1553,27 +1584,31 @@ export default function CrearGasto() {
                     </select>
                   </div>
 
-                  <div className="">
-                    {/* <div className="rounded-2xl border border-slate-200 bg-white"> */}
-                    {selectedPolitica && (
-                      <>
-                        <h2 className="mb-3 text-lg font-bold text-slate-800">
-                          Política: {selectedPolitica.name}
-                        </h2>
-
-                        {String(selectedPolitica?.name ?? "")
-                          .toLowerCase()
-                          .includes("movilidad") ? (
-                          <GastoMovilidad selectedPolitica={selectedPolitica} />
-                        ) : (
-                          <GastoGeneral selectedPolitica={selectedPolitica} />
-                        )}
-                      </>
-                    )}
-
-                    {!selectedPolitica && (
-                      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                        Selecciona una política para mostrar el formulario.
+                  <div
+                    key={selectedPolitica?.id ?? "empty"}
+                    style={{ animation: "gastoFormIn 0.22s ease-out" }}
+                  >
+                    <style>{`@keyframes gastoFormIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`}</style>
+                    {selectedPolitica ? (
+                      esPoliticaMovilidad(selectedPolitica) ? (
+                        <GastoMovilidad selectedPolitica={selectedPolitica} />
+                      ) : (
+                        <GastoGeneral selectedPolitica={selectedPolitica} />
+                      )
+                    ) : (
+                      <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-400">
+                          <FileText className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-600">
+                            Selecciona una política
+                          </p>
+                          <p className="mt-0.5 text-xs text-slate-400">
+                            El formulario aparecerá aquí según la política
+                            elegida
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>

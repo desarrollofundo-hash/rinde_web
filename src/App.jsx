@@ -11,6 +11,7 @@ import {
 const Login = lazy(() => import("./components/Login"));
 const Company = lazy(() => import("./components/Company"));
 const Dashboard = lazy(() => import("./components/Dashboard"));
+const NavbarDemo = lazy(() => import("./components/ui/NavbarDemo"));
 
 function readSession() {
     try {
@@ -81,6 +82,7 @@ function App() {
                     <Route path="/dashboard/informe" element={<DashboardRoute requiredPath="/dashboard/informe" />} />
                     <Route path="/dashboard/auditoria" element={<DashboardRoute requiredPath="/dashboard/auditoria" />} />
                     <Route path="/dashboard/revision" element={<DashboardRoute requiredPath="/dashboard/revision" />} />
+                    <Route path="/navbar-demo" element={<NavbarDemo />} />
                     <Route path="*" element={<Navigate to="/login" replace />} />
                 </Routes>
             </Suspense>

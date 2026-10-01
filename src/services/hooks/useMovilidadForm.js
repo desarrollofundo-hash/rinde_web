@@ -218,6 +218,9 @@ const buildPayloadCabeceraMovilidad = ({
         area: String(empresa?.area || ""),
         proveedor: String(formData.razonSocial || ""),
         tipoComprobante: tipoComprobanteDescripcion,
+        // El API de cabecera espera la clave mal escrita "tipoCombrobante"
+        // (igual que en GastoGeneral); se envían ambas por compatibilidad.
+        tipoCombrobante: tipoComprobanteDescripcion,
         serie: serieFinal,
         numero: numeroFinal,
         fecha: String(formData.fecha || "") || null,
@@ -324,7 +327,7 @@ const INITIAL_FORM_DATA = {
     rucCliente: "",
     rucEmisor: "",
     razonSocial: "",
-    tipoComprobante: "",
+    tipoComprobante: "01",
     serie: "",
     numero: "",
     fecha: "",
@@ -569,6 +572,21 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
         const categoriaSeleccionada = categorias.find((c) => String(c.id) === String(formData.categoria));
         const isPlanillaMovilidad = normalizeText(categoriaSeleccionada?.name).includes("PLANILLA DE MOVILIDAD");
 
+        // El API guarda los NOMBRES, no los ids. Si el dropdown aún no cargó,
+        // formData.politica/categoria son ids y guardarían "3" en vez del nombre;
+        // por eso se cae primero a la política recibida por prop.
+        const politicaNombre = String(
+            politicaSeleccionada?.name ?? selectedPolitica?.name ?? formData.politica ?? ""
+        );
+        const categoriaNombre = String(categoriaSeleccionada?.name ?? formData.categoria ?? "");
+
+        if (!politicaSeleccionada) {
+            console.warn("⚠️ No se encontró la política en el catálogo; se guardará:", politicaNombre);
+        }
+        if (!categoriaSeleccionada) {
+            console.warn("⚠️ No se encontró la categoría en el catálogo; se guardará:", categoriaNombre);
+        }
+
         const resolvedIdCuenta = String(
             centroCostoSeleccionado?.id ||
             centroCostoSeleccionado?.raw?.idCuenta ||
@@ -654,8 +672,8 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
                 userId,
                 dniToSend,
                 empresa,
-                politicaNombre: politicaSeleccionada?.name ?? formData.politica,
-                categoriaNombre: categoriaSeleccionada?.name ?? formData.categoria,
+                politicaNombre,
+                categoriaNombre,
                 resolvedIdCuenta,
                 resolvedConsumidor,
                 resolvedTipoGasto,
@@ -675,8 +693,8 @@ export default function useMovilidadForm({ selectedPolitica = null } = {}) {
                 formData,
                 empresa,
                 userId,
-                politicaNombre: politicaSeleccionada?.name ?? formData.politica,
-                categoriaNombre: categoriaSeleccionada?.name ?? formData.categoria,
+                politicaNombre,
+                categoriaNombre,
                 resolvedIdCuenta,
                 resolvedConsumidor,
                 resolvedTipoGasto,

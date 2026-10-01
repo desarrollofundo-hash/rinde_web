@@ -59,8 +59,16 @@ export default function AuditoriaList({
   onToggleSelectAllAuditorias,
   onToggleAuditoriaSelection,
   onVerDetalles,
+  searchTerm = "",
 }) {
-  const [searchTerm, setSearchTerm] = useState("");
+
+  const tableScrollRef = useRef(null);
+  const mobileScrollRef = useRef(null);
+
+  useEffect(() => {
+    tableScrollRef.current?.scrollTo({ top: 0 });
+    mobileScrollRef.current?.scrollTo({ top: 0 });
+  }, [currentPage, pageSize]);
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
 
@@ -174,38 +182,26 @@ export default function AuditoriaList({
   };
 
   return (
-    <section className="space-y-4">
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-2 py-1.5 sm:px-3 sm:py-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                onPageChange(1);
-              }}
-              placeholder="Buscar por ID, DNI, estado, fecha, total u observación"
-              className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-            />
-
-            <button
-              type="button"
-              title="Limpiar búsqueda"
-              onClick={() => {
-                setSearchTerm("");
-                onPageChange(1);
-              }}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 cursor-pointer sm:h-auto sm:w-auto sm:px-3 sm:py-2"
-            >
-              <IconBroom className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-
-        <div className="hidden max-h-[70dvh] overflow-hidden md:flex md:flex-col">
-          <div className="min-h-0 flex-1 overflow-auto overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            <table className="w-full min-w-225 text-sm">
+    <div className="flex h-full flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="hidden xl:flex xl:flex-col flex-1 min-h-0 overflow-hidden">
+          <div ref={tableScrollRef} className="min-h-0 flex-1 overflow-auto overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <table className="w-full min-w-225 text-sm table-fixed">
+              <colgroup>
+                {isExportMode && <col className="w-10" />}
+                <col className="w-10" />
+                <col className="w-14" />
+                <col className="w-20" />
+                <col className="w-[18%]" />
+                <col className="w-[14%]" />
+                <col className="w-24" />
+                <col className="w-24" />
+                <col className="w-20" />
+                <col className="w-20" />
+                <col className="w-20" />
+                <col className="w-28" />
+                <col className="w-16" />
+              </colgroup>
               <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur">
                 <tr>
                   {isExportMode && (
@@ -295,11 +291,11 @@ export default function AuditoriaList({
                     <td className="px-4 py-2 text-center text-slate-700">
                       {auditoria?.dni ?? "-"}
                     </td>
-                    <td className="px-4 py-2 text-center text-slate-700">
-                      {auditoria?.usuario ?? "-"}
+                    <td className="px-4 py-2 text-center text-slate-700 max-w-0">
+                      <span className="block truncate">{auditoria?.usuario ?? "-"}</span>
                     </td>
-                    <td className="px-4 py-2 text-center text-slate-700">
-                      {auditoria?.gerencia ?? "-"}
+                    <td className="px-4 py-2 text-center text-slate-700 max-w-0">
+                      <span className="block truncate">{auditoria?.gerencia ?? "-"}</span>
                     </td>
                     <td className="px-4 py-2 text-center">
                       <span
@@ -362,8 +358,8 @@ export default function AuditoriaList({
           </div>
         </div>
 
-        <div className="max-h-[70dvh] overflow-hidden md:hidden flex flex-col">
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain touch-pan-y p-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="xl:hidden flex-1 min-h-0 overflow-hidden flex flex-col">
+          <div ref={mobileScrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain touch-pan-y p-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {paginatedAuditorias.map((auditoria, index) => (
               <article
                 key={index}
@@ -450,6 +446,6 @@ export default function AuditoriaList({
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

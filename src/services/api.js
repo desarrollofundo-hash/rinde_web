@@ -20,21 +20,11 @@ API.interceptors.request.use((config) => {
     return config;
 });
 
-// Interceptor para capturar errores
+// Interceptor para capturar y propagar errores
 API.interceptors.response.use(
     (response) => response,
     (error) => {
-       /*  console.error("Error en la solicitud HTTPS:", error);
-        return Promise.reject(error); */
-    }
-);
-
-// Interceptor para registrar detalles adicionales de errores
-API.interceptors.response.use(
-    (response) => response,
-    (error) => {
-     /*    console.error("Detalles del error:", error.toJSON());
-        return Promise.reject(error); */
+        return Promise.reject(error);
     }
 );
 

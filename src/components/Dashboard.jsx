@@ -15,6 +15,7 @@ import { IconLogout } from "../Icons/logout";
 import { IconCompany } from "../Icons/companyIcon";
 import { Button as MovingBorderButton } from "./ui/moving-border";
 import { BackgroundRippleEffect } from "./ui/background-ripple-effect";
+import { Wallet, BarChart2, ScanSearch, CheckCircle2, Search, Bell, ChevronDown, Building2 } from "lucide-react";
 
 export default function Dashboard() {
     const location = useLocation();
@@ -50,6 +51,9 @@ export default function Dashboard() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isDesktopSidebarExpanded, setIsDesktopSidebarExpanded] = useState(false);
     const sidebarRef = useRef(null);
+    const companySelectorRef = useRef(null);
+    const userMenuRef = useRef(null);
+    const mobileUserMenuRef = useRef(null);
     /* console.log(JSON.parse(localStorage.getItem("user"))); */
 
     const [empresa, setEmpresa] = useState(() => {
@@ -71,10 +75,13 @@ export default function Dashboard() {
     });
 
     const [isCompanySelectorOpen, setIsCompanySelectorOpen] = useState(false);
+    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const [empresasDisponibles, setEmpresasDisponibles] = useState([]);
     const [loadingEmpresas, setLoadingEmpresas] = useState(false);
     const [companyError, setCompanyError] = useState("");
     const isDesktopSidebarCollapsed = !isDesktopSidebarExpanded;
+    const TAB_ICONS = { Gastos: Wallet, Informe: BarChart2, Auditoria: ScanSearch, Revision: CheckCircle2 };
+    const TAB_LABELS = { Gastos: "Gastos", Informe: "Informes", Auditoria: "Auditoría", Revision: "Revisión" };
     const userDisplayName = usuario?.usenam || "No encontrado";
     const companyDisplayName = empresa ? (empresa.empresa || empresa.nombre || empresa.name) : "No seleccionada";
 
@@ -104,15 +111,21 @@ export default function Dashboard() {
     }, [allowedTabs, location.pathname, navigate, pathTabMap, permissions]);
 
     useEffect(() => {
-        if (!isMobileMenuOpen) return undefined;
-
-        const previousOverflow = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
-
-        return () => {
-            document.body.style.overflow = previousOverflow;
+        const handleOutsideClick = (e) => {
+            if (isCompanySelectorOpen && companySelectorRef.current && !companySelectorRef.current.contains(e.target)) {
+                setIsCompanySelectorOpen(false);
+            }
+            if (isUserMenuOpen && userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+                setIsUserMenuOpen(false);
+            }
+            if (isMobileMenuOpen && mobileUserMenuRef.current && !mobileUserMenuRef.current.contains(e.target)) {
+                setIsMobileMenuOpen(false);
+                setIsCompanySelectorOpen(false);
+            }
         };
-    }, [isMobileMenuOpen]);
+        document.addEventListener("mousedown", handleOutsideClick);
+        return () => document.removeEventListener("mousedown", handleOutsideClick);
+    }, [isCompanySelectorOpen, isUserMenuOpen, isMobileMenuOpen]);
 
     useEffect(() => {
         const mediaQuery = window.matchMedia("(min-width: 1024px)");
@@ -245,290 +258,252 @@ export default function Dashboard() {
     };
 
     return (
-      <div className="relative flex h-dvh max-h-dvh overflow-hidden overscroll-none bg-[#f4f8ff]">
-        <BackgroundRippleEffect
-          rows={7}
-          cols={10}
-          className="pointer-events-none opacity-90"
-        />
+      <div className="relative flex flex-col h-dvh max-h-dvh overflow-hidden overscroll-none bg-[#f4f8ff]">
+        <BackgroundRippleEffect rows={7} cols={10} className="pointer-events-none opacity-90" />
         <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-slate-50/70 via-blue-50/55 to-cyan-50/40" />
         <div className="pointer-events-none absolute -top-28 -right-30 h-72 w-72 rounded-full bg-sky-300/35 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-30 -left-30 h-72 w-72 rounded-full bg-blue-300/30 blur-3xl" />
 
-        <div className="fixed left-3 top-[calc(env(safe-area-inset-top)+0.35rem)] z-30 lg:hidden">
-          <button
-            type="button"
-            aria-label="Abrir menú"
-            onClick={() => setIsMobileMenuOpen(true)}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-blue-200/80 bg-white/88 text-blue-800 shadow-lg shadow-blue-200/40 backdrop-blur-xl"
-          >
-            <span className="inline-flex flex-col gap-1" aria-hidden="true">
-              <span className="block h-0.5 w-5 rounded-full bg-blue-700" />
-              <span className="block h-0.5 w-5 rounded-full bg-blue-700" />
-              <span className="block h-0.5 w-5 rounded-full bg-blue-700" />
-            </span>
-          </button>
-        </div>
-
-        {isMobileMenuOpen && (
-          <button
-            type="button"
-            aria-label="Cerrar menú"
-            className="fixed inset-0 z-40 bg-slate-900/45 backdrop-blur-[1px] lg:hidden"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-        )}
-
-        <aside
-          ref={sidebarRef}
-          onMouseEnter={() => setIsDesktopSidebarExpanded(true)}
-          onMouseLeave={() => setIsDesktopSidebarExpanded(false)}
-          onFocusCapture={() => setIsDesktopSidebarExpanded(true)}
-          onBlurCapture={(event) => {
-            if (!sidebarRef.current?.contains(event.relatedTarget)) {
-              setIsDesktopSidebarExpanded(false);
-            }
-          }}
-          className={`fixed left-0 top-0 z-50 flex h-full w-[86vw] max-w-76 flex-col border-r border-blue-200/70 bg-white/90 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-2xl backdrop-blur-xl transition-transform duration-300 sm:p-4 lg:static lg:z-auto lg:translate-x-0 lg:shadow-none ${
-            isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-          } ${isDesktopSidebarCollapsed ? "lg:w-20" : "lg:w-70"} lg:overflow-hidden lg:transition-[width] lg:duration-300 lg:ease-out`}
+        {/* TOP NAV BAR — desktop only */}
+        <header
+          className="relative z-50 shrink-0 hidden lg:flex items-center border-b border-slate-200 bg-white px-4 sm:px-6"
+          style={{ minHeight: "calc(56px + env(safe-area-inset-top))", paddingTop: "env(safe-area-inset-top)" }}
         >
-          {/* Tarjeta de perfil */}
-          <div
-            className={`mb-5 rounded-2xl border border-blue-100/90 bg-linear-to-br from-blue-50 via-white to-slate-50 shadow-sm transition-all duration-300 ${isDesktopSidebarCollapsed ? "p-2.5" : "p-4"}`}
-          >
-            {/* Usuario */}
-            <div
-              className={`flex items-center gap-3 ${isDesktopSidebarCollapsed ? "lg:justify-center" : ""}`}
-            >
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
-                {userInitials}
-              </span>
+          {/* Logo */}
+       {/*    <div className="flex shrink-0 items-center gap-2 mr-4">
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white text-[11px] font-black">R</span>
+            <span className="text-[15px] font-bold text-slate-900 tracking-tight">Rindegasto</span>
+          </div> */}
 
-              <div
-                className={`min-w-0 flex-1 ${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
-              >
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  Usuario:
-                </p>
-                <p className="wrap-break-word text-sm font-semibold leading-5 text-slate-800">
-                  {userDisplayName}
-                </p>
-              </div>
-            </div>
-
-            <div
-              className={`my-3 border-t border-blue-100 ${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
-            />
-
-            {/* Empresa */}
-            <div
-              className={`flex items-center gap-3 ${isDesktopSidebarCollapsed ? "lg:justify-center" : ""}`}
-            >
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-700">
-                {companyInitials}
-              </span>
-
-              <div
-                className={`min-w-0 flex-1 ${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
-              >
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  Empresa:
-                </p>
-                <p className="line-clamp-2 text-sm font-semibold leading-5 text-slate-800">
-                  {companyDisplayName}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div
-            className={`mb-4 flex items-center ${isDesktopSidebarCollapsed ? "lg:justify-center" : "justify-between"}`}
-          >
-            <h2
-              className={`text-sm font-bold uppercase tracking-[0.14em] text-slate-600 ${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
-            >
-              Navegación
-            </h2>
-            {/* <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="rounded-lg border border-blue-200 bg-white px-2 py-1 text-xs font-semibold text-blue-700 shadow-xs lg:hidden"
-            >
-              Cerrar
-            </button> */}
-          </div>
-
-          <nav className="space-y-1 overflow-y-auto pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            {allowedTabs.map((tab) => (
-              <div key={tab} className="rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => handleSelectTab(tab)}
-                  className={`group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${
-                    activeTab === tab
-                      ? "bg-linear-to-r from-blue-700 to-blue-600 text-white shadow-lg shadow-blue-200/70"
-                      : "border border-transparent text-slate-700 hover:border-blue-200/70 hover:bg-blue-50/80"
-                  } ${isDesktopSidebarCollapsed ? "lg:justify-center lg:px-2" : ""}`}
-                >
-                  <span
-                    className={`${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
-                  >
-                    {tab}
-                  </span>
-                  <span
-                    className={`hidden rounded-full px-2 py-0.5 text-xs font-bold leading-none lg:inline-flex ${isDesktopSidebarCollapsed ? "lg:opacity-100" : "lg:opacity-0"}`}
-                  >
-                    {tab.charAt(0)}
-                  </span>
-                  <span
-                    className={`h-2 w-2 rounded-full transition ${activeTab === tab ? "bg-blue-100" : "bg-slate-300 group-hover:bg-blue-300"} ${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
-                  />
-                </button>
-
-                {tab === "Gastos" && activeTab === "Gastos" && (
-                  <div
-                    className={`mt-1 space-y-1 pl-2 ${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
-                  >
-                    {gastoSubmenus.map((submenu) => (
-                      <button
-                        key={submenu}
-                        type="button"
-                        onClick={() => handleSelectGastoSubmenu(submenu)}
-                        className={`block w-full rounded-lg px-3 py-1.5 text-left text-xs font-medium transition ${
-                          activeGastoSubmenu === submenu
-                            ? "bg-blue-100 text-blue-900"
-                            : "text-slate-600 hover:bg-blue-50"
-                        }`}
-                      >
-                        {submenu}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </nav>
-
-          <div className="mt-auto space-y-3 border-t border-blue-200/70 pt-4">
-            <MovingBorderButton
-              type="button"
-              onClick={handleChangeCompany}
-              containerClassName="w-full h-12"
-              borderRadius="0.85rem"
-              className={`group inline-flex w-full items-center rounded-[0.8rem] border border-blue-700/30 bg-linear-to-r from-blue-700 to-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:from-blue-800 hover:to-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 cursor-pointer ${isDesktopSidebarCollapsed ? "justify-center lg:px-2" : "justify-between"}`}
-            >
-              <IconCompany className="h-5 w-5" />
-              <span
-                className={`${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
-              >
-                {isCompanySelectorOpen
-                  ? "Ocultar empresas"
-                  : "Cambiar de empresa"}
-              </span>
-              <span
-                className={`text-base leading-none transition-transform ${isCompanySelectorOpen ? "rotate-180" : ""} ${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
-              >
-                ▾
-              </span>
-            </MovingBorderButton>
-
-            {isCompanySelectorOpen && !isDesktopSidebarCollapsed && (
-              <div className="rounded-2xl border border-blue-200/80 bg-white/95 p-2.5 shadow-md backdrop-blur-sm">
-                <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                  Selecciona empresa
-                </p>
-
-                {loadingEmpresas && (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-600">
-                    Cargando empresas...
-                  </div>
-                )}
-
-                {companyError && !loadingEmpresas && (
-                  <p className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-xs text-red-600">
-                    {companyError}
-                  </p>
-                )}
-
-                {!loadingEmpresas &&
-                  !companyError &&
-                  empresasDisponibles.length === 0 && (
-                    <p className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-600">
-                      No hay empresas disponibles.
-                    </p>
-                  )}
-
-                {!loadingEmpresas &&
-                  !companyError &&
-                  empresasDisponibles.length > 0 && (
-                    <div className="max-h-44 space-y-1 overflow-y-auto pr-1 lg:max-h-56 [scrollbar-width:thin]">
-                      {empresasDisponibles.map((item) => {
-                        const itemId = String(item?.id ?? "");
-                        const currentId = String(empresa?.id ?? "");
-                        const isCurrent =
-                          itemId && currentId && itemId === currentId;
-
-                        return (
-                          <button
-                            key={item?.id}
-                            type="button"
-                            onClick={() => handleSelectCompany(item)}
-                            disabled={isCurrent}
-                            className={`w-full rounded-xl border px-2.5 py-2.5 text-left transition ${
-                              isCurrent
-                                ? "cursor-not-allowed border-emerald-200 bg-emerald-50/90 text-emerald-800"
-                                : "border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50 active:scale-[0.99]"
-                            }`}
-                          >
-                            <p className="text-xs font-semibold leading-4">
-                              {item?.empresa ||
-                                item?.nombre ||
-                                "Empresa sin nombre"}
-                            </p>
-                            <div className="mt-0.5 flex items-center justify-between gap-2">
-                              <p className="truncate text-[11px] text-slate-500">
-                                RUC: {item?.ruc || "-"}
-                              </p>
-                              {isCurrent && (
-                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                                  actual
-                                </span>
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-              </div>
-            )}
-
+          {/* Company selector */}
+          <div ref={companySelectorRef} className="relative shrink-0 mr-6 hidden lg:block">
             <button
               type="button"
-              onClick={handleLogout}
-              className={`inline-flex w-full items-center justify-center rounded-xl border border-red-500/20 bg-red-600 px-3.5 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 cursor-pointer ${isDesktopSidebarCollapsed ? "lg:px-2" : ""}`}
+              onClick={handleChangeCompany}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
-              <IconLogout
-                className={`h-5 w-5 text-white [&_path]:stroke-white ${isDesktopSidebarCollapsed ? "lg:mr-0" : "mr-1"}`}
-              />
-              <span
-                className={`${isDesktopSidebarCollapsed ? "lg:hidden" : ""}`}
-              >
-                Cerrar sesión
-              </span>
+              <Building2 size={14} className="text-slate-400 shrink-0" />
+              <span className="max-w-[220px] truncate font-medium">{companyDisplayName}</span>
+              <ChevronDown size={13} className={`text-slate-400 transition-transform duration-200 shrink-0 ${isCompanySelectorOpen ? "rotate-180" : ""}`} />
             </button>
-          </div>
-        </aside>
 
-        <main className="relative z-10 box-border w-0 min-w-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-[#f3f6fb] px-2 pb-2 pt-[calc(env(safe-area-inset-top)+4rem)] sm:px-3 sm:pb-3 lg:px-3 lg:py-3 lg:pt-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-          <div
-            className="w-full max-w-full overflow-hidden"
-            key={String(empresa?.id ?? empresa?.ruc ?? "no-company")}
-          >
+            {isCompanySelectorOpen && (
+              <div className="absolute left-0 top-full mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl z-50">
+                <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Selecciona empresa</p>
+                {loadingEmpresas && <div className="rounded-lg bg-slate-50 px-2.5 py-2 text-xs text-slate-600">Cargando empresas...</div>}
+                {companyError && !loadingEmpresas && <p className="rounded-lg bg-red-50 px-2.5 py-2 text-xs text-red-600">{companyError}</p>}
+                {!loadingEmpresas && !companyError && empresasDisponibles.length === 0 && <p className="rounded-lg bg-slate-50 px-2.5 py-2 text-xs text-slate-600">No hay empresas disponibles.</p>}
+                {!loadingEmpresas && !companyError && empresasDisponibles.length > 0 && (
+                  <div className="max-h-56 space-y-1 overflow-y-auto pr-1 [scrollbar-width:thin]">
+                    {empresasDisponibles.map((item) => {
+                      const itemId = String(item?.id ?? "");
+                      const currentId = String(empresa?.id ?? "");
+                      const isCurrent = itemId && currentId && itemId === currentId;
+                      return (
+                        <button key={item?.id} type="button" onClick={() => handleSelectCompany(item)} disabled={isCurrent}
+                          className={`w-full rounded-xl border px-2.5 py-2.5 text-left transition ${isCurrent ? "cursor-not-allowed border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-100 bg-white text-slate-700 hover:border-blue-200 hover:bg-blue-50"}`}>
+                          <p className="text-xs font-semibold leading-4">{item?.empresa || item?.nombre || "Empresa sin nombre"}</p>
+                          <div className="mt-0.5 flex items-center justify-between gap-2">
+                            <p className="truncate text-[11px] text-slate-400">RUC: {item?.ruc || "-"}</p>
+                            {isCurrent && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">actual</span>}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Desktop: tabs con íconos + underline activo */}
+          <nav className="hidden lg:flex items-stretch h-full flex-1 justify-center gap-0">
+            {allowedTabs.map((tab) => {
+              const Icon = TAB_ICONS[tab];
+              const isActive = activeTab === tab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => handleSelectTab(tab)}
+                  className={`relative flex items-center gap-1.5 px-4 text-sm font-semibold transition-colors duration-150 ${
+                    isActive ? "text-blue-600" : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  {Icon && <Icon size={15} strokeWidth={2} />}
+                  <span>{TAB_LABELS[tab] ?? tab}</span>
+                  {isActive && (
+                    <span className="absolute bottom-0 inset-x-2 h-0.5 rounded-t-full bg-blue-600" />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Desktop: derecha — búsqueda + campana + usuario */}
+          <div className="hidden lg:flex items-center gap-3 ml-auto shrink-0">
+            {/* Búsqueda */}
+          {/*   <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
+              <Search size={13} className="text-slate-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Buscar..."
+                className="bg-transparent text-sm outline-none w-28 text-slate-700 placeholder:text-slate-400"
+              />
+            </div>
+ */}
+            {/* Campana */}
+          {/*   <button type="button" className="relative p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
+              <Bell size={18} />
+            </button> */}
+
+            {/* Usuario */}
+            <div ref={userMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setIsUserMenuOpen((v) => !v)}
+                className="flex items-center gap-2 rounded-xl px-2 py-1 hover:bg-slate-100 transition-colors"
+              >
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-800 text-white text-xs font-bold">
+                  {userInitials}
+                </span>
+                <span className="text-sm font-medium text-slate-700 max-w-[200px] truncate">{userDisplayName}</span>
+                <ChevronDown size={13} className={`text-slate-400 transition-transform duration-200 ${isUserMenuOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {isUserMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl border border-slate-200 bg-white shadow-lg py-1.5 z-50">
+                  <button type="button" onClick={() => { setIsUserMenuOpen(false); handleChangeCompany(); }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                    <Building2 size={14} className="text-slate-400" />
+                    Cambiar empresa
+                  </button>
+                  <div className="my-1 border-t border-slate-100" />
+                  <button type="button" onClick={handleLogout}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                    <IconLogout className="h-4 w-4 [&_path]:stroke-red-600" />
+                    Cerrar sesión
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+        </header>
+
+        <main className="relative flex flex-col flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-[#f3f6fb] px-2 pb-[calc(env(safe-area-inset-bottom)+5rem)] sm:px-3 lg:px-3 lg:py-3 lg:pb-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div className="h-full w-full max-w-full overflow-hidden" key={String(empresa?.id ?? empresa?.ruc ?? "no-company")}>
             {renderContent()}
           </div>
         </main>
+
+        {/* Floating pill nav — mobile only */}
+        <nav className="lg:hidden fixed z-30 left-1/2 -translate-x-1/2 flex items-center gap-1 p-1 rounded-full bg-white/95 backdrop-blur-xl border border-slate-200 shadow-lg shadow-slate-200/60"
+          style={{ bottom: "calc(env(safe-area-inset-bottom) + 1rem)" }}>
+          {allowedTabs.map((tab) => {
+            const Icon = TAB_ICONS[tab];
+            const isActive = activeTab === tab;
+            return (
+              <button key={tab} type="button" onClick={() => { handleSelectTab(tab); setIsMobileMenuOpen(false); }}
+                aria-label={TAB_LABELS[tab] ?? tab}
+                className={`relative flex items-center justify-center w-11 h-9 rounded-full transition-all duration-200 ${
+                  isActive ? "bg-blue-600 text-white shadow-sm" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                }`}>
+                {Icon && <Icon size={19} strokeWidth={isActive ? 2.5 : 1.75} />}
+              </button>
+            );
+          })}
+
+          {/* Separador */}
+          <div className="w-px h-5 bg-slate-200 mx-0.5" />
+
+          {/* Avatar — abre dropdown hacia arriba */}
+          <div ref={mobileUserMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => { setIsMobileMenuOpen((v) => !v); setIsCompanySelectorOpen(false); }}
+              className={`relative flex items-center justify-center w-9 h-9 rounded-full transition-all duration-200 ${
+                isMobileMenuOpen ? "ring-2 ring-blue-500 ring-offset-1" : ""
+              }`}
+            >
+              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-800 text-white text-[11px] font-bold">
+                {userInitials}
+              </span>
+            </button>
+
+            {isMobileMenuOpen && (
+              <div className="absolute right-0 bottom-full mb-3 w-64 rounded-2xl border border-slate-200 bg-white shadow-xl z-50 overflow-hidden">
+                {/* Info usuario */}
+                <div className="flex items-center gap-3 px-3 py-3 border-b border-slate-100">
+                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-800 text-white text-xs font-bold">
+                    {userInitials}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-slate-800 truncate">{userDisplayName}</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <Building2 size={10} className="text-slate-400 shrink-0" />
+                      <p className="text-[11px] text-slate-500 truncate">{companyDisplayName}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cambiar empresa */}
+                <div className="py-1">
+                  <button type="button" onClick={handleChangeCompany}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                    <Building2 size={14} className="text-slate-400 shrink-0" />
+                    <span className="flex-1 text-left">Cambiar empresa</span>
+                    <ChevronDown size={12} className={`text-slate-400 transition-transform duration-200 ${isCompanySelectorOpen ? "rotate-180" : ""}`} />
+                  </button>
+
+                  {isCompanySelectorOpen && (
+                    <div className="mx-2 mb-1 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
+                      {loadingEmpresas && <p className="px-3 py-2 text-xs text-slate-500">Cargando empresas...</p>}
+                      {companyError && !loadingEmpresas && <p className="px-3 py-2 text-xs text-red-500">{companyError}</p>}
+                      {!loadingEmpresas && !companyError && empresasDisponibles.length === 0 && (
+                        <p className="px-3 py-2 text-xs text-slate-500">No hay empresas disponibles.</p>
+                      )}
+                      {!loadingEmpresas && !companyError && empresasDisponibles.length > 0 && (
+                        <div className="max-h-40 overflow-y-auto [scrollbar-width:thin]">
+                          {empresasDisponibles.map((item) => {
+                            const isCurrent = String(item?.id ?? "") === String(empresa?.id ?? "");
+                            return (
+                              <button key={item?.id} type="button"
+                                onClick={() => { handleSelectCompany(item); setIsMobileMenuOpen(false); }}
+                                disabled={isCurrent}
+                                className={`w-full px-3 py-2 text-left text-xs border-b border-slate-100 last:border-0 transition-colors ${
+                                  isCurrent ? "bg-emerald-50 cursor-not-allowed" : "hover:bg-white"
+                                }`}>
+                                <p className={`font-semibold leading-4 ${isCurrent ? "text-emerald-800" : "text-slate-700"}`}>
+                                  {item?.empresa || item?.nombre || "Empresa sin nombre"}
+                                </p>
+                                <div className="flex items-center justify-between mt-0.5">
+                                  <p className="text-[10px] text-slate-400">RUC: {item?.ruc || "-"}</p>
+                                  {isCurrent && <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wide">actual</span>}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-slate-100" />
+
+                {/* Cerrar sesión */}
+                <div className="py-1">
+                  <button type="button" onClick={handleLogout}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                    <IconLogout className="h-4 w-4 [&_path]:stroke-red-600" />
+                    Cerrar sesión
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </nav>
       </div>
     );
 }

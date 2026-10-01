@@ -9,7 +9,7 @@ import { getDropdownOptionsCentroCosto } from "../../services/centrocosto";
 import { getDropdownOptionsTipoComprobante } from "../../services/tipocomprobante";
 import { getDropdownOptionsTipoMovilidad } from "../../services/tipo_movilidad";
 import { getApiRuc } from "../../services/ruc/api_ruc";
-import EvidenciaUploader from "./FormGasto/EvidenciaUploader";
+import { EvidenciaUploader } from "./FormGasto/ScannerCardsGrid";
 import EvidenciaCropModal from "./FormGasto/EvidenciaCropModal";
 import EvidenciaImagen from "./EvidenciaImagen";
 import { IconEdit } from "@/Icons/edit";
@@ -928,11 +928,11 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
             <button
               type="button"
               aria-label="Cerrar modal"
-              className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px]"
+              className="fixed inset-0 z-[60] bg-slate-950/45 backdrop-blur-[2px]"
               onClick={onClose}
             />
 
-            <div className="fixed inset-0 z-50 flex items-start justify-center overflow-hidden p-0 sm:items-start sm:p-8">
+            <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-hidden p-0 sm:items-start sm:p-8">
               <div className="flex h-[100dvh] w-full max-w-5xl flex-col overflow-hidden border border-slate-200/80 bg-white shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] ring-1 ring-white/60 backdrop-blur-sm sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-[1.35rem]">
                 {title && (
                   <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-3 border-b border-blue-100 bg-linear-to-r from-blue-50 via-white to-indigo-50 px-4 py-2.5 sm:px-6 sm:py-3">
@@ -1364,7 +1364,7 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                   {/* Modal para cambiar evidencia */}
                   {showEvidenciaModal && (
                     // Movil: aparece desde abajo. PC/Tablet (sm+): centrado.
-                    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/70 p-2 sm:items-center sm:p-4">
+                    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/70 p-2 sm:items-center sm:p-4">
                       <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white p-4 shadow-2xl sm:rounded-2xl sm:p-5">
                         <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 pb-3 ">
                           <h4 className="text-base font-bold text-slate-800">

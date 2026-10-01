@@ -1,0 +1,31 @@
+{
+  "name": "RindeGasto - Sistema de Rendición de Gastos",
+  "short_name": "RindeGasto",
+  "description": "Registra, escanea y rinde tus gastos con extracción automática de comprobantes.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0284c7",
+  "lang": "es-PE",
+  "icons": [
+    {
+      "src": "/moneyweb.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

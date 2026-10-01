@@ -2,12 +2,89 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/moneyweb.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Título y descripción -->
     <title>RindeGasto | Sistema de Rendición de Gastos</title>
+    <meta
+      name="description"
+      content="RindeGasto es la plataforma de Agrícola Santa Azul para registrar, escanear y rendir gastos de forma rápida y segura, con extracción automática de datos de comprobantes."
+    />
+    <meta name="theme-color" content="#0284c7" />
+
+    <!-- URL canónica -->
+    <link rel="canonical" href="https://app.agsantaazul.com:45480" />
+
+    <!-- Iconos -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/svg+xml" href="/moneyweb.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Open Graph (Facebook, WhatsApp, Teams, LinkedIn) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="RindeGasto" />
+    <meta property="og:locale" content="es_PE" />
+    <meta property="og:url" content="https://app.agsantaazul.com:45480" />
+    <meta
+      property="og:title"
+      content="RindeGasto | Sistema de Rendición de Gastos"
+    />
+    <meta
+      property="og:description"
+      content="Registra, escanea y rinde tus gastos en minutos. Extracción automática de datos de comprobantes con IA."
+    />
+    <meta
+      property="og:image"
+      content="https://app.agsantaazul.com:45480/og-image.png"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="RindeGasto - Sistema de Rendición de Gastos"
+    />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="RindeGasto | Sistema de Rendición de Gastos"
+    />
+    <meta
+      name="twitter:description"
+      content="Registra, escanea y rinde tus gastos en minutos. Extracción automática de datos de comprobantes con IA."
+    />
+    <meta
+      name="twitter:image"
+      content="https://app.agsantaazul.com:45480/og-image.png"
+    />
+
+    <!-- Datos estructurados -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "RindeGasto",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "description": "Sistema de rendición de gastos con escaneo y extracción automática de comprobantes.",
+        "url": "https://app.agsantaazul.com:45480",
+        "publisher": {
+          "@type": "Organization",
+          "name": "Agrícola Santa Azul"
+        }
+      }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- H1 de respaldo para rastreadores; React lo reemplaza al montar. -->
+    <div id="root">
+      <h1 style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">
+        RindeGasto — Sistema de Rendición de Gastos de Agrícola Santa Azul
+      </h1>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -1,12 +1,51 @@
 import API from "../api";
 
-const COMMON_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".pdf"];
+// Solo extensiones que un <img> puede renderizar: adivinar ".pdf" generaba una
+// petición extra por gasto que el visor descarta igual por MIME.
+const COMMON_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"];
 const IMAGE_EXTENSION_REGEX = /\.(png|jpg|jpeg|webp|pdf)$/i;
 const SUCCESS_CACHE_TTL_MS = 5 * 60 * 1000;
-const MISS_CACHE_TTL_MS = 60 * 1000;
+// Los 404 de evidencias inexistentes se recuerdan durante toda la sesión del
+// navegador: sin esto, cada paginado o reapertura del listado vuelve a probar
+// todos los nombres candidatos y llena la consola de errores de red.
+const MISS_CACHE_TTL_MS = 30 * 60 * 1000;
+const MISS_CACHE_STORAGE_KEY = "evidencia.missCache";
 const successCache = new Map();
-const missCache = new Map();
+const missCache = loadMissCache();
 const inflightRequests = new Map();
+
+function loadMissCache() {
+    try {
+        const raw = sessionStorage.getItem(MISS_CACHE_STORAGE_KEY);
+        if (!raw) return new Map();
+
+        const now = Date.now();
+        const entries = Object.entries(JSON.parse(raw)).filter(
+            ([, value]) => now - Number(value?.cachedAt || 0) < MISS_CACHE_TTL_MS
+        );
+
+        return new Map(entries);
+    } catch {
+        // sessionStorage puede fallar en modo privado o estar corrupto.
+        return new Map();
+    }
+}
+
+function persistMissCache() {
+    try {
+        sessionStorage.setItem(
+            MISS_CACHE_STORAGE_KEY,
+            JSON.stringify(Object.fromEntries(missCache))
+        );
+    } catch {
+        // Sin persistencia el cache sigue funcionando en memoria.
+    }
+}
+
+function rememberMiss(target) {
+    missCache.set(target, { cachedAt: Date.now() });
+    persistMissCache();
+}
 
 function firstDefined(...values) {
     for (const value of values) {
@@ -231,7 +270,7 @@ export async function obtenerImagenBytesDesdeServidor(url, timeoutMs = 15000) {
 
             const bytes = new Uint8Array(response?.data || []);
             if (!bytes.length) {
-                missCache.set(target, { cachedAt: Date.now() });
+                rememberMiss(target);
                 return null;
             }
 
@@ -245,7 +284,9 @@ export async function obtenerImagenBytesDesdeServidor(url, timeoutMs = 15000) {
                 data: payload,
                 cachedAt: Date.now(),
             });
-            missCache.delete(target);
+            if (missCache.delete(target)) {
+                persistMissCache();
+            }
 
             return payload;
         } catch (_error) {
@@ -253,7 +294,7 @@ export async function obtenerImagenBytesDesdeServidor(url, timeoutMs = 15000) {
             if (status) {
               /*   console.debug(`❌ Evidencia no disponible (${status}):`, target); */
             }
-            missCache.set(target, { cachedAt: Date.now() });
+            rememberMiss(target);
             return null;
         } finally {
             inflightRequests.delete(target);

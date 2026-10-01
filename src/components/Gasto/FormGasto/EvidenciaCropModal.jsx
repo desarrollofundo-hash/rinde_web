@@ -29,7 +29,7 @@ export default function EvidenciaCropModal({
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/70 p-4">
             <div className="w-full max-w-3xl rounded-2xl bg-white p-4 shadow-2xl sm:p-5">
                 <div className="mb-3 flex items-center justify-between gap-3">
                     <h4 className="text-base font-bold text-slate-800">Vista previa de evidencia</h4>

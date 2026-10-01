@@ -6,7 +6,6 @@ import {
 import { getMonedaSimbolo, resolveMoneda } from "../shared/moneda";
 import { getInformeDetalle } from "../../services/listar/listar_informe_detalle";
 import { IconEye } from "../../Icons/preview";
-import { IconBroom } from "../../Icons/broom";
 import PaginationControls from "../Gasto/PaginationControls";
 
 export default function InformeList({
@@ -16,10 +15,11 @@ export default function InformeList({
     isExportMode = false,
     selectedInformeIds = [],
     onToggleInformeSelection,
+    searchTerm = "",
 }) {
-    const DEFAULT_ITEMS_PER_PAGE = 8;
+    const DEFAULT_ITEMS_PER_PAGE = 10;
     const PAGE_SIZE_STORAGE_KEY = "informe.pageSize";
-    const PAGE_SIZE_OPTIONS = [5, 8, 10, 20, 50];
+    const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
     const getEstadoInforme = (inf) => resolveWorkflowStatus(inf, "PENDIENTE");
 
     const parseAmount = useCallback((value) => {
@@ -75,15 +75,30 @@ export default function InformeList({
     const fetchedInformeIdsRef = useRef(new Set());
 
     const [currentPage, setCurrentPage] = useState(1);
-    const [searchTerm, setSearchTerm] = useState("");
     const [pageSize, setPageSize] = useState(() => {
         const stored = Number(localStorage.getItem(PAGE_SIZE_STORAGE_KEY));
         return PAGE_SIZE_OPTIONS.includes(stored) ? stored : DEFAULT_ITEMS_PER_PAGE;
     });
+    const tableScrollRef = useRef(null);
+    const mobileScrollRef = useRef(null);
+
+    const scrollToTop = () => {
+        tableScrollRef.current?.scrollTo({ top: 0 });
+        mobileScrollRef.current?.scrollTo({ top: 0 });
+    };
+
+    const handlePageChange = (page) => {
+        setCurrentPage(page);
+        scrollToTop();
+    };
 
     useEffect(() => {
         localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(pageSize));
     }, [pageSize]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm]);
 
     const normalizedSearch = searchTerm.trim().toLowerCase();
 
@@ -194,7 +209,7 @@ export default function InformeList({
     }, [totalesPorMonedaPorInforme]);
 
     return (
-      <section className="space-y-4">
+      <div className="flex h-full flex-col overflow-hidden">
         {/*  <div className="sticky top-20 z-20 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <h2 className="text-lg font-bold text-slate-800">Lista de Informes</h2>
@@ -203,31 +218,22 @@ export default function InformeList({
                     </p>
                 </div>
             </div> */}
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 p-2 sm:p-3">
-            <div className="flex min-w-0 items-center gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por título, política, estado, fecha o total"
-                className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-              />
-
-              <button
-                type="button"
-                title="Limpiar búsqueda"
-                onClick={() => setSearchTerm("")}
-                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 cursor-pointer sm:h-auto sm:w-auto sm:px-3 sm:py-2.5"
-              >
-                <IconBroom className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-
-          <div className="hidden max-h-[70dvh] overflow-hidden md:flex md:flex-col">
-            <div className="min-h-0 flex-1 overflow-auto overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-              <table className="w-full text-sm">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="hidden xl:flex xl:flex-col flex-1 min-h-0 overflow-hidden">
+            <div ref={tableScrollRef} className="min-h-0 flex-1 overflow-auto overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <table className="w-full text-sm table-fixed">
+                <colgroup>
+                  {isExportMode && <col className="w-10" />}
+                  <col className="w-14" />
+                  <col className="w-[35%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-24" />
+                  <col className="w-24" />
+                  <col className="w-20" />
+                  <col className="w-20" />
+                  <col className="w-20" />
+                  <col className="w-16" />
+                </colgroup>
                 <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur">
                   <tr>
                     {isExportMode && (
@@ -284,11 +290,11 @@ export default function InformeList({
                       <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700">
                         {inf.idInf}
                       </td>
-                      <td className="border-b border-slate-100 px-2 py-1 text-sm font-semibold text-slate-800">
-                        {inf.titulo || "-"}
+                      <td className="border-b border-slate-100 px-2 py-1 text-sm font-semibold text-slate-800 max-w-0">
+                        <span className="block truncate">{inf.titulo || "-"}</span>
                       </td>
-                      <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700">
-                        {inf.politica || "-"}
+                      <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700 max-w-0">
+                        <span className="block truncate">{inf.politica || "-"}</span>
                       </td>
                       <td className="border-b border-slate-100 px-2 py-1 text-center">
                         <span
@@ -331,7 +337,7 @@ export default function InformeList({
               <PaginationControls
                 currentPage={effectiveCurrentPage}
                 totalPages={totalPages}
-                onPageChange={setCurrentPage}
+                onPageChange={handlePageChange}
                 totalItems={filteredInformes.length}
                 currentFrom={currentFrom}
                 currentTo={currentTo}
@@ -339,14 +345,15 @@ export default function InformeList({
                 onPageSizeChange={(nextSize) => {
                   setPageSize(nextSize);
                   setCurrentPage(1);
+                  scrollToTop();
                 }}
                 pageSizeOptions={PAGE_SIZE_OPTIONS}
               />
             </div>
           </div>
 
-          <div className="max-h-[70dvh] overflow-hidden md:hidden flex flex-col">
-            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain touch-pan-y p-2">
+          <div className="xl:hidden flex-1 min-h-0 overflow-hidden flex flex-col">
+            <div ref={mobileScrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain touch-pan-y p-2">
               {paginatedInformes.map((inf, index) => (
                 <article
                   key={index}
@@ -399,7 +406,7 @@ export default function InformeList({
               <PaginationControls
                 currentPage={effectiveCurrentPage}
                 totalPages={totalPages}
-                onPageChange={setCurrentPage}
+                onPageChange={handlePageChange}
                 totalItems={filteredInformes.length}
                 currentFrom={currentFrom}
                 currentTo={currentTo}
@@ -407,12 +414,13 @@ export default function InformeList({
                 onPageSizeChange={(nextSize) => {
                   setPageSize(nextSize);
                   setCurrentPage(1);
+                  scrollToTop();
                 }}
                 pageSizeOptions={PAGE_SIZE_OPTIONS}
               />
             </div>
           </div>
         </div>
-      </section>
+      </div>
     );
 }

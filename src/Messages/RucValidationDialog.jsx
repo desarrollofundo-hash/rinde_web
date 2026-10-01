@@ -6,7 +6,6 @@ export default function RucValidationDialog({
   rucEmpresa,
   razonSocialOcr,
   razonSocialEmpresa,
-  onAccept,
   onCancel,
 }) {
   if (!isOpen) return null;
@@ -15,7 +14,7 @@ export default function RucValidationDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="mx-4 w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
         {/* Header - Rojo/Advertencia */}
-        <div className="bg-gradient-to-r from-orange-500 to-red-500 px-6 py-4">
+        <div className="bg-linear-to-r from-orange-500 to-red-500 px-6 py-4">
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-6 w-6 text-white" />
             <h2 className="text-lg font-bold text-white">RUC NO COINCIDE</h2>

@@ -87,10 +87,10 @@ PASOS:
 
 1. PREPARACIÓN EN EL SERVIDOR:
    - Instalar iisnode: https://github.com/Azure/iisnode/releases
-   - Crear carpeta: C:\\inetpub\\wwwroot\\rinde-web
+   - Crear carpeta: C:\inetpub\wwwroot\RindeWebQA
 
 2. SUBIR ESTA CARPETA:
-   - Copiar TODO el contenido de esta carpeta a C:\\inetpub\\wwwroot\\rinde-web
+   - Copiar TODO el contenido de esta carpeta a C:\inetpub\wwwroot\RindeWebQA
    - Especialmente:
      * dist/ (frontend)
      * server.js (backend)

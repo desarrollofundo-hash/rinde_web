@@ -10,6 +10,7 @@
 // moverse a un endpoint de tu backend real que guarde las claves del lado servidor.
 
 import * as pdfjsLib from "pdfjs-dist";
+import { isPdfFile } from "./isPdfFile";
 
 // Mismo catálogo que FALLBACK_TIPOS_COMPROBANTE en GastoGeneral.jsx.
 // Si cambias uno, cambia el otro para que no se desincronicen.
@@ -39,7 +40,7 @@ async function convertirPdfAImagen(file) {
   try {
     const pdfWorkerUrl = new URL(
       "pdfjs-dist/build/pdf.worker.min.mjs",
-      import.meta.url
+      import.meta.url,
     ).href;
     pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
@@ -57,7 +58,9 @@ async function convertirPdfAImagen(file) {
 
     return new Promise((resolve) => {
       canvas.toBlob((blob) => {
-        const imagenFile = new File([blob], "factura.png", { type: "image/png" });
+        const imagenFile = new File([blob], "factura.png", {
+          type: "image/png",
+        });
         resolve(imagenFile);
       }, "image/png");
     });
@@ -66,21 +69,77 @@ async function convertirPdfAImagen(file) {
   }
 }
 
+/**
+ * Redimensiona y comprime una imagen antes de enviarla al OCR.
+ * Una foto de factura puede pesar varios MB; eso hace lenta la subida (sobre
+ * todo por túneles como ngrok) y aumenta el tiempo de OpenAI. Bajarla a ~2000px
+ * de lado y JPEG de calidad ~0.85 mantiene el texto legible pero reduce el
+ * tamaño a unos cientos de KB.
+ *
+ * @param {File|Blob} file  Imagen de entrada
+ * @param {object} [opts]
+ * @param {number} [opts.maxLado=2000]  Lado máximo (px) del lado más largo
+ * @param {number} [opts.calidad=0.85]  Calidad JPEG (0-1)
+ * @returns {Promise<File>} Imagen JPEG comprimida
+ */
+async function comprimirImagen(file, { maxLado = 2000, calidad = 0.85 } = {}) {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () =>
+        reject(new Error("No se pudo cargar la imagen para comprimir"));
+      image.src = objectUrl;
+    });
+
+    const anchoOriginal = img.naturalWidth || img.width;
+    const altoOriginal = img.naturalHeight || img.height;
+
+    // Si ya es pequeña, no vale la pena reescalar.
+    const ladoMayor = Math.max(anchoOriginal, altoOriginal);
+    const escala = ladoMayor > maxLado ? maxLado / ladoMayor : 1;
+
+    const ancho = Math.round(anchoOriginal * escala);
+    const alto = Math.round(altoOriginal * escala);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = ancho;
+    canvas.height = alto;
+    const ctx = canvas.getContext("2d");
+    // Fondo blanco: si el origen es PNG con transparencia, evita que quede negro.
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, ancho, alto);
+    ctx.drawImage(img, 0, 0, ancho, alto);
+
+    const blob = await new Promise((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", calidad),
+    );
+
+    if (!blob) {
+      // Si por alguna razón no se pudo comprimir, se usa el original.
+      return file;
+    }
+
+    return new File([blob], "factura.jpg", { type: "image/jpeg" });
+  } catch {
+    // Ante cualquier fallo de compresión, se sigue con el archivo original.
+    return file;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 function construirPrompt() {
   const codigosValidos = TIPOS_COMPROBANTE_CATALOGO.map(
     (t) => `${t.id}=${t.name}`,
   ).join(", ");
 
-  return `EXTRACTOR DE DATOS DE COMPROBANTES PERUANOS (SUNAT) - PRECISIÓN MÁXIMA
+  return `EXTRACTOR DE DATOS DE COMPROBANTES PERUANOS (SUNAT) - MÁXIMA PRECISIÓN
 
-Analiza la imagen del comprobante y extrae TODOS los campos según estas reglas EXACTAS.
+Analiza meticulosamente la imagen y extrae EXACTAMENTE los campos solicitados.
 
-INSTRUCCIONES CRÍTICAS:
-1. Responde SOLO con JSON válido - sin markdown, sin backticks, sin explicaciones extra
-2. Incluir SIEMPRE los 10 campos, usar null si no existe
-3. Números sin símbolos ($,S/), sin puntos de miles
-
-ESTRUCTURA JSON REQUERIDA (EJEMPLO REAL):
+RESPUESTA REQUERIDA - JSON VÁLIDO ÚNICAMENTE:
 {
   "rucEmisor": "10077149231",
   "razonSocial": "GUES HOUSE",
@@ -95,71 +154,93 @@ ESTRUCTURA JSON REQUERIDA (EJEMPLO REAL):
   "total": "27.00"
 }
 
-EXTRACCIÓN OBLIGATORIA DE CAMPOS:
+INSTRUCCIONES CRÍTICAS PARA EXTRACCIÓN:
 
-1. "rucEmisor" (CRÍTICO):
-   - RUC quien EMITE la factura (en el encabezado/membrete)
-   - Solo 11 dígitos, sin puntos
-   - Ejemplo: "10077149231"
+1. "rucEmisor": RUC de quien EMITE (proveedor/vendedor)
+   - Ubicado arriba, membrete o encabezado
+   - Formato: 11 dígitos exactos
+   - Busca "R.U.C", "RUC:", "RUC Emisor"
 
-2. "rucCliente" (CRÍTICO - OBLIGATORIO BUSCAR):
-   - RUC del COMPRADOR/CLIENTE (quien RECIBE la factura)
-   - Busca después de "Cliente:", "R.U.C:", "RUC Cliente:", etc
-   - En la sección de "Cliente" o "Comprador" del documento
-   - Solo 11 dígitos, sin puntos
-   - Ejemplo: "20603461534"
-   - Si NO hay cliente explícito: usa null
+2. "rucCliente": RUC de quien COMPRA/RECIBE (cliente)
+   - CRÍTICO: Ubicado en sección inferior/media izquierda
+   - Busca etiquetas: "Cliente", "Señor", "Razón Social Cliente", "R.U.C.", "Comprador"
+   - SIEMPRE está en la factura después de emisor
+   - Formato: 11 dígitos sin espacios ni puntos
+   - Ejemplo en factura: "Cliente: AGRICOLA SANTA AZUL | RUC: 20603461534"
+   - BUSCA EXHAUSTIVAMENTE: puede estar en múltiples formatos
 
-3. "razonSocialCliente" (CRÍTICO - OBLIGATORIO BUSCAR):
-   - NOMBRE/RAZÓN SOCIAL del CLIENTE (quien compra/recibe)
-   - Busca en la sección "Cliente:", "Señor(es):", "Razón Social:", cerca del rucCliente
-   - NO confundir con razonSocial (que es del emisor)
+3. "razonSocialCliente": Nombre/empresa del cliente
+   - Ubicado junto al RUC Cliente
+   - Mayúsculas típicamente
    - Ejemplo: "AGRICOLA SANTA AZUL S.A.C"
-   - Si NO aparece explícito: usa null (no inventar)
 
-4. "tipoComprobante": Código ${codigosValidos}. Defecto "11".
+4. "razonSocial": Nombre empresa EMISORA (no cliente)
+   - Del membrete/encabezado
+   - NO confundir con cliente
 
-4. "serie": Letras/números ANTES del guion. Ej: "FPP1" de "FPP1-002356"
+5. "tipoComprobante": Código ${codigosValidos}. Defecto "11".
 
-5. "numero": Solo dígitos DESPUÉS del último guion. Ej: "002356"
+6. "serie": Letras/números ANTES guion. Ej: "FPP1" de "FPP1-002356"
 
-6. "fecha": ISO YYYY-MM-DD (fecha de EMISIÓN)
+7. "numero": Solo dígitos DESPUÉS último guion. Ej: "002356"
 
-7. "moneda": "01" (Soles/S/PEN) o "03" (Dólares/USD)
+8. "fecha": ISO YYYY-MM-DD (fecha de EMISIÓN)
 
-8. "igv": Monto IGV con punto decimal. Si no discrimina: "0"
+9. "moneda": "01"=Soles o "03"=Dólares
 
-9. "total": Monto total con punto decimal, sin símbolo
+10. "igv": Impuesto con punto decimal. "0" si no discrimina
 
-10. "razonSocial": Nombre de quien EMITE (no del cliente)
+11. "total": Monto final, solo números y punto
 
-IMPORTANTE: NO INVENTAR. Si está claro que falta un dato, usa null exacto.`;
+⚠️ IMPORTANTE:
+- Responde SOLO JSON, sin markdown, sin backticks
+- Si campo NO existe, usa null (no vacío, no "N/A")
+- rucCliente y razonSocialCliente SIEMPRE presentes en factura peruana
+- Busca exhaustivamente en TODA la imagen`;
 }
 
 async function extraerCamposConOpenAI(base64Imagen, mimeType) {
-  // En producción (IIS), usar URL relativa. En desarrollo, usar localhost.
-  const backendUrl = import.meta.env.DEV ? (import.meta.env.VITE_BACKEND_URL || "http://localhost:3001") : "";
+  // URL del backend.
+  // Por defecto se usa una ruta relativa (mismo origen): en desarrollo el proxy
+  // de Vite reenvía /api a server.js, y en producción (IIS) el backend sirve el
+  // frontend, así que el mismo origen ya es correcto.
+  // VITE_BACKEND_URL solo hace falta si el backend vive en otro host.
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || "";
 
-  const respuesta = await fetch(`${backendUrl}/api/ocr/extract`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      base64Image: base64Imagen,
-      mimeType: mimeType,
-    }),
-  });
+  let respuesta;
+  try {
+    respuesta = await fetch(`${backendUrl}/api/ocr/extract`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        base64Image: base64Imagen,
+        mimeType: mimeType,
+      }),
+    });
+  } catch {
+    throw new Error(
+      "No se pudo contactar al servidor de OCR. Verifica que el backend esté ejecutándose (npm run dev:full).",
+    );
+  }
 
   if (!respuesta.ok) {
-    const errorData = await respuesta.json();
+    const errorData = await respuesta.json().catch(() => ({}));
+
+    // 502/503/504 sin cuerpo JSON = el proxy (Vite o IIS) no alcanzó a server.js.
+    if (!errorData.error && respuesta.status >= 502 && respuesta.status <= 504) {
+      throw new Error(
+        "El servidor de OCR no está respondiendo. Verifica que el backend esté ejecutándose (npm run dev:full).",
+      );
+    }
+
     throw new Error(
       errorData.error || `Error en servidor OCR: ${respuesta.status}`,
     );
   }
 
-  const json = await respuesta.json();
-  return json;
+  return respuesta.json();
 }
 
 /**
@@ -173,22 +254,32 @@ export async function extraerDatosComprobante(file) {
   let archivoParaProcesar = file;
 
   // Si es PDF, convertir a imagen
-  if (file.type === "application/pdf") {
+  if (isPdfFile(file)) {
     console.log("📄 Detectado PDF, convirtiendo a imagen...");
     archivoParaProcesar = await convertirPdfAImagen(file);
     console.log("✅ PDF convertido a imagen");
   }
+
+  // Comprimir/redimensionar antes de enviar: acelera la subida y el OCR, y
+  // evita timeouts al pasar por túneles (ngrok) con fotos grandes.
+  archivoParaProcesar = await comprimirImagen(archivoParaProcesar);
 
   const base64Imagen = await convertirFileABase64(archivoParaProcesar);
   const mimeType = archivoParaProcesar.type || "image/jpeg";
   const campos = await extraerCamposConOpenAI(base64Imagen, mimeType);
 
   // VALIDACIÓN CRÍTICA: rucCliente es obligatorio para validar contra empresa
-  const rucClienteExtraido = String(campos.rucCliente || "").replace(/\D/g, "").trim();
-  const razonSocialClienteExtraida = String(campos.razonSocialCliente || "").trim();
+  const rucClienteExtraido = String(campos.rucCliente || "")
+    .replace(/\D/g, "")
+    .trim();
+  const razonSocialClienteExtraida = String(
+    campos.razonSocialCliente || "",
+  ).trim();
 
   if (!rucClienteExtraido) {
-    console.warn("⚠️ ADVERTENCIA: No se pudo extraer el RUC del Cliente de la factura");
+    console.warn(
+      "⚠️ ADVERTENCIA: No se pudo extraer el RUC del Cliente de la factura",
+    );
     console.log("Campos recibidos:", campos);
   }
 

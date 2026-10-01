@@ -21,15 +21,15 @@ import { IconEye } from "../../Icons/preview";
 import { IconEdit } from "../../Icons/edit";
 import { IconSend } from "../../Icons/send";
 import EvidenciaImagen from "../Gasto/EvidenciaImagen";
-import ImageZoomLightbox from "../Gasto/ImageZoomLightbox";
+import ImageZoomLightbox from "../ImagZoom/ImageZoomLightbox";
 import AuditoriaHeader from "./AuditoriaHeader";
 import AuditoriaList from "./AuditoriaList";
 
 import { createPortal } from "react-dom";
 export default function Auditoria() {
-  const DEFAULT_ITEMS_PER_PAGE = 8;
+  const DEFAULT_ITEMS_PER_PAGE = 10;
   const PAGE_SIZE_STORAGE_KEY = "auditoria.pageSize";
-  const PAGE_SIZE_OPTIONS = [5, 8, 10, 20, 50];
+  const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
   const [auditorias, setAuditorias] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -48,6 +48,7 @@ export default function Auditoria() {
     type: "success",
   });
   const [isExportMode, setIsExportMode] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedAuditoriaIds, setSelectedAuditoriaIds] = useState([]);
   const [detalleModal, setDetalleModal] = useState({
     open: false,
@@ -1449,8 +1450,8 @@ export default function Auditoria() {
   }, [fetchAuditorias]);
 
   return (
-    <div className="w-full min-h-0 overflow-x-hidden overscroll-y-contain px-2 pt-0 pb-4 sm:px-4 sm:pt-0 sm:pb-6 lg:px-6">
-      <div className="mx-auto w-full space-y-1">
+    <div className="mx-auto flex h-full w-full flex-col px-2 sm:px-4 lg:px-6">
+      <div className="shrink-0">
         <AuditoriaHeader
           isExportMode={isExportMode}
           selectedCount={selectedAuditoriaIds.length}
@@ -1459,54 +1460,63 @@ export default function Auditoria() {
           onExportClick={handleExportClick}
           onToggleSelectAll={toggleSelectAllAuditorias}
           onCancelExport={cancelExportMode}
+          searchTerm={searchTerm}
+          onSearchChange={(val) => { setSearchTerm(val); setCurrentPage(1); }}
         />
+      </div>
 
+      <div className="flex min-h-0 flex-1 flex-col gap-2 py-2">
         {loading && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-            <p className="text-slate-600">Cargando auditorías...</p>
+          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+            <div className="h-9 w-9 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
+            <p className="text-sm text-slate-500">Cargando auditorías...</p>
           </div>
         )}
 
         {!loading && auditorias.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
-            <p className="text-base font-semibold text-slate-700">
-              No hay auditorías
-            </p>
-            {/*    <p className="mt-1 text-sm text-slate-500">
-              Crea tu primera auditoría para empezar.
-            </p> */}
+          <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
+            <svg className="h-12 w-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859m-19.5.338V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H6.911a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661z" />
+            </svg>
+            <div>
+              <p className="text-base font-semibold text-slate-700">No hay auditorías disponibles</p>
+              <p className="mt-1 text-sm text-slate-500">Las auditorías aparecerán aquí cuando estén asignadas.</p>
+            </div>
           </div>
         )}
 
         {!loading && auditorias.length > 0 && (
-          <AuditoriaList
-            auditorias={auditorias}
-            isExportMode={isExportMode}
-            selectedAuditoriaIds={selectedAuditoriaIds}
-            getAuditoriaId={getAuditoriaId}
-            getEstadoBadgeClass={getEstadoBadgeClass}
-            getEstadoLabel={getEstadoLabel}
-            formatDate={formatDate}
-            formatCurrency={formatCurrency}
-            getAuditoriaTotal={getAuditoriaTotal}
-            getAuditoriaCantidadGastos={getAuditoriaCantidadGastos}
-            getAuditoriaCantidadAprobado={getAuditoriaCantidadAprobado}
-            getAuditoriaCantidadDesaprobado={getAuditoriaCantidadDesaprobado}
-            getAuditoriaTotalDesaprobado={getAuditoriaTotalDesaprobado}
-            currentFrom={currentFrom}
-            currentPage={effectiveCurrentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            pageSize={pageSize}
-            onPageSizeChange={(nextSize) => {
-              setPageSize(nextSize);
-              setCurrentPage(1);
-            }}
-            pageSizeOptions={PAGE_SIZE_OPTIONS}
-            onToggleSelectAllAuditorias={toggleSelectAllAuditorias}
-            onToggleAuditoriaSelection={toggleAuditoriaSelection}
-            onVerDetalles={handleVerDetalles}
-          />
+          <div className="flex-1 min-h-0">
+            <AuditoriaList
+              auditorias={auditorias}
+              isExportMode={isExportMode}
+              searchTerm={searchTerm}
+              selectedAuditoriaIds={selectedAuditoriaIds}
+              getAuditoriaId={getAuditoriaId}
+              getEstadoBadgeClass={getEstadoBadgeClass}
+              getEstadoLabel={getEstadoLabel}
+              formatDate={formatDate}
+              formatCurrency={formatCurrency}
+              getAuditoriaTotal={getAuditoriaTotal}
+              getAuditoriaCantidadGastos={getAuditoriaCantidadGastos}
+              getAuditoriaCantidadAprobado={getAuditoriaCantidadAprobado}
+              getAuditoriaCantidadDesaprobado={getAuditoriaCantidadDesaprobado}
+              getAuditoriaTotalDesaprobado={getAuditoriaTotalDesaprobado}
+              currentFrom={currentFrom}
+              currentPage={effectiveCurrentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              pageSize={pageSize}
+              onPageSizeChange={(nextSize) => {
+                setPageSize(nextSize);
+                setCurrentPage(1);
+              }}
+              pageSizeOptions={PAGE_SIZE_OPTIONS}
+              onToggleSelectAllAuditorias={toggleSelectAllAuditorias}
+              onToggleAuditoriaSelection={toggleAuditoriaSelection}
+              onVerDetalles={handleVerDetalles}
+            />
+          </div>
         )}
 
         {/* MODAL DETALLE DE GASTO INDIVIDUAL */}

@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getEvidenceImageCandidates, obtenerImagenBytesDesdeServidor } from "../../services/getImage/getImage";
 
+// Blob URLs resueltos por candidate URL — persisten entre remounts.
+// El servicio ya cachea los bytes; esto evita llamar createObjectURL cada vez.
+const blobUrlCache = new Map();
+
 function detectMimeFromBytes(bytes) {
     if (!bytes || !bytes.length) return "";
 
@@ -89,85 +93,115 @@ function inferImageMimeType(candidate, contentType, bytes) {
 
 export default function EvidenciaImagen({ gasto, fallbackObs = "", alt = "Evidencia del gasto", className = "", loading = "lazy", fallback = null, ...imgProps }) {
     const gastoId = gasto?.idrend ?? gasto?.idRend ?? gasto?.id;
-    const candidates = useMemo(() => {
-        const c = getEvidenceImageCandidates(gasto, fallbackObs);
-        if (import.meta.env.DEV) {
-            console.debug("[EvidenciaImagen] candidatos para", gastoId, ":", c);
-        }
-        return c;
-    }, [gasto, fallbackObs, gastoId]);
+    const candidates = useMemo(
+        () => getEvidenceImageCandidates(gasto, fallbackObs),
+        [gasto, fallbackObs]
+    );
     const [resolvedSrc, setResolvedSrc] = useState("");
-    const objectUrlRef = useRef("");
+    const [isLoading, setIsLoading] = useState(true);
+    const [imgVisible, setImgVisible] = useState(false);
+    const containerRef = useRef(null);
 
     useEffect(() => {
         let isCancelled = false;
-
-        const revokeObjectUrl = () => {
-            if (objectUrlRef.current) {
-                URL.revokeObjectURL(objectUrlRef.current);
-                objectUrlRef.current = "";
-            }
-        };
+        setIsLoading(true);
+        setImgVisible(false);
 
         const resolveEvidenceSrc = async () => {
             for (const candidate of candidates) {
                 if (isCancelled) return;
 
+                // Blob URL ya resuelto: usar directo sin red ni createObjectURL
+                if (blobUrlCache.has(candidate)) {
+                    if (!isCancelled) { setResolvedSrc(blobUrlCache.get(candidate)); setIsLoading(false); }
+                    return;
+                }
+
                 if (/^data:image/i.test(candidate) || /^blob:/i.test(candidate)) {
-                    setResolvedSrc(candidate);
+                    if (!isCancelled) { setResolvedSrc(candidate); setIsLoading(false); }
                     return;
                 }
 
                 const imageData = await obtenerImagenBytesDesdeServidor(candidate, 8000);
-                if (!imageData?.bytes?.length) {
-                    continue;
-                }
+                if (!imageData?.bytes?.length) continue;
 
                 const mime = inferImageMimeType(candidate, imageData.contentType, imageData.bytes);
-                if (!String(mime).toLowerCase().startsWith("image/")) {
-                    // Evita crear blobs no renderizables en <img> (ej: PDF/HTML).
-                    continue;
-                }
+                if (!String(mime).toLowerCase().startsWith("image/")) continue;
 
-                revokeObjectUrl();
                 const blob = new Blob([imageData.bytes], { type: mime });
                 const objectUrl = URL.createObjectURL(blob);
-                objectUrlRef.current = objectUrl;
-                setResolvedSrc(objectUrl);
+                blobUrlCache.set(candidate, objectUrl); // cachear para futuros remounts
+
+                if (!isCancelled) { setResolvedSrc(objectUrl); setIsLoading(false); }
                 return;
             }
 
-            if (import.meta.env.DEV) {
-                console.warn("[EvidenciaImagen] ningún candidato resolvió imagen para", gastoId, candidates);
-            }
-            setResolvedSrc("");
+            if (!isCancelled) { setResolvedSrc(""); setIsLoading(false); }
         };
 
-        resolveEvidenceSrc();
+        // IntersectionObserver: iniciar fetch solo cuando el elemento entra al viewport
+        const container = containerRef.current;
+        if (!container) {
+            resolveEvidenceSrc();
+            return () => { isCancelled = true; };
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    observer.disconnect();
+                    resolveEvidenceSrc();
+                }
+            },
+            { rootMargin: "120px" } // prefetch 120px antes de ser visible
+        );
+        observer.observe(container);
 
         return () => {
             isCancelled = true;
-            revokeObjectUrl();
+            observer.disconnect();
+            // No revocar: el blob URL queda en blobUrlCache para remounts
         };
     }, [candidates, gastoId]);
 
-    if (!resolvedSrc) {
-        return fallback;
+    // Fase 1: fetch pendiente → skeleton (estilos inline para garantizar tamaño en tabla)
+    if (isLoading) {
+        return (
+            <div
+                ref={containerRef}
+                aria-hidden="true"
+                style={{
+                    width: "2rem",
+                    height: "2rem",
+                    borderRadius: "0.375rem",
+                    backgroundColor: "#e2e8f0",
+                    margin: "0 auto",
+                    flexShrink: 0,
+                    animation: "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite",
+                }}
+            />
+        );
     }
 
-    const evidenceContrastStyle = {
-        backgroundColor: "#ffffff",
-        ...imgProps.style,
-    };
+    // Fase 2: fetch falló o sin evidencia → fallback
+    if (!resolvedSrc) return fallback;
 
+    // Fase 3: img visible con fade-in
     return (
         <img
+            ref={containerRef}
             src={resolvedSrc}
             alt={alt}
             className={className}
             loading={loading}
+            onLoad={() => setImgVisible(true)}
             {...imgProps}
-            style={evidenceContrastStyle}
+            style={{
+                backgroundColor: "#ffffff",
+                opacity: imgVisible ? 1 : 0,
+                transition: "opacity 0.35s ease",
+                ...imgProps.style,
+            }}
         />
     );
 }

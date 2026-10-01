@@ -59,7 +59,7 @@ export default function NuevoGastoModal({ onClose, politicaSeleccionada }) {
     const esPoliticaMovilidad = politicaNombre.includes("movilidad");
 
     return (
-        <div className="fixed inset-0 z-40">
+        <div className="fixed inset-0 z-[60]">
             <button
                 type="button"
                 aria-label="Cerrar modal"

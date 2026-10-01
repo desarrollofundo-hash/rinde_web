@@ -12,6 +12,16 @@ dist
 dist-ssr
 *.local
 
+# Environment variables (may contain secrets)
+.env
+.env.*
+!.env.example
+
+# Deployment packages (may contain secrets)
+deployment-package/
+*.zip
+deploy-to-iis.ps1
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

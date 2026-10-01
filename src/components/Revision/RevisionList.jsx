@@ -12,7 +12,7 @@ import PaginationControls from "../Gasto/PaginationControls";
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_STORAGE_KEY = "revision.pageSize";
-const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100];
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 const firstDefined = (...values) => {
   for (const value of values) {
@@ -103,19 +103,36 @@ export default function RevisionList({
   selectedRevisionIds = [],
   onToggleRevisionSelection,
   onToggleSelectAll,
+  searchTerm = "",
 }) {
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState("");
   const [pageSize, setPageSize] = useState(() => {
     const stored = Number(localStorage.getItem(PAGE_SIZE_STORAGE_KEY));
     return PAGE_SIZE_OPTIONS.includes(stored) ? stored : DEFAULT_PAGE_SIZE;
   });
+  const tableScrollRef = useRef(null);
+  const mobileScrollRef = useRef(null);
+
+  const scrollToTop = () => {
+    tableScrollRef.current?.scrollTo({ top: 0 });
+    mobileScrollRef.current?.scrollTo({ top: 0 });
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    scrollToTop();
+  };
 
   const handlePageSizeChange = (newSize) => {
     setPageSize(newSize);
     localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(newSize));
     setCurrentPage(1);
+    scrollToTop();
   };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const allRevisiones = useMemo(
     () => (Array.isArray(revisiones) ? revisiones : []),
@@ -216,16 +233,6 @@ export default function RevisionList({
         });
     });
   }, [paginatedRevisiones]);
-  useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === "Escape" && searchTerm) {
-        setSearchTerm("");
-        setCurrentPage(1);
-      }
-    };
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [searchTerm]);
   // Solo muestra el subtotal real (por detalle de gastos) de la moneda a la que corresponde la columna.
   const formatCurrencyPorMoneda = (revision, monedaCodigo) => {
     const id = getRevisionId(revision);
@@ -237,78 +244,25 @@ export default function RevisionList({
   };
 
   return (
-    <section className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:p-2">
-        <div className="mb-4 flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-          <div className="relative min-w-0 flex-1">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              // 1. Placeholder más conciso
-              placeholder="Buscar por título, ID, estado..."
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 pr-10 text-sm text-slate-700 outline-none transition duration-200
-        placeholder:text-slate-400 placeholder:font-normal
-        focus:border-sky-500 focus:ring-2 focus:ring-sky-200 focus:shadow-md
-        hover:border-slate-400
-        disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
-              aria-label="Buscar revisiones"
-            />
-
-            {/* 2. Botón X condicionalmente dentro (mejor UX) */}
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchTerm("");
-                  setCurrentPage(1);
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition duration-200
-          hover:bg-slate-100 hover:text-slate-600
-          active:scale-95
-          focus-visible:ring-2 focus-visible:ring-sky-300"
-                aria-label="Limpiar búsqueda"
-                title="Limpiar (Esc)"
-              >
-                <svg
-                  className="h-4 w-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
-
-          {/* 3. Botón de limpiar mejorado (visible siempre) */}
-          <button
-            type="button"
-            title="Limpiar búsqueda"
-            onClick={() => {
-              setSearchTerm("");
-              setCurrentPage(1);
-            }}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-600 transition duration-200
-      hover:border-slate-400 hover:bg-slate-50 hover:text-slate-700
-      active:scale-95
-      focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:outline-none
-      cursor-pointer sm:h-auto sm:w-auto sm:px-3 sm:py-2.5"
-            aria-label="Limpiar búsqueda"
-          >
-            <IconBroom className="h-5 w-5" />
-          </button>
-        </div>
-
+    <div className="flex h-full flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {/* TABLA DESKTOP */}
-        <div className="hidden max-h-[65dvh] overflow-hidden md:flex md:flex-col">
-          <div className="min-h-0 flex-1 overflow-auto overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            <table className="w-full min-w-225 text-sm">
+        <div className="hidden xl:flex xl:flex-col flex-1 min-h-0 overflow-hidden">
+          <div ref={tableScrollRef} className="min-h-0 flex-1 overflow-auto overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <table className="w-full min-w-225 text-sm table-fixed">
+              <colgroup>
+                {isExportMode && <col className="w-10" />}
+                <col className="w-10" />
+                <col className="w-14" />
+                <col className="w-[28%]" />
+                <col className="w-[22%]" />
+                <col className="w-[12%]" />
+                <col className="w-24" />
+                <col className="w-24" />
+                <col className="w-20" />
+                <col className="w-20" />
+                <col className="w-16" />
+              </colgroup>
               <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur">
                 <tr>
                   {isExportMode && (
@@ -352,9 +306,6 @@ export default function RevisionList({
                   <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
                     USD{" "}
                   </th>
-                  {/*   <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
-                      Cant. Gasto
-                    </th> */}
                   <th className="border-b border-slate-200 px-1 py-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600">
                     Acciones
                   </th>
@@ -385,15 +336,15 @@ export default function RevisionList({
                     <td className="border-b border-slate-100 px-2 py-1 text-center text-sm text-slate-700">
                       {revision?.idRev ?? "-"}
                     </td>
-                    <td className="border-b border-slate-100 px-2 py-1 text-sm font-semibold text-slate-800">
-                      {revision?.titulo ?? revision?.title ?? "-"}
+                    <td className="border-b border-slate-100 px-2 py-1 text-sm font-semibold text-slate-800 max-w-0">
+                      <span className="block truncate">{revision?.titulo ?? revision?.title ?? "-"}</span>
                     </td>
-                    <td className="border-b border-slate-100 px-2 py-1 text-sm font-semibold text-slate-800">
-                      {revision?.usuario ?? revision?.title ?? "-"}
+                    <td className="border-b border-slate-100 px-2 py-1 text-sm font-semibold text-slate-800 max-w-0">
+                      <span className="block truncate">{revision?.usuario ?? revision?.title ?? "-"}</span>
                     </td>
 
-                    <td className="border-b border-slate-100 px-2 py-1 text-sm font-semibold text-slate-800">
-                      {revision?.gerencia ?? "-"}
+                    <td className="border-b border-slate-100 px-2 py-1 text-sm font-semibold text-slate-800 max-w-0">
+                      <span className="block truncate">{revision?.gerencia ?? "-"}</span>
                     </td>
 
                     <td className="border-b border-slate-100 px-2 py-1 text-center">
@@ -419,7 +370,7 @@ export default function RevisionList({
                       <button
                         type="button"
                         onClick={() => onVerDetalles(revision)}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-cyan-700 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 cursor-pointer"
                       >
                         <IconEye className="h-3.5 w-3.5 shrink-0" />
                         {/*                           Ver Detalles
@@ -435,7 +386,7 @@ export default function RevisionList({
             <PaginationControls
               currentPage={safePage}
               totalPages={totalPages}
-              onPageChange={setCurrentPage}
+              onPageChange={handlePageChange}
               totalItems={filteredRevisiones.length}
               currentFrom={currentFrom}
               currentTo={currentTo}
@@ -447,8 +398,8 @@ export default function RevisionList({
         </div>
 
         {/* TARJETAS MOBILE */}
-        <div className="max-h-[65dvh] overflow-hidden md:hidden flex flex-col">
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain touch-pan-y p-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="xl:hidden flex-1 min-h-0 overflow-hidden flex flex-col">
+          <div ref={mobileScrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain touch-pan-y p-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {paginatedRevisiones.map((revision, index) => (
               <article
                 key={index}
@@ -495,7 +446,7 @@ export default function RevisionList({
                 <button
                   type="button"
                   onClick={() => onVerDetalles(revision)}
-                  className="shrink-0 rounded-lg bg-cyan-600 p-2 text-white transition hover:bg-cyan-700 cursor-pointer"
+                  className="shrink-0 rounded-lg bg-blue-600 p-2 text-white transition hover:bg-blue-700 cursor-pointer"
                 >
                   <IconEye className="h-4 w-4" />
                 </button>
@@ -506,7 +457,7 @@ export default function RevisionList({
             <PaginationControls
               currentPage={safePage}
               totalPages={totalPages}
-              onPageChange={setCurrentPage}
+              onPageChange={handlePageChange}
               totalItems={filteredRevisiones.length}
               currentFrom={currentFrom}
               currentTo={currentTo}
@@ -517,6 +468,6 @@ export default function RevisionList({
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

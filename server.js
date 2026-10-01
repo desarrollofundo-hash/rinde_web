@@ -39,16 +39,11 @@ app.post("/api/ocr/extract", async (req, res) => {
       });
     }
 
-    const prompt = `EXTRACTOR DE DATOS DE COMPROBANTES PERUANOS (SUNAT) - PRECISIÓN MÁXIMA
+    const prompt = `EXTRACTOR DE DATOS DE COMPROBANTES PERUANOS (SUNAT) - MÁXIMA PRECISIÓN
 
-Analiza la imagen del comprobante y extrae TODOS los campos según estas reglas EXACTAS.
+Analiza meticulosamente la imagen y extrae EXACTAMENTE los campos solicitados.
 
-INSTRUCCIONES CRÍTICAS:
-1. Responde SOLO con JSON válido - sin markdown, sin backticks, sin explicaciones extra
-2. Incluir SIEMPRE los 10 campos, usar null si no existe
-3. Números sin símbolos ($,S/), sin puntos de miles
-
-ESTRUCTURA JSON REQUERIDA (EJEMPLO REAL):
+RESPUESTA REQUERIDA - JSON VÁLIDO ÚNICAMENTE:
 {
   "rucEmisor": "10077149231",
   "razonSocial": "GUES HOUSE",
@@ -63,45 +58,54 @@ ESTRUCTURA JSON REQUERIDA (EJEMPLO REAL):
   "total": "27.00"
 }
 
-EXTRACCIÓN OBLIGATORIA DE CAMPOS:
+INSTRUCCIONES CRÍTICAS PARA EXTRACCIÓN:
 
-1. "rucEmisor" (CRÍTICO):
-   - RUC quien EMITE la factura (en el encabezado/membrete)
-   - Solo 11 dígitos, sin puntos
-   - Ejemplo: "10077149231"
+1. "rucEmisor": RUC de quien EMITE (proveedor/vendedor)
+   - Ubicado arriba, membrete o encabezado
+   - Formato: 11 dígitos exactos
+   - Busca "R.U.C", "RUC:", "RUC Emisor"
 
-2. "rucCliente" (CRÍTICO - OBLIGATORIO BUSCAR):
-   - RUC del COMPRADOR/CLIENTE (quien RECIBE la factura)
-   - Busca después de "Cliente:", "R.U.C:", "RUC Cliente:", etc
-   - En la sección de "Cliente" o "Comprador" del documento
-   - Solo 11 dígitos, sin puntos
-   - Ejemplo: "20603461534"
-   - Si NO hay cliente explícito: usa null
+2. "rucCliente": RUC de quien COMPRA/RECIBE (cliente)
+   - CRÍTICO: Ubicado en sección inferior/media izquierda
+   - Busca etiquetas: "Cliente", "Señor", "Razón Social Cliente", "R.U.C.", "Comprador"
+   - SIEMPRE está en la factura después de emisor
+   - Formato: 11 dígitos sin espacios ni puntos
+   - Ejemplo en factura: "Cliente: AGRICOLA SANTA AZUL | RUC: 20603461534"
 
-3. "razonSocialCliente" (CRÍTICO - OBLIGATORIO BUSCAR):
-   - NOMBRE/RAZÓN SOCIAL del CLIENTE (quien compra/recibe)
-   - Busca en la sección "Cliente:", "Señor(es):", "Razón Social:", cerca del rucCliente
-   - NO confundir con razonSocial (que es del emisor)
+3. "razonSocialCliente": Nombre/empresa del cliente
+   - Ubicado junto al RUC Cliente
+   - Mayúsculas típicamente
    - Ejemplo: "AGRICOLA SANTA AZUL S.A.C"
-   - Si NO aparece explícito: usa null (no inventar)
 
-4. "tipoComprobante": Código 01=FACTURA ELECTRONICA, 03=BOLETA DE VENTA, 07=NOTA DE CREDITO, 08=NOTA DE DEBITO, 10=RECIBO POR HONORARIO, 11=OTROS. Defecto "11".
+4. "razonSocial": Nombre empresa EMISORA (no cliente)
+   - Del membrete/encabezado
+   - NO confundir con cliente
 
-5. "serie": Letras/números ANTES del guion. Ej: "FPP1" de "FPP1-002356"
+5. "tipoComprobante":
+   - "01"=FACTURA ELECTRONICA
+   - "03"=BOLETA
+   - "07"=NOTA CREDITO
+   - "08"=NOTA DEBITO
+   - "10"=HONORARIO
+   - "11"=OTROS (defecto)
 
-6. "numero": Solo dígitos DESPUÉS del último guion. Ej: "002356"
+6. "serie": Letras/números ANTES guion en número. Ej: "FPP1" de "FPP1-002356"
 
-7. "fecha": ISO YYYY-MM-DD (fecha de EMISIÓN)
+7. "numero": Dígitos DESPUÉS del último guion
 
-8. "moneda": "01" (Soles/S/PEN) o "03" (Dólares/USD)
+8. "fecha": ISO YYYY-MM-DD
 
-9. "igv": Monto IGV con punto decimal. Si no discrimina: "0"
+9. "moneda": "01"=Soles o "03"=Dólares
 
-10. "total": Monto total con punto decimal, sin símbolo
+10. "igv": Impuesto con punto. "0" si no discrimina
 
-11. "razonSocial": Nombre de quien EMITE (no del cliente)
+11. "total": Monto final, solo dígitos y punto
 
-IMPORTANTE: NO INVENTAR. Si está claro que falta un dato, usa null exacto.`;
+⚠️ IMPORTANTE:
+- Responde SOLO JSON, sin markdown, sin backticks
+- Si un campo NO existe, usa null (no vacío, no "N/A")
+- rucCliente y razonSocialCliente SIEMPRE están presentes en factura peruana
+- Busca exhaustivamente en toda la imagen`;
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",

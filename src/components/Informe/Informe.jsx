@@ -27,6 +27,7 @@ export default function Informe() {
     const [previewData, setPreviewData] = useState({ gastosSeleccionados: [], gastosPolitica: [], gastosPersistidos: [] });
     const [toastConfig, setToastConfig] = useState({ isVisible: false, message: "", type: "success" });
     const [isExportMode, setIsExportMode] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
     const [selectedInformeIds, setSelectedInformeIds] = useState([]);
 
     const showToast = (message, type = "success") => {
@@ -923,20 +924,20 @@ export default function Informe() {
     };
 
     return (
-        <div className="w-full min-h-0 overflow-x-hidden overscroll-y-contain px-2 pt-0 pb-4 sm:px-4 sm:pt-0 sm:pb-6 lg:px-6">
-            <div className="mx-auto w-full space-y-1">
-                {/* Loading overlay mientras se guarda */}
-                {isSaving && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-                        <div className="rounded-lg bg-white p-6 shadow-xl">
-                            <div className="flex items-center gap-3">
-                                <div className="h-6 w-6 animate-spin rounded-full border-4 border-cyan-200 border-t-cyan-600"></div>
-                                <span className="text-lg font-medium text-gray-700">Guardando informe...</span>
-                            </div>
+        <div className="mx-auto flex h-full w-full flex-col px-2 sm:px-4 lg:px-6">
+            {/* Loading overlay mientras se guarda */}
+            {isSaving && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+                    <div className="rounded-lg bg-white p-6 shadow-xl">
+                        <div className="flex items-center gap-3">
+                            <div className="h-6 w-6 animate-spin rounded-full border-4 border-cyan-200 border-t-cyan-600"></div>
+                            <span className="text-lg font-medium text-gray-700">Guardando informe...</span>
                         </div>
                     </div>
-                )}
+                </div>
+            )}
 
+            <div className="shrink-0">
                 <InformeHeader
                     onNewInforme={handleOpenModal}
                     isExportMode={isExportMode}
@@ -946,75 +947,82 @@ export default function Informe() {
                     onExportClick={handleExportClick}
                     onToggleSelectAll={toggleSelectAllInformes}
                     onCancelExport={cancelExportMode}
+                    searchTerm={searchTerm}
+                    onSearchChange={setSearchTerm}
                 />
+            </div>
 
-                <NewInforme
-                    isOpen={isModalNewInformeOpen}
-                    onClose={() => {
-                        setIsModalNewInformeOpen(false);
-                        // 🧹 Limpiar también al cerrar
-                        setInformeEnEdicion({});
-                        setPreviewData({ gastosSeleccionados: [], gastosPolitica: [], gastosPersistidos: [] });
-                    }}
-                    onSave={handleSaveNewInforme}
-                />
+            <NewInforme
+                isOpen={isModalNewInformeOpen}
+                onClose={() => {
+                    setIsModalNewInformeOpen(false);
+                    // 🧹 Limpiar también al cerrar
+                    setInformeEnEdicion({});
+                    setPreviewData({ gastosSeleccionados: [], gastosPolitica: [], gastosPersistidos: [] });
+                }}
+                onSave={handleSaveNewInforme}
+            />
 
-                <ModalInforme
-                    isOpen={isModalInformeOpen}
-                    onClose={() => {
-                        setIsModalInformeOpen(false);
-                        setInformeEnEdicion({});
-                        setPreviewData({ gastosSeleccionados: [], gastosPolitica: [], gastosPersistidos: [] });
-                    }}
-                    onSave={handleSaveInformeConGastos}
-                    onPreview={handleOpenVistaPrevia}
-                    selectedIniciales={previewData.gastosSeleccionados}
-                    titulo={informeEnEdicion.titulo}
-                    politica={informeEnEdicion.politica}
-                    glosa={informeEnEdicion.glosa}
-                    idInf={informeEnEdicion.idInf}
-                />
+            <ModalInforme
+                isOpen={isModalInformeOpen}
+                onClose={() => {
+                    setIsModalInformeOpen(false);
+                    setInformeEnEdicion({});
+                    setPreviewData({ gastosSeleccionados: [], gastosPolitica: [], gastosPersistidos: [] });
+                }}
+                onSave={handleSaveInformeConGastos}
+                onPreview={handleOpenVistaPrevia}
+                selectedIniciales={previewData.gastosSeleccionados}
+                titulo={informeEnEdicion.titulo}
+                politica={informeEnEdicion.politica}
+                glosa={informeEnEdicion.glosa}
+                idInf={informeEnEdicion.idInf}
+            />
 
-                <InformeVistaPrevia
-                    isOpen={isVistaPreviaOpen}
-                    onClose={() => setIsVistaPreviaOpen(false)}
-                    onEditar={handleEditarDesdeVistaPrevia}
-                    onGuardar={handleGuardarDesdeVistaPrevia}
-                    onEnviarAuditoria={handleEnviarAuditoriaDesdeVistaPrevia}
-                    titulo={informeEnEdicion.titulo}
-                    fecha={informeEnEdicion.fecCre ?? previewData.fecha ?? informeEnEdicion.nowIso}
-                    cantidadGastos={previewData.cantidadGastos}
-                    politica={informeEnEdicion.politica}
-                    categoria={informeEnEdicion.categoria ?? previewData.categoria}
-                    glosa={informeEnEdicion.glosa}
-                    gastosPolitica={previewData.gastosPolitica}
-                    selectedIniciales={previewData.gastosSeleccionados}
-                    idInf={informeEnEdicion.idInf ?? previewData.idInf}
-                    estadoActual={informeEnEdicion.estadoActual}
-                />
+            <InformeVistaPrevia
+                isOpen={isVistaPreviaOpen}
+                onClose={() => setIsVistaPreviaOpen(false)}
+                onEditar={handleEditarDesdeVistaPrevia}
+                onGuardar={handleGuardarDesdeVistaPrevia}
+                onEnviarAuditoria={handleEnviarAuditoriaDesdeVistaPrevia}
+                titulo={informeEnEdicion.titulo}
+                fecha={informeEnEdicion.fecCre ?? previewData.fecha ?? informeEnEdicion.nowIso}
+                cantidadGastos={previewData.cantidadGastos}
+                politica={informeEnEdicion.politica}
+                categoria={informeEnEdicion.categoria ?? previewData.categoria}
+                glosa={informeEnEdicion.glosa}
+                gastosPolitica={previewData.gastosPolitica}
+                selectedIniciales={previewData.gastosSeleccionados}
+                idInf={informeEnEdicion.idInf ?? previewData.idInf}
+                estadoActual={informeEnEdicion.estadoActual}
+            />
 
+            <div className="flex min-h-0 flex-1 flex-col py-2">
                 <InformeStateMessage loading={loading} totalInformes={informes.length} />
 
                 {!loading && informes.length > 0 && (
-                    <InformeList
-                        informes={informes}
-                        onVistaPrevia={handleVistaPreviaDesdeListado}
-                        formatDate={formatDate}
-                        isExportMode={isExportMode}
-                        selectedInformeIds={selectedInformeIds}
-                        onToggleInformeSelection={toggleInformeSelection}
-                        onToggleSelectAll={toggleSelectAllInformes}
-                    />
+                    <div className="flex-1 min-h-0">
+                        <InformeList
+                            informes={informes}
+                            onVistaPrevia={handleVistaPreviaDesdeListado}
+                            formatDate={formatDate}
+                            isExportMode={isExportMode}
+                            selectedInformeIds={selectedInformeIds}
+                            onToggleInformeSelection={toggleInformeSelection}
+                            onToggleSelectAll={toggleSelectAllInformes}
+                            searchTerm={searchTerm}
+                        />
+                    </div>
                 )}
-
-                <Toast
-                    message={toastConfig.message}
-                    type={toastConfig.type}
-                    isVisible={toastConfig.isVisible}
-                    onClose={closeToast}
-                    duration={3000}
-                />
             </div>
+
+            <Toast
+                message={toastConfig.message}
+                type={toastConfig.type}
+                isVisible={toastConfig.isVisible}
+                onClose={closeToast}
+                duration={3000}
+            />
         </div>
     );
 }

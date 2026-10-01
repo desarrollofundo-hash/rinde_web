@@ -31,11 +31,11 @@ export default function BaseModal({
             <button
                 type="button"
                 aria-label="Cerrar modal"
-                className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px]"
+                className="fixed inset-0 z-[60] bg-slate-950/45 backdrop-blur-[2px]"
                 onClick={onClose}
             />
 
-            <div className={`fixed inset-0 z-50 flex justify-center items-start sm:items-center mt-8 sm:mt-0 overflow-x-hidden ${viewportClass}`}>
+            <div className={`fixed inset-0 z-[70] flex justify-center items-start sm:items-center mt-8 sm:mt-0 overflow-x-hidden ${viewportClass}`}>
                 <div className={`flex w-full flex-col overflow-hidden border border-slate-200/80 bg-white shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] ring-1 ring-white/60 backdrop-blur-sm max-h-[98vh] sm:max-h-[88vh] rounded-none sm:rounded-[1.35rem] ${maxWidthClass} ${panelClass}`}>
                     {title && (
                         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-blue-100 bg-linear-to-r from-blue-50 via-white to-indigo-50 px-4 py-3 sm:px-6">

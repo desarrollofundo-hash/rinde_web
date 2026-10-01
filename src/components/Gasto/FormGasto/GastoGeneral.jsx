@@ -16,16 +16,17 @@ import { saveDetalleGasto } from "../../../services/save_detalle/saveGastoDetall
 import { saveEvidenciaGasto } from "../../../services/evidencia";
 import { getApiRuc } from "../../../services/ruc/api_ruc";
 import { extraerDatosComprobante } from "../../../services/ocrExtraction";
-import EvidenciaUploader from "./EvidenciaUploader";
+import { EvidenciaUploader } from "./ScannerCardsGrid";
 import EvidenciaCropModal from "./EvidenciaCropModal";
-import QrScannerModal from "./QrScannerModal";
-import OcrScannerModal from "./OcrScannerModal";
-import RucValidationDialog from "./RucValidationDialog";
-import UploadWarningMessage from "./UploadWarningMessage";
+import QrScannerModal from "../../OCRScanner/QrScannerModal";
+import OcrScannerModal from "../../OCRScanner/OcrScannerModal";
+import RucValidationDialog from "../../../Messages/RucValidationDialog";
+import UploadWarningMessage from "../../../Messages/UploadWarningMessage";
 import ScannerCardsGrid from "./ScannerCardsGrid";
 import Toast from "../../shared/Toast.jsx";
+import SearchableSelect from "../../shared/SearchableSelect.jsx";
 import RiveAnimation from "../../RiveAnimation";
-import { Save, QrCode, Camera } from "lucide-react";
+import { Save, QrCode, Camera, ChevronDown } from "lucide-react";
 
 const getUserDni = (user) => {
   if (!user || typeof user !== "object") return "";
@@ -459,6 +460,9 @@ export default function GastoGeneral({
     message: "",
   });
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [highlightDatos, setHighlightDatos] = useState(false);
+  const [openSections, setOpenSections] = useState({ captura: true, datos: true, comprobante: true, glosa: true });
+  const toggleSection = (key) => setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const imageCropRef = useRef(null);
@@ -1370,6 +1374,8 @@ export default function GastoGeneral({
         showToast(mensajeSP);
       }
 
+      window.dispatchEvent(new CustomEvent("gasto:updated"));
+
       if (evidenciaPreviewUrl) {
         URL.revokeObjectURL(evidenciaPreviewUrl);
       }
@@ -1474,8 +1480,24 @@ export default function GastoGeneral({
     };
   }, [evidenciaPreviewUrl]);
 
+  const SectionHeader = ({ sectionKey, title, accent = "bg-cyan-500" }) => (
+    <button
+      type="button"
+      onClick={() => toggleSection(sectionKey)}
+      className="mb-4 flex w-full items-center justify-between gap-2.5 sm:cursor-default sm:pointer-events-none"
+    >
+      <div className="flex items-center gap-2.5">
+        <span className={`h-5 w-1 rounded-full ${accent}`} />
+        <h3 className="text-base font-bold text-slate-800">{title}</h3>
+      </div>
+      <ChevronDown
+        className={`h-4 w-4 shrink-0 text-slate-400 transition-transform sm:hidden ${openSections[sectionKey] ? "rotate-180" : ""}`}
+      />
+    </button>
+  );
+
   const fieldClass =
-    "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200";
+    "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base sm:text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200";
   const labelClass = "text-sm font-semibold text-slate-700";
   const hasEvidencia = Boolean(formData.evidencia);
   const canCropImage =
@@ -1488,88 +1510,34 @@ export default function GastoGeneral({
     >
       <UploadWarningMessage />
 
-      {/* Evidencia y Métodos de Captura */}
-      <div className="space-y-3 sm:space-y-6">
-        {/* Título de sección */}
-        <div>
-          <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-0.5 sm:mb-1">
-            Captura de documentos
-          </h3>
-          <p className="text-xs sm:text-sm text-slate-500">
-            Elige cómo deseas capturar o cargar la factura
-          </p>
-        </div>
-
-        <ScannerCardsGrid
-          onQrClick={() => setIsQrOpen(true)}
-          onOcrClick={() => setIsOcrOpen(true)}
-          onCameraClick={handleOpenCamera}
-          labelClass={labelClass}
-          formData={formData}
-          hasEvidencia={hasEvidencia}
-          canCropImage={canCropImage}
-          inputResetKey={evidenciaInputResetKey}
-          onFileChange={handleChange}
-          onOpenPreview={() => {
-            setIsPreviewOpen(true);
-            setIsCropMode(false);
-          }}
-          onStartCrop={() => {
-            setIsPreviewOpen(true);
-            setIsCropMode(true);
-          }}
-        />
-      </div>
-
       {/* Datos generales */}
-      {/*  <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-2"> */}
-      <section className=" p-3  sm:p-2">
-        <h3 className="mb-2 text-base font-bold text-slate-800">
-          Datos generales
-        </h3>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <label className={labelClass}>Política</label>
-            <select
-              name="politica"
-              className={`${fieldClass} ${selectedPoliticaProp ? "cursor-not-allowed bg-slate-100 text-slate-500" : ""}`}
-              value={formData.politica}
-              onChange={handlePoliticaChange}
-              disabled={Boolean(selectedPoliticaProp)}
-              title={
-                selectedPoliticaProp
-                  ? "La política ya fue seleccionada desde el formulario principal"
-                  : undefined
-              }
-            >
-              <option value="">Seleccionar política</option>
-              {politicas.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
+      <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+        <SectionHeader sectionKey="datos" title="Datos generales" />
+        <div className={!openSections.datos ? "hidden sm:block" : ""}>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <div className="flex flex-col gap-1">
-            <label className={labelClass}>Categoría</label>
-            <select
+            <label className={labelClass}>
+              Categoría <span className="text-red-500">*</span>
+            </label>
+            <SearchableSelect
               name="categoria"
-              className={fieldClass}
+              options={categorias}
               value={formData.categoria}
               onChange={handleChange}
-            >
-              <option value="">Seleccionar categoría</option>
-              {categorias.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              placeholder="Seleccionar categoría"
+              searchPlaceholder="Buscar categoría…"
+              className={
+                highlightDatos && !formData.categoria
+                  ? "ring-2 ring-red-400 rounded-xl"
+                  : ""
+              }
+            />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className={labelClass}>Centro de costo</label>
+            <label className={labelClass}>
+              Centro de costo <span className="text-red-500">*</span>
+            </label>
             {isPlanillaMovilidad ? (
               <input
                 type="text"
@@ -1583,24 +1551,26 @@ export default function GastoGeneral({
                 disabled
               />
             ) : (
-              <select
+              <SearchableSelect
                 name="centroCosto"
-                className={fieldClass}
+                options={centrosCosto}
                 value={formData.centroCosto}
                 onChange={handleCentroCostoChange}
-              >
-                <option value="">Seleccionar centro de costo</option>
-                {centrosCosto.map((cc) => (
-                  <option key={cc.id} value={cc.id}>
-                    {cc.name}
-                  </option>
-                ))}
-              </select>
+                placeholder="Seleccionar centro de costo"
+                searchPlaceholder="Buscar centro de costo…"
+                className={
+                  highlightDatos && !formData.centroCosto
+                    ? "ring-2 ring-red-400 rounded-xl"
+                    : ""
+                }
+              />
             )}
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className={labelClass}>Tipo de gasto</label>
+            <label className={labelClass}>
+              Tipo de gasto <span className="text-red-500">*</span>
+            </label>
             <input
               name="tipoGasto"
               className={`${fieldClass} bg-slate-100 text-slate-500`}
@@ -1611,18 +1581,89 @@ export default function GastoGeneral({
             />
           </div>
         </div>
+        </div>
+      </section>
+
+      {/* Captura de documentos — siempre visible, pero valida datos generales al hacer click */}
+      <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+        <SectionHeader sectionKey="captura" title="Captura de documentos" />
+        <div className={!openSections.captura ? "hidden sm:block" : ""}>
+        <ScannerCardsGrid
+          onQrClick={() => {
+            if (!formData.categoria || !formData.centroCosto) {
+              showToast(
+                "Primero selecciona la categoría y el centro de costo",
+                "warning",
+              );
+              setHighlightDatos(true);
+              setTimeout(() => setHighlightDatos(false), 2500);
+              return;
+            }
+            setIsQrOpen(true);
+          }}
+          onOcrClick={() => {
+            if (!formData.categoria || !formData.centroCosto) {
+              showToast(
+                "Primero selecciona la categoría y el centro de costo",
+                "warning",
+              );
+              setHighlightDatos(true);
+              setTimeout(() => setHighlightDatos(false), 2500);
+              return;
+            }
+            setIsOcrOpen(true);
+          }}
+          onCameraClick={() => {
+            if (!formData.categoria || !formData.centroCosto) {
+              showToast(
+                "Primero selecciona la categoría y el centro de costo",
+                "warning",
+              );
+              setHighlightDatos(true);
+              setTimeout(() => setHighlightDatos(false), 2500);
+              return;
+            }
+            handleOpenCamera();
+          }}
+          onFileChange={(e) => {
+            if (!formData.categoria || !formData.centroCosto) {
+              showToast(
+                "Primero selecciona la categoría y el centro de costo",
+                "warning",
+              );
+              setHighlightDatos(true);
+              setTimeout(() => setHighlightDatos(false), 2500);
+              return;
+            }
+            handleChange(e);
+          }}
+          labelClass={labelClass}
+          formData={formData}
+          hasEvidencia={hasEvidencia}
+          canCropImage={canCropImage}
+          inputResetKey={evidenciaInputResetKey}
+          onOpenPreview={() => {
+            setIsPreviewOpen(true);
+            setIsCropMode(false);
+          }}
+          onStartCrop={() => {
+            setIsPreviewOpen(true);
+            setIsCropMode(true);
+          }}
+        />
+        </div>
       </section>
 
       {/* Datos del comprobante */}
-      <section className=" p-3  sm:p-3">
-        {/* <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-3"> */}
-        <h3 className="mb-2 text-base font-bold text-slate-800">
-          Datos del comprobante
-        </h3>
+      <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+        <SectionHeader sectionKey="comprobante" title="Datos del comprobante" />
+        <div className={!openSections.comprobante ? "hidden sm:block" : ""}>
         {isPlanillaMovilidad ? (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
             <div className="flex flex-col gap-1">
-              <label className={labelClass}>RUC Cliente</label>
+              <label className={labelClass}>
+                RUC Cliente <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 name="rucCliente"
@@ -1636,7 +1677,9 @@ export default function GastoGeneral({
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className={labelClass}>Fecha de emisión</label>
+              <label className={labelClass}>
+                Fecha de emisión <span className="text-red-500">*</span>
+              </label>
               <input
                 type="date"
                 name="fecha"
@@ -1647,7 +1690,9 @@ export default function GastoGeneral({
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className={labelClass}>Total</label>
+              <label className={labelClass}>
+                Total <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 name="total"
@@ -1655,11 +1700,14 @@ export default function GastoGeneral({
                 className={fieldClass}
                 value={formData.total}
                 onChange={handleChange}
+                inputMode="decimal"
               />
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className={labelClass}>Moneda</label>
+              <label className={labelClass}>
+                Moneda <span className="text-red-500">*</span>
+              </label>
               <select
                 name="moneda"
                 className={fieldClass}
@@ -1676,7 +1724,9 @@ export default function GastoGeneral({
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             <div className="grid grid-cols-1 gap-2 lg:col-span-3 lg:grid-cols-3">
               <div className="flex flex-col gap-1">
-                <label className={labelClass}>RUC Emisor:</label>
+                <label className={labelClass}>
+                  RUC Emisor <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="number"
                   name="rucEmisor"
@@ -1685,11 +1735,15 @@ export default function GastoGeneral({
                   value={formData.rucEmisor}
                   onChange={handleChange}
                   onBlur={handleRucEmisorBlur}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className={labelClass}>Razón Social:</label>
+                <label className={labelClass}>
+                  Razón Social <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   name="razonSocial"
@@ -1701,7 +1755,9 @@ export default function GastoGeneral({
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className={labelClass}>RUC Cliente:</label>
+                <label className={labelClass}>
+                  RUC Cliente <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   name="rucCliente"
@@ -1716,7 +1772,9 @@ export default function GastoGeneral({
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className={labelClass}>Tipo de comprobante:</label>
+              <label className={labelClass}>
+                Tipo de comprobante <span className="text-red-500">*</span>
+              </label>
               <select
                 name="tipoComprobante"
                 className={fieldClass}
@@ -1734,7 +1792,9 @@ export default function GastoGeneral({
 
             <div className="grid grid-cols-1 gap-3 md:col-span-2 md:grid-cols-2 lg:col-span-2">
               <div className="flex flex-col gap-1">
-                <label className={labelClass}>Fecha</label>
+                <label className={labelClass}>
+                  Fecha <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="date"
                   name="fecha"
@@ -1745,7 +1805,9 @@ export default function GastoGeneral({
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className={labelClass}>Moneda:</label>
+                <label className={labelClass}>
+                  Moneda <span className="text-red-500">*</span>
+                </label>
                 <select
                   name="moneda"
                   className={fieldClass}
@@ -1761,7 +1823,9 @@ export default function GastoGeneral({
 
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:col-span-3">
               <div className="flex flex-col gap-1">
-                <label className={labelClass}>Serie:</label>
+                <label className={labelClass}>
+                  Serie <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   name="serie"
@@ -1773,7 +1837,9 @@ export default function GastoGeneral({
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className={labelClass}>Número:</label>
+                <label className={labelClass}>
+                  Número <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="number"
                   name="numero"
@@ -1782,11 +1848,15 @@ export default function GastoGeneral({
                   value={formData.numero}
                   onChange={handleChange}
                   min="0"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className={labelClass}>IGV</label>
+                <label className={labelClass}>
+                  IGV <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="number"
                   name="igv"
@@ -1794,11 +1864,15 @@ export default function GastoGeneral({
                   className={fieldClass}
                   value={formData.igv}
                   onChange={handleChange}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className={labelClass}>Total:</label>
+                <label className={labelClass}>
+                  Total <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   name="total"
@@ -1807,17 +1881,19 @@ export default function GastoGeneral({
                   value={formData.total}
                   onChange={handleChange}
                   min="0"
+                  inputMode="decimal"
                 />
               </div>
             </div>
           </div>
         )}
+        </div>
       </section>
 
       {/* Glosa */}
-      <section className=" p-4  sm:p-5">
-        {/* <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"> */}
-        <label className={`${labelClass} mb-1 block`}>Glosa:</label>
+      <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+        <SectionHeader sectionKey="glosa" title={<>Glosa <span className="text-red-500">*</span></>} />
+        <div className={!openSections.glosa ? "hidden sm:block" : ""}>
         <textarea
           name="glosa"
           type="text"
@@ -1826,6 +1902,7 @@ export default function GastoGeneral({
           value={formData.glosa}
           onChange={handleChange}
         />
+        </div>
       </section>
 
       {/* Botones */}
