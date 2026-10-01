@@ -377,9 +377,6 @@ export default function GastoMovilidad({
       moneda: datosOcr.moneda || prev.moneda,
     }));
 
-    setErrorMessage(
-      "Factura escaneada. Se autocompletaron los datos detectados",
-    );
   };
 
   const handleChange = async (e) => {

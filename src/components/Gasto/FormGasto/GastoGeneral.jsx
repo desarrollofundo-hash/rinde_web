@@ -890,10 +890,6 @@ export default function GastoGeneral({
       }
     }
 
-    showToast(
-      "✅ Factura escaneada. Se autocompletaron los datos detectados",
-      "success",
-    );
   };
 
   const handleOcrDetected = async (datosOcr) => {
@@ -1021,10 +1017,6 @@ export default function GastoGeneral({
       }
     }
 
-    showToast(
-      "Factura escaneada. Se autocompletaron los datos detectados",
-      "success",
-    );
   };
 
   const handleRucEmisorBlur = async () => {
@@ -1953,6 +1945,14 @@ export default function GastoGeneral({
         isOpen={isOcrOpen}
         onClose={() => setIsOcrOpen(false)}
         onDetected={handleOcrDetected}
+        datosGenerales={{
+          politica: politicas.find((p) => String(p.id) === String(formData.politica))?.name || formData.politica,
+          categoria: selectedCategoria?.name || "",
+          tipoGasto: formData.tipoGasto,
+          idCuenta: formData.centroCosto,
+          consumidor: formData.consumidor,
+          glosa: formData.glosa,
+        }}
       />
 
       <RucValidationDialog
