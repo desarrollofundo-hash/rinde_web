@@ -10,9 +10,14 @@ const SUCCESS_CACHE_TTL_MS = 5 * 60 * 1000;
 // todos los nombres candidatos y llena la consola de errores de red.
 const MISS_CACHE_TTL_MS = 30 * 60 * 1000;
 const MISS_CACHE_STORAGE_KEY = "evidencia.missCache";
+const SAVE_OVERRIDES_STORAGE_KEY = "evidencia.saveOverrides";
 const successCache = new Map();
 const missCache = loadMissCache();
 const inflightRequests = new Map();
+let bypassBrowserCacheUntil = 0;
+// Mapa idRend → { evidenciaPath, evidenciaFileName } para el archivo recién subido.
+// Persiste en sessionStorage para sobrevivir recargas de página.
+const recentSaveOverrides = loadSaveOverrides();
 
 function loadMissCache() {
     try {
@@ -29,6 +34,22 @@ function loadMissCache() {
         // sessionStorage puede fallar en modo privado o estar corrupto.
         return new Map();
     }
+}
+
+function loadSaveOverrides() {
+    try {
+        const raw = sessionStorage.getItem(SAVE_OVERRIDES_STORAGE_KEY);
+        if (!raw) return new Map();
+        return new Map(Object.entries(JSON.parse(raw)));
+    } catch {
+        return new Map();
+    }
+}
+
+function persistSaveOverrides() {
+    try {
+        sessionStorage.setItem(SAVE_OVERRIDES_STORAGE_KEY, JSON.stringify(Object.fromEntries(recentSaveOverrides)));
+    } catch { /* noop */ }
 }
 
 function persistMissCache() {
@@ -195,8 +216,18 @@ export function getEvidenceImageCandidates(gasto, fallbackObs = "") {
     ).trim();
     const querySuffix = cacheBuster ? `?v=${encodeURIComponent(cacheBuster)}` : "";
 
+    // Si hay un archivo recién subido para este gasto, usarlo como primer candidato
+    // explícito. Esto evita que la adivinanza de extensión retorne un archivo viejo
+    // con diferente extensión que aún existe en el servidor.
+    const gastoIdKey = String(firstDefined(gasto?.idrend, gasto?.idRend, gasto?.id) || "").trim();
+    const saveOverride = gastoIdKey ? recentSaveOverrides.get(gastoIdKey) : null;
+    const overrideValues = saveOverride
+        ? [saveOverride.evidenciaPath, saveOverride.evidenciaFileName].filter(Boolean)
+        : [];
+
     // Priorizar campos explícitos devueltos por backend.
     const explicitRawValues = [
+        ...overrideValues,
         gasto?.evidenciaPath,
         gasto?.evidenciaFileName,
         gasto?.fileName,
@@ -261,8 +292,10 @@ export async function obtenerImagenBytesDesdeServidor(url, timeoutMs = 15000) {
 
     const requestPromise = (async () => {
         try {
-            /* console.debug("🖼️ Intentando descargar evidencia:", target); */
-            const response = await API.get(target, {
+            const bustCache = Date.now() < bypassBrowserCacheUntil;
+            const fetchUrl = bustCache ? `${target}${target.includes("?") ? "&" : "?"}_t=${Date.now()}` : target;
+            /* console.debug("🖼️ Intentando descargar evidencia:", fetchUrl); */
+            const response = await API.get(fetchUrl, {
                 responseType: "arraybuffer",
                 timeout: timeoutMs,
                 validateStatus: (status) => status === 200 || status === 201,
@@ -303,4 +336,23 @@ export async function obtenerImagenBytesDesdeServidor(url, timeoutMs = 15000) {
 
     inflightRequests.set(target, requestPromise);
     return requestPromise;
+}
+
+export function notifyEvidenciaSaved(idRend, evidenciaPath, evidenciaFileName) {
+    const key = String(idRend || "").trim();
+    if (!key) return;
+    recentSaveOverrides.set(key, { evidenciaPath: String(evidenciaPath || ""), evidenciaFileName: String(evidenciaFileName || "") });
+    persistSaveOverrides();
+}
+
+export function clearImageBytesCache(candidate) {
+    bypassBrowserCacheUntil = Date.now() + 10_000;
+    if (candidate) {
+        successCache.delete(candidate);
+        missCache.delete(candidate);
+    } else {
+        successCache.clear();
+        missCache.clear();
+        try { sessionStorage.removeItem(MISS_CACHE_STORAGE_KEY); } catch { /* noop */ }
+    }
 }

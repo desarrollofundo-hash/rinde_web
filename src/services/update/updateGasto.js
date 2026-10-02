@@ -35,14 +35,11 @@ export async function updateDetalleGasto(gastoData) {
                 console.log("========================================");
  */
         if (response.status === 200 || response.status === 201) {
-            const body = JSON.stringify(response.data);
-
-            if (body.includes("Error") || body.includes("error")) {
-                /* console.error("❌ Error en respuesta del servidor:", body); */
-                throw new Error("Error del servidor: " + body);
+            const data = response.data;
+            if (data && typeof data === "object" && data.success === false) {
+                throw new Error("Error del servidor: " + JSON.stringify(data));
             }
 
-            /* console.log("✅ Gasto actualizado exitosamente"); */
             return true;
         }
 

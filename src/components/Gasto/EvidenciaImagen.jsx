@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getEvidenceImageCandidates, obtenerImagenBytesDesdeServidor } from "../../services/getImage/getImage";
+import { clearImageBytesCache, getEvidenceImageCandidates, obtenerImagenBytesDesdeServidor } from "../../services/getImage/getImage";
 
 // Blob URLs resueltos por candidate URL — persisten entre remounts.
 // El servicio ya cachea los bytes; esto evita llamar createObjectURL cada vez.
 const blobUrlCache = new Map();
+
+export function clearEvidenciaImageCache(candidate) {
+    if (candidate) {
+        blobUrlCache.delete(candidate);
+    } else {
+        blobUrlCache.clear();
+    }
+    clearImageBytesCache(candidate);
+}
 
 function detectMimeFromBytes(bytes) {
     if (!bytes || !bytes.length) return "";
@@ -101,6 +110,7 @@ export default function EvidenciaImagen({ gasto, fallbackObs = "", alt = "Eviden
     const [isLoading, setIsLoading] = useState(true);
     const [imgVisible, setImgVisible] = useState(false);
     const containerRef = useRef(null);
+    const hasEverResolvedRef = useRef(false);
 
     useEffect(() => {
         let isCancelled = false;
@@ -113,11 +123,13 @@ export default function EvidenciaImagen({ gasto, fallbackObs = "", alt = "Eviden
 
                 // Blob URL ya resuelto: usar directo sin red ni createObjectURL
                 if (blobUrlCache.has(candidate)) {
+                    hasEverResolvedRef.current = true;
                     if (!isCancelled) { setResolvedSrc(blobUrlCache.get(candidate)); setIsLoading(false); }
                     return;
                 }
 
                 if (/^data:image/i.test(candidate) || /^blob:/i.test(candidate)) {
+                    hasEverResolvedRef.current = true;
                     if (!isCancelled) { setResolvedSrc(candidate); setIsLoading(false); }
                     return;
                 }
@@ -132,12 +144,22 @@ export default function EvidenciaImagen({ gasto, fallbackObs = "", alt = "Eviden
                 const objectUrl = URL.createObjectURL(blob);
                 blobUrlCache.set(candidate, objectUrl); // cachear para futuros remounts
 
+                hasEverResolvedRef.current = true;
                 if (!isCancelled) { setResolvedSrc(objectUrl); setIsLoading(false); }
                 return;
             }
 
             if (!isCancelled) { setResolvedSrc(""); setIsLoading(false); }
         };
+
+        // Si ya cargamos la imagen antes, el containerRef apunta al <img> que
+        // setIsLoading(true) va a desmontar. El IntersectionObserver dispararía
+        // con isIntersecting=false (elemento fuera del DOM) y nunca haría el fetch.
+        // En ese caso, saltar el observer y refetchear directo.
+        if (hasEverResolvedRef.current) {
+            resolveEvidenceSrc();
+            return () => { isCancelled = true; };
+        }
 
         // IntersectionObserver: iniciar fetch solo cuando el elemento entra al viewport
         const container = containerRef.current;
