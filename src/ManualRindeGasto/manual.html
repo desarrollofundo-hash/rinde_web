@@ -777,6 +777,75 @@
     color: var(--fg-muted);
     font-style: italic;
   }
+
+  /* ── pdf download button ─────────────────────────────── */
+  .sidebar-footer {
+    padding: 12px 10px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .btn-pdf {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: var(--ff-body);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-pdf:hover {
+    background: var(--accent-dk);
+  }
+  .btn-pdf:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  .btn-pdf svg {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+  }
+
+  /* ── print styles ────────────────────────────────────── */
+  @media print {
+    .sidebar,
+    .overlay,
+    #menuBtn,
+    .sidebar-footer {
+      display: none !important;
+    }
+    .main {
+      margin-left: 0 !important;
+    }
+    .cover {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    * {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    body {
+      background: white;
+    }
+    .section,
+    .step,
+    .feat-card,
+    .faq-item {
+      break-inside: avoid;
+    }
+    .cover {
+      break-after: page;
+    }
+  }
 </style>
 
 <div class="overlay" id="overlay"></div>
@@ -853,6 +922,16 @@
         </button>
       </div>
     </nav>
+    <div class="sidebar-footer">
+      <button class="btn-pdf" id="btnPdf" onclick="descargarPDF()">
+        <svg id="iconPdf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span id="textoPdf">Descargar PDF</span>
+      </button>
+    </div>
   </aside>
 
   <!-- ══ MAIN ══ -->
@@ -2008,7 +2087,125 @@
   </main>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
+  // ── descarga PDF automática ──────────────────────────────
+  async function descargarPDF() {
+    const btn = document.getElementById("btnPdf");
+    const icono = document.getElementById("iconPdf");
+    const texto = document.getElementById("textoPdf");
+
+    btn.disabled = true;
+    icono.innerHTML = '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>';
+    texto.textContent = "Generando…";
+
+    const raiz = document.documentElement;
+    const temaOriginal = raiz.getAttribute("data-theme");
+
+    // Fuerza modo claro en el documento vivo ANTES de que html2canvas empiece.
+    // @media (prefers-color-scheme: dark) sigue activo en el browser, pero el
+    // selector del CSS usa :root:not([data-theme="light"]), así que al poner
+    // data-theme="light" el modo oscuro queda desactivado.
+    raiz.setAttribute("data-theme", "light");
+
+    // Espera dos frames para que el browser re-renderice con los colores claros.
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    const elemento = document.querySelector(".main");
+    const opciones = {
+      margin: [8, 10, 8, 10],
+      filename: "Manual-RindeGasto.pdf",
+      image: { type: "jpeg", quality: 0.97 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+        onclone: (docClonado) => {
+          // 1. Activa modo claro en el clon
+          docClonado.documentElement.setAttribute("data-theme", "light");
+
+          // 2. Inyecta las variables con !important como respaldo
+          const estilo = docClonado.createElement("style");
+          estilo.textContent = `
+            :root, :root[data-theme="light"] {
+              --bg: #f8fafc !important;
+              --surface: #ffffff !important;
+              --border: #e2e8f0 !important;
+              --fg: #0f172a !important;
+              --fg-muted: #64748b !important;
+              --fg-subtle: #94a3b8 !important;
+              --accent: #2563eb !important;
+              --accent-lt: #eff6ff !important;
+              --accent-dk: #1d4ed8 !important;
+              --success: #16a34a !important;
+              --success-lt: #f0fdf4 !important;
+              --warn: #d97706 !important;
+              --warn-lt: #fffbeb !important;
+              --danger: #dc2626 !important;
+              --danger-lt: #fef2f2 !important;
+              --info: #0891b2 !important;
+              --info-lt: #ecfeff !important;
+            }
+            @media (prefers-color-scheme: dark) {
+              :root { --fg: #0f172a !important; --surface: #ffffff !important; --bg: #f8fafc !important; }
+            }
+            body { background: #f8fafc !important; color: #0f172a !important; }
+            .main { margin-left: 0 !important; width: 100% !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          `;
+          docClonado.head.appendChild(estilo);
+
+          // 3. LEE los estilos computados del documento VIVO (ya en modo claro)
+          // y los aplica como inline styles en el clon — esto garantiza colores
+          // correctos sin importar lo que haga el iframe de html2canvas.
+          const origEls = Array.from(elemento.querySelectorAll("*"));
+          const cloneMain = docClonado.querySelector(".main");
+          if (cloneMain) {
+            const cloneEls = Array.from(cloneMain.querySelectorAll("*"));
+            origEls.forEach((orig, i) => {
+              if (i >= cloneEls.length) return;
+              const cs = getComputedStyle(orig);
+              const cl = cloneEls[i];
+              // Color de texto
+              if (cs.color) cl.style.setProperty("color", cs.color, "important");
+              // Fondo (omite transparente)
+              if (cs.backgroundColor && cs.backgroundColor !== "rgba(0, 0, 0, 0)") {
+                cl.style.setProperty("background-color", cs.backgroundColor, "important");
+              }
+              // Bordes
+              if (cs.borderColor) cl.style.setProperty("border-color", cs.borderColor, "important");
+              // Gradientes (background-image)
+              if (cs.backgroundImage && cs.backgroundImage !== "none") {
+                cl.style.setProperty("background-image", cs.backgroundImage, "important");
+              }
+            });
+          }
+        },
+      },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: "css", avoid: ".step, .feat-card, .faq-item, .badge-row, .screenshot" },
+    };
+
+    try {
+      await html2pdf().set(opciones).from(elemento).save();
+    } finally {
+      // Restaura el tema original del usuario
+      if (temaOriginal !== null) raiz.setAttribute("data-theme", temaOriginal);
+      else raiz.removeAttribute("data-theme");
+
+      btn.disabled = false;
+      icono.innerHTML =
+        '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>';
+      texto.textContent = "Descargar PDF";
+    }
+  }
+
+  // ── escucha mensajes desde el modal (Login.jsx) ──────────
+  window.addEventListener("message", (e) => {
+    if (e.data === "descargarPDF") descargarPDF();
+  });
+
   // ── nav scrollspy ────────────────────────────────────────
   const navBtns = document.querySelectorAll(".nav-item[data-target]");
   const sections = document.querySelectorAll(".section");

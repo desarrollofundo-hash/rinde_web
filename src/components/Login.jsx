@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { loginCredencial } from "../services/usuarios.js";
 import { GetRolUsuario } from "../services/rol_usuario";
 import {
@@ -8,7 +8,7 @@ import {
 } from "../services/permissions";
 import { useNavigate } from "react-router-dom";
 import { Button as MovingBorderButton } from "./ui/moving-border";
-import { Eye, EyeOff, Loader2, ShieldCheck, FileText, BarChart3, HelpCircle, X } from "lucide-react";
+import { Eye, EyeOff, Loader2, ShieldCheck, FileText, BarChart3, HelpCircle, X, Download } from "lucide-react";
 import { IconSignIn } from "@/Icons/signIn.jsx";
 import { BackgroundRippleEffect } from "./ui/background-ripple-effect";
 
@@ -22,6 +22,7 @@ export default function Login() {
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showManual, setShowManual] = useState(false);
+    const iframeRef = useRef(null);
 
     const navigate = useNavigate();
 
@@ -286,18 +287,30 @@ export default function Login() {
                   <HelpCircle size={18} className="text-blue-600" />
                   <span className="text-sm font-semibold text-slate-800">Manual de usuario — RindeGasto</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowManual(false)}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
-                  aria-label="Cerrar manual"
-                >
-                  <X size={16} />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => iframeRef.current?.contentWindow?.postMessage("descargarPDF", "*")}
+                    className="flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+                    title="Descargar PDF"
+                  >
+                    <Download size={14} />
+                    <span>PDF</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowManual(false)}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+                    aria-label="Cerrar manual"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
               </div>
 
               {/* iframe */}
               <iframe
+                ref={iframeRef}
                 src="/ManualRindeGasto/manual.html"
                 title="Manual RindeGasto"
                 className="h-full w-full flex-1 border-0"
