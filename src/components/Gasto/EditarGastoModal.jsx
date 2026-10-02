@@ -277,6 +277,9 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
   const prevGastoIdRef = useRef(null);
   const [error, setError] = useState("");
   const [categorias, setCategorias] = useState([]);
+  const [categoriaBusqueda, setCategoriaBusqueda] = useState("");
+  const [categoriaAbierta, setCategoriaAbierta] = useState(false);
+  const categoriaRef = useRef(null);
   const [centrosCosto, setCentrosCosto] = useState([]);
   const [tiposComprobante, setTiposComprobante] = useState(
     FALLBACK_TIPOS_COMPROBANTE,
@@ -336,6 +339,19 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isOpen, onClose]);
+
+  // Cierra el combobox de categoría al hacer clic fuera
+  useEffect(() => {
+    if (!categoriaAbierta) return;
+    const handler = (e) => {
+      if (categoriaRef.current && !categoriaRef.current.contains(e.target)) {
+        setCategoriaAbierta(false);
+        setCategoriaBusqueda("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [categoriaAbierta]);
 
   useEffect(() => {
     if (!gasto) return;
@@ -1215,26 +1231,76 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                           </label>
                           <label className={labelClass}>
                             Categoria
-                            <select
-                              value={categoriaSelectedId}
-                              onChange={handleCategoriaChange}
-                              disabled={!isEditing}
-                              className={
-                                isEditing ? inputClass : selectReadOnlyClass
-                              }
-                            >
-                              <option value="">Selecciona una categoria</option>
-                              {categorias.map((item) => (
-                                <option key={item.id} value={item.id}>
-                                  {item.name}
-                                </option>
-                              ))}
-                              {!categoriaSelectedId && formData.categoria && (
-                                <option value="__current__">
-                                  {formData.categoria}
-                                </option>
-                              )}
-                            </select>
+                            {isEditing ? (
+                              <div ref={categoriaRef} className="relative">
+                                {/* Botón que muestra la selección actual */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCategoriaAbierta((v) => !v);
+                                    setCategoriaBusqueda("");
+                                  }}
+                                  className={`${inputClass} flex items-center justify-between text-left`}
+                                >
+                                  <span className={categoriaSelectedId ? "text-slate-700" : "text-slate-400"}>
+                                    {categoriaSelectedId
+                                      ? categorias.find((c) => String(c.id) === categoriaSelectedId)?.name ?? formData.categoria
+                                      : formData.categoria || "Selecciona una categoría"}
+                                  </span>
+                                  <svg className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform ${categoriaAbierta ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd"/>
+                                  </svg>
+                                </button>
+
+                                {/* Dropdown con buscador */}
+                                {categoriaAbierta && (
+                                  <div className="absolute z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">
+                                    {/* Input de búsqueda */}
+                                    <div className="p-2 border-b border-slate-100">
+                                      <input
+                                        autoFocus
+                                        type="text"
+                                        placeholder="Buscar categoría..."
+                                        value={categoriaBusqueda}
+                                        onChange={(e) => setCategoriaBusqueda(e.target.value)}
+                                        className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
+                                      />
+                                    </div>
+                                    {/* Lista filtrada */}
+                                    <ul className="max-h-36 overflow-y-auto py-1 text-sm">
+                                      {categorias
+                                        .filter((c) =>
+                                          c.name.toLowerCase().includes(categoriaBusqueda.toLowerCase())
+                                        )
+                                        .map((item) => (
+                                          <li
+                                            key={item.id}
+                                            onClick={() => {
+                                              handleCategoriaChange({ target: { value: String(item.id) } });
+                                              setCategoriaAbierta(false);
+                                              setCategoriaBusqueda("");
+                                            }}
+                                            className={`cursor-pointer px-3 py-2 hover:bg-blue-50 hover:text-blue-700 transition-colors ${String(item.id) === categoriaSelectedId ? "bg-blue-50 text-blue-700 font-medium" : "text-slate-700"}`}
+                                          >
+                                            {item.name}
+                                          </li>
+                                        ))}
+                                      {categorias.filter((c) =>
+                                        c.name.toLowerCase().includes(categoriaBusqueda.toLowerCase())
+                                      ).length === 0 && (
+                                        <li className="px-3 py-2 text-slate-400 text-center">Sin resultados</li>
+                                      )}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className={selectReadOnlyClass}>
+                                {categoriaSelectedId
+                                  ? categorias.find((c) => String(c.id) === categoriaSelectedId)?.name ?? formData.categoria
+                                  : formData.categoria || "—"}
+                              </div>
+                            )}
                           </label>
                           <label className={labelClass}>
                             Centro de costo
