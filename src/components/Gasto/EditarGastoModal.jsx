@@ -277,6 +277,7 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
   const prevGastoIdRef = useRef(null);
   const [error, setError] = useState("");
   const [categorias, setCategorias] = useState([]);
+  const [activeTab, setActiveTab] = useState("general");
   const [categoriaBusqueda, setCategoriaBusqueda] = useState("");
   const [categoriaAbierta, setCategoriaAbierta] = useState(false);
   const categoriaRef = useRef(null);
@@ -289,6 +290,11 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
   const [showEvidenciaModal, setShowEvidenciaModal] = useState(false);
   const [newEvidencia, setNewEvidencia] = useState(null);
   const [newEvidenciaPreviewUrl, setNewEvidenciaPreviewUrl] = useState("");
+  const [zoomPreview, setZoomPreview] = useState(1);
+  const [isConvertingPdf, setIsConvertingPdf] = useState(false);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
+  const lastMouseRef = useRef({ x: 0, y: 0 });
   const [isEvidenciaCropMode, setIsEvidenciaCropMode] = useState(false);
   const [evidenciaCrop, setEvidenciaCrop] = useState();
   const [completedEvidenciaCrop, setCompletedEvidenciaCrop] = useState(null);
@@ -581,16 +587,23 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
     ).trim();
 
     return (
-      <span className="flex flex-wrap items-center gap-1.5">
-        <span>Editar gasto</span>
-        {proveedor && (
-          <>
-            <span className="text-slate-300">·</span>
-            <span className="text-blue-700">{proveedor}</span>
-            <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 sm:text-xs">
-              #ID Rend:{idRend}
-            </span>
-          </>
+      <span className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-1.5">
+        {/* Mobile: label pequeño + nombre prominente */}
+        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:hidden">
+          Editar gasto
+        </span>
+        <span className="truncate font-bold text-slate-800 sm:text-inherit sm:font-extrabold">
+          {proveedor || "Sin proveedor"}
+        </span>
+        {/* Desktop prefix */}
+        <span className="hidden sm:contents">
+          <span className="text-slate-300">·</span>
+          <span className="text-blue-700">{proveedor}</span>
+        </span>
+        {idRend && (
+          <span className="inline-flex w-fit rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 sm:text-xs">
+            #ID Rend:{idRend}
+          </span>
         )}
       </span>
     );
@@ -678,6 +691,13 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
 
   const handleOpenEvidenciaChangeModal = () => {
     setError("");
+    // Limpia la evidencia anterior para mostrar el uploader en blanco
+    if (newEvidenciaPreviewUrl?.startsWith("blob:"))
+      URL.revokeObjectURL(newEvidenciaPreviewUrl);
+    setNewEvidencia(null);
+    setNewEvidenciaPreviewUrl("");
+    setZoomPreview(1);
+    setPanOffset({ x: 0, y: 0 });
     setShowEvidenciaModal(true);
   };
 
@@ -685,13 +705,17 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
     let selectedFile = e.target.files?.[0] || null;
 
     if (isPdfFile(selectedFile)) {
+      setIsConvertingPdf(true);
+      setError("");
       try {
         selectedFile = await convertPdfToImageFile(selectedFile);
       } catch (error) {
         console.error("No se pudo convertir el PDF a imagen", error);
-        setError("No se pudo convertir el PDF a imagen");
+        setError("No se pudo convertir el PDF a imagen. Intenta con otro archivo.");
+        setIsConvertingPdf(false);
         return;
       }
+      setIsConvertingPdf(false);
     }
 
     setNewEvidencia(selectedFile);
@@ -701,6 +725,8 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
         URL.revokeObjectURL(newEvidenciaPreviewUrl);
       }
       setNewEvidenciaPreviewUrl(URL.createObjectURL(selectedFile));
+      setZoomPreview(1);
+      setPanOffset({ x: 0, y: 0 });
       setIsEvidenciaCropMode(false);
       setEvidenciaCrop(undefined);
       setCompletedEvidenciaCrop(null);
@@ -1078,7 +1104,11 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
       };
       await updateDetalleGasto(payload);
       if (evidenciaUpdate?.evidenciaPath) {
-        notifyEvidenciaSaved(idRendValue, evidenciaUpdate.evidenciaPath, evidenciaUpdate.evidenciaFileName);
+        notifyEvidenciaSaved(
+          idRendValue,
+          evidenciaUpdate.evidenciaPath,
+          evidenciaUpdate.evidenciaFileName,
+        );
       }
       clearEvidenciaImageCache();
       window.dispatchEvent(new CustomEvent("gasto:updated"));
@@ -1097,17 +1127,18 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
   };
 
   const inputClass =
-    "w-full rounded-lg border border-slate-300/90 bg-white px-3 py-2 text-sm text-slate-700 shadow-[0_1px_0_rgba(15,23,42,0.02)] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200";
+    "w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-400";
   const inputReadOnlyClass =
-    "w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600";
+    "w-full rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-sm text-slate-600";
   const selectReadOnlyClass =
-    "w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500";
+    "w-full rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-sm text-slate-500";
   const labelClass =
-    "min-w-0 flex flex-col gap-1 text-[12px] font-semibold text-slate-500 sm:text-[13px]";
+    "min-w-0 flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400";
   const sectionClass =
-    "rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-sm sm:p-3.5";
+    "rounded-2xl border border-slate-100 bg-white overflow-hidden shadow-[0_1px_4px_rgba(15,23,42,0.06)]";
   const sectionTitleClass =
-    "mb-2.5 flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400 sm:text-xs";
+    "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 border-b border-slate-100 px-4 py-2.5 mb-0";
+  const sectionBodyClass = "p-4";
 
   const categoriaSelectedId = useMemo(() => {
     if (formData.categoriaId) return String(formData.categoriaId);
@@ -1184,27 +1215,146 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
             onClick={onClose}
           />
 
-          <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-hidden p-0 sm:items-start sm:p-8">
-            <div className="flex h-[100dvh] w-full max-w-5xl flex-col overflow-hidden border border-slate-200/80 bg-white shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)] ring-1 ring-white/60 backdrop-blur-sm sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-[1.35rem]">
-              {title && (
-                <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-3 border-b border-blue-100 bg-linear-to-r from-blue-50 via-white to-indigo-50 px-4 py-2.5 sm:px-6 sm:py-3">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <span className="h-7 w-1 rounded-full bg-linear-to-b from-blue-600 via-blue-700 to-indigo-500 sm:h-9" />
-                    <h2 className="min-w-0 text-sm font-extrabold text-slate-800 sm:text-base">
-                      {title}
-                    </h2>
+          <div className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden p-0 sm:items-start sm:p-8">
+            <div className="flex h-[100dvh] w-full max-w-5xl flex-col overflow-hidden bg-slate-50 shadow-[0_-8px_40px_rgba(15,23,42,0.18)] sm:h-auto sm:max-h-[90vh] sm:rounded-[1.35rem] sm:border sm:border-slate-200/80 sm:shadow-[0_30px_90px_-35px_rgba(15,23,42,0.55)]">
+              {/* ── MOBILE HERO — solo visible en móvil ── */}
+              <div className="shrink-0 sm:hidden">
+                <div className="flex justify-center bg-blue-700 pt-3 pb-1">
+                  <div className="h-1 w-10 rounded-full bg-white/30" />
+                </div>
+                <div className="relative bg-linear-to-br from-blue-700 via-blue-600 to-indigo-600 px-4 pt-2 pb-8">
+                  <div className="absolute bottom-0 left-0 right-0 h-5 rounded-t-3xl bg-slate-50" />
+                  <div className="mb-2.5 flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-blue-200">Editar gasto</span>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold text-white">
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                        {String(gasto?.estado || "Borrador")}
+                      </span>
+                      <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-white cursor-pointer">
+                        <IconClose className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-blue-200 bg-white text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-900 cursor-pointer sm:h-10 sm:w-10"
-                  >
-                    <IconClose className="h-3.5 w-3.5 " />
+                  <p className="truncate text-[15px] font-bold text-white leading-tight">
+                    {String(gasto?.proveedor || "Sin proveedor")}
+                  </p>
+                  <p className="mb-3 text-[11px] text-blue-200">
+                    {String(gasto?.categoria || gasto?.categorianom || formData.politica || "")} · #ID {String(gasto?.idrend || gasto?.id || "-")}
+                  </p>
+                  <div className="relative z-10 flex gap-2 mb-3">
+                    {[
+                      { label: "Total", value: `S/ ${formData.total ?? 0}` },
+                      { label: "IGV", value: formData.igv ?? 0 },
+                      { label: "Fecha", value: formData.fecha ? String(formData.fecha).slice(5).replace("-", "/") : "-" },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="flex-1 rounded-xl bg-white/15 px-2.5 py-2">
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-blue-200">{label}</p>
+                        <p className="text-[13px] font-black text-white">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Botones de acción dentro del hero */}
+                  <div className="relative z-10 flex gap-2">
+                    <button
+                      type="button"
+                      disabled={!isEditing || isSaving}
+                      onClick={handleSubmit}
+                      className={`inline-flex h-9 flex-[2] items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-bold transition active:scale-95 cursor-pointer ${
+                        isEditing
+                          ? "bg-amber-400 text-amber-950 hover:bg-amber-300 shadow-sm shadow-amber-900/20"
+                          : "bg-white/10 text-white/35 cursor-not-allowed"
+                      }`}
+                    >
+                      <Save className="h-3.5 w-3.5 shrink-0" />
+                      {isSaving ? "Guardando..." : "Guardar cambios"}
+                    </button>
+                    {!isEditing ? (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditing(true)}
+                        className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/40 bg-white/20 px-3 text-xs font-bold text-white backdrop-blur-sm transition hover:bg-white/30 active:scale-95 cursor-pointer"
+                      >
+                        <IconEdit className="h-3.5 w-3.5" />
+                        Editar
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditing(false)}
+                        className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/30 bg-white/10 px-3 text-xs font-semibold text-white/80 transition hover:bg-white/20 active:scale-95 cursor-pointer"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        Cancelar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── DESKTOP HEADER — oculto en móvil ── */}
+              <div className="sticky top-0 z-20 hidden shrink-0 sm:flex items-center gap-3 border-b border-slate-100 bg-white px-5 py-3 shadow-[0_1px_0_rgba(15,23,42,0.04)]">
+                {/* Ícono */}
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-white shadow-sm shadow-blue-700/30">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                {/* Info */}
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <p className="truncate text-sm font-bold text-slate-800">
+                    {String(gasto?.proveedor || "Sin proveedor")}
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    {String(gasto?.categoria || gasto?.categorianom || formData.politica || "")}
+                    {formData.rucEmisor ? ` · RUC ${formData.rucEmisor}` : ""}
+                  </p>
+                </div>
+                {/* Badges */}
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700 ring-1 ring-amber-200">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                    {String(gasto?.estado || gasto?.estadoActual || "Borrador")}
+                  </span>
+                  <span className="rounded-lg bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-700 ring-1 ring-blue-200">
+                    # {String(gasto?.idrend || gasto?.id || "—")}
+                  </span>
+                  <div className="mx-1 h-4 w-px bg-slate-200" />
+                  <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+                    <IconClose className="h-3 w-3" />
                   </button>
                 </div>
-              )}
+              </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-linear-to-b from-white to-slate-50/70 p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-5 lg:flex lg:flex-col lg:overflow-hidden lg:p-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              {/* ── MOBILE TABS — oculto en sm+ ── */}
+              <div className="shrink-0 bg-slate-50 px-3 pt-2.5 pb-2 sm:hidden">
+                <div className="flex gap-1 rounded-xl bg-slate-200/70 p-1">
+                  {[
+                    { key: "general", label: "General" },
+                    { key: "comprobante", label: "Comprobante" },
+                    { key: "evidencia", label: "Evidencia" },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setActiveTab(key)}
+                      className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                        activeTab === key
+                          ? "bg-white text-blue-700 shadow-sm"
+                          : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {error && (
+                  <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-600">{error}</p>
+                )}
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50 p-3 pb-2 sm:bg-linear-to-b sm:from-white sm:to-slate-50/70 sm:p-5 lg:flex lg:flex-col lg:overflow-hidden lg:p-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                 {error && (
                   <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
                     {error}
@@ -1217,9 +1367,9 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr] lg:min-h-0 lg:flex-1">
                     {/* Solo esta columna hace scroll propio en pantallas lg+; la evidencia queda fija */}
                     <div className="space-y-4 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-1 lg:[scrollbar-width:none] lg:[-ms-overflow-style:none] lg:[&::-webkit-scrollbar]:hidden">
-                      <section className={sectionClass}>
-                        <h3 className={sectionTitleClass}>Datos Generales :</h3>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <section className={`${sectionClass} ${activeTab !== "general" ? "hidden sm:block" : "block"}`}>
+                        <h3 className={sectionTitleClass}><span className="inline-block h-2 w-2 rounded-full bg-blue-500" />Datos Generales</h3>
+                        <div className={sectionBodyClass}><div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <label className={labelClass}>
                             Politica
                             <input
@@ -1242,13 +1392,32 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                                   }}
                                   className={`${inputClass} flex items-center justify-between text-left`}
                                 >
-                                  <span className={categoriaSelectedId ? "text-slate-700" : "text-slate-400"}>
+                                  <span
+                                    className={
+                                      categoriaSelectedId
+                                        ? "text-slate-700"
+                                        : "text-slate-400"
+                                    }
+                                  >
                                     {categoriaSelectedId
-                                      ? categorias.find((c) => String(c.id) === categoriaSelectedId)?.name ?? formData.categoria
-                                      : formData.categoria || "Selecciona una categoría"}
+                                      ? (categorias.find(
+                                          (c) =>
+                                            String(c.id) ===
+                                            categoriaSelectedId,
+                                        )?.name ?? formData.categoria)
+                                      : formData.categoria ||
+                                        "Selecciona una categoría"}
                                   </span>
-                                  <svg className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform ${categoriaAbierta ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd"/>
+                                  <svg
+                                    className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform ${categoriaAbierta ? "rotate-180" : ""}`}
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                                      clipRule="evenodd"
+                                    />
                                   </svg>
                                 </button>
 
@@ -1262,7 +1431,9 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                                         type="text"
                                         placeholder="Buscar categoría..."
                                         value={categoriaBusqueda}
-                                        onChange={(e) => setCategoriaBusqueda(e.target.value)}
+                                        onChange={(e) =>
+                                          setCategoriaBusqueda(e.target.value)
+                                        }
                                         className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
                                       />
                                     </div>
@@ -1270,13 +1441,21 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                                     <ul className="max-h-36 overflow-y-auto py-1 text-sm">
                                       {categorias
                                         .filter((c) =>
-                                          c.name.toLowerCase().includes(categoriaBusqueda.toLowerCase())
+                                          c.name
+                                            .toLowerCase()
+                                            .includes(
+                                              categoriaBusqueda.toLowerCase(),
+                                            ),
                                         )
                                         .map((item) => (
                                           <li
                                             key={item.id}
                                             onClick={() => {
-                                              handleCategoriaChange({ target: { value: String(item.id) } });
+                                              handleCategoriaChange({
+                                                target: {
+                                                  value: String(item.id),
+                                                },
+                                              });
                                               setCategoriaAbierta(false);
                                               setCategoriaBusqueda("");
                                             }}
@@ -1286,9 +1465,15 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                                           </li>
                                         ))}
                                       {categorias.filter((c) =>
-                                        c.name.toLowerCase().includes(categoriaBusqueda.toLowerCase())
+                                        c.name
+                                          .toLowerCase()
+                                          .includes(
+                                            categoriaBusqueda.toLowerCase(),
+                                          ),
                                       ).length === 0 && (
-                                        <li className="px-3 py-2 text-slate-400 text-center">Sin resultados</li>
+                                        <li className="px-3 py-2 text-slate-400 text-center">
+                                          Sin resultados
+                                        </li>
                                       )}
                                     </ul>
                                   </div>
@@ -1297,7 +1482,10 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                             ) : (
                               <div className={selectReadOnlyClass}>
                                 {categoriaSelectedId
-                                  ? categorias.find((c) => String(c.id) === categoriaSelectedId)?.name ?? formData.categoria
+                                  ? (categorias.find(
+                                      (c) =>
+                                        String(c.id) === categoriaSelectedId,
+                                    )?.name ?? formData.categoria)
                                   : formData.categoria || "—"}
                               </div>
                             )}
@@ -1336,14 +1524,12 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                               className={inputReadOnlyClass}
                             />
                           </label>
-                        </div>
+                        </div></div>
                       </section>
 
-                      <section className={sectionClass}>
-                        <h3 className={sectionTitleClass}>
-                          Datos del Comprobante :{" "}
-                        </h3>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <section className={`${sectionClass} ${activeTab !== "comprobante" ? "hidden sm:block" : "block"}`}>
+                        <h3 className={sectionTitleClass}><span className="inline-block h-2 w-2 rounded-full bg-indigo-500" />Datos del Comprobante</h3>
+                        <div className={sectionBodyClass}><div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                           <label className={labelClass}>
                             RUC Cliente:
                             <input
@@ -1602,14 +1788,14 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                               className={`${isEditing ? inputClass : inputReadOnlyClass} resize-none`}
                             />
                           </label>
-                        </div>
+                        </div></div>
                       </section>
                     </div>
 
-                    <aside className="space-y-4 lg:h-fit lg:self-start">
+                    <aside className={`space-y-4 lg:h-fit lg:self-start ${activeTab !== "evidencia" ? "hidden sm:block" : "block"}`}>
                       <section className={sectionClass}>
-                        <h3 className={sectionTitleClass}>Evidencia</h3>
-                        <button
+                        <h3 className={sectionTitleClass}><span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />Evidencia</h3>
+                        <div className={sectionBodyClass}><button
                           type="button"
                           onClick={handleOpenEvidenciaChangeModal}
                           disabled={!isEditing}
@@ -1648,112 +1834,224 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                               }
                             />
                           )}
-                        </div>
+                        </div></div>
                       </section>
                     </aside>
                   </div>
 
-                  <div className="mt-2 border-t border-slate-200 bg-white/95 px-0 pt-2.5 pb-[calc(0.35rem+env(safe-area-inset-bottom))] backdrop-blur sm:sticky sm:bottom-0 sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6">
-                    {error && (
-                      <p className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-                        {error}
-                      </p>
-                    )}
-                    <div className="flex flex-row gap-2 sm:flex-row sm:justify-end">
-                      <div className="flex flex-1 gap-2 sm:flex-none sm:w-auto sm:gap-2">
-                        {!isEditing && (
-                          <button
-                            type="button"
-                            onClick={() => setIsEditing(true)}
-                            className="w-full rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 sm:w-auto cursor-pointer"
-                          >
-                            <span className="inline-flex items-center gap-1.5">
-                              <IconEdit className="h-4 w-4 text-indigo-600" />
-                              <span className="hidden sm:inline">Editar</span>
-                            </span>
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={onClose}
-                          className="w-full rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-50 sm:w-auto cursor-pointer"
-                        >
-                          <span className="inline-flex items-center gap-1.5">
-                            <X className="h-4 w-4" />
-                            <span className="hidden sm:inline">Cancelar</span>
-                          </span>
-                        </button>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={isSaving}
-                        onClick={handleSubmit}
-                        className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto cursor-pointer"
-                      >
-                        <span className="inline-flex items-center gap-1.5">
-                          <Save className="h-4 w-4" />
-                          <span className="hidden sm:inline">
-                            {isSaving ? "Guardando..." : "Guardar cambios"}
-                          </span>
-                        </span>
-                      </button>
-                    </div>
-                  </div>
                 </form>
 
                 {/* Modal para cambiar evidencia */}
                 {showEvidenciaModal && (
-                  // Movil: aparece desde abajo. PC/Tablet (sm+): centrado.
-                  <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/70 p-2 sm:items-center sm:p-4">
-                    <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white p-4 shadow-2xl sm:rounded-2xl sm:p-5">
-                      <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 pb-3 ">
-                        <h4 className="text-base font-bold text-slate-800">
-                          Cambiar evidencia
-                        </h4>
+                  <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/60 p-2 backdrop-blur-sm sm:items-center sm:p-4">
+                    <div className="max-h-[95vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl">
+                      {/* Header */}
+                      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-5 py-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
+                            <svg
+                              className="h-4 w-4 text-blue-600"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <rect x="3" y="3" width="18" height="18" rx="2" />
+                              <circle cx="8.5" cy="8.5" r="1.5" />
+                              <polyline points="21 15 16 10 5 21" />
+                            </svg>
+                          </div>
+                          <h4 className="text-sm font-bold text-slate-800">
+                            Cambiar evidencia
+                          </h4>
+                        </div>
                         <button
                           type="button"
                           onClick={handleCloseEvidenciaModal}
-                          className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
                         >
-                          <IconClose className="h-4 w-4" />
-                          Cerrar
+                          <X size={16} />
                         </button>
                       </div>
 
-                      {error && (
-                        <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-                          {error}
-                        </p>
-                      )}
+                      <div className="space-y-4 p-5">
+                        {error && (
+                          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                            {error}
+                          </p>
+                        )}
 
-                      <div className="space-y-4">
-                        <EvidenciaUploader
-                          labelClass={labelClass}
-                          formData={{ evidencia: newEvidencia }}
-                          hasEvidencia={!!newEvidencia}
-                          canCropImage={newEvidencia?.type?.startsWith(
-                            "image/",
-                          )}
-                          onFileChange={handleEvidenciaFileChange}
-                          onOpenPreview={() => {}}
-                          onStartCrop={handleStartEvidenciaCrop}
-                        />
+                        {/* Vista previa */}
+                        {newEvidenciaPreviewUrl && (
+                          <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                            {/* Barra superior: título + controles de zoom */}
+                            <div className="flex items-center justify-between border-b border-slate-100 bg-white px-4 py-2.5">
+                              <span className="text-xs font-semibold text-slate-500">
+                                Vista previa
+                              </span>
+                              {newEvidencia?.type?.startsWith("image/") && (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setZoomPreview((z) =>
+                                        Math.max(0.5, +(z - 0.25).toFixed(2)),
+                                      )
+                                    }
+                                    className="flex h-6 w-6 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700 text-base font-bold"
+                                  >
+                                    −
+                                  </button>
+                                  <span className="min-w-[36px] text-center text-xs font-medium text-slate-500">
+                                    {Math.round(zoomPreview * 100)}%
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setZoomPreview((z) =>
+                                        Math.min(4, +(z + 0.25).toFixed(2)),
+                                      )
+                                    }
+                                    className="flex h-6 w-6 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700 text-base font-bold"
+                                  >
+                                    +
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => { setZoomPreview(1); setPanOffset({ x: 0, y: 0 }); }}
+                                    className="ml-1 rounded-md px-2 py-0.5 text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                                  >
+                                    Reset
+                                  </button>
+                                </div>
+                              )}
+                            </div>
 
-                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                            {newEvidencia?.type?.startsWith("image/") ? (
+                              <div
+                                className="relative h-64 overflow-hidden select-none bg-[repeating-conic-gradient(#f1f5f9_0%_25%,#ffffff_0%_50%)] bg-[length:16px_16px]"
+                                style={{ cursor: isDraggingRef.current ? "grabbing" : "grab" }}
+                                onWheel={(e) => {
+                                  e.preventDefault();
+                                  setZoomPreview((z) =>
+                                    Math.min(4, Math.max(0.5, +(z - e.deltaY * 0.001).toFixed(2)))
+                                  );
+                                }}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  isDraggingRef.current = true;
+                                  lastMouseRef.current = { x: e.clientX, y: e.clientY };
+                                  e.currentTarget.style.cursor = "grabbing";
+                                }}
+                                onMouseMove={(e) => {
+                                  if (!isDraggingRef.current) return;
+                                  const dx = e.clientX - lastMouseRef.current.x;
+                                  const dy = e.clientY - lastMouseRef.current.y;
+                                  lastMouseRef.current = { x: e.clientX, y: e.clientY };
+                                  setPanOffset((p) => ({ x: p.x + dx, y: p.y + dy }));
+                                }}
+                                onMouseUp={(e) => {
+                                  isDraggingRef.current = false;
+                                  e.currentTarget.style.cursor = "grab";
+                                }}
+                                onMouseLeave={(e) => {
+                                  isDraggingRef.current = false;
+                                  e.currentTarget.style.cursor = "grab";
+                                }}
+                              >
+                                <img
+                                  src={newEvidenciaPreviewUrl}
+                                  alt="Vista previa"
+                                  style={{
+                                    position: "absolute",
+                                    top: "50%",
+                                    left: "50%",
+                                    maxHeight: "240px",
+                                    width: "auto",
+                                    transform: `translate(calc(-50% + ${panOffset.x}px), calc(-50% + ${panOffset.y}px)) scale(${zoomPreview})`,
+                                    transformOrigin: "center",
+                                    transition: isDraggingRef.current ? "none" : "transform 0.15s ease",
+                                  }}
+                                  className="rounded object-contain shadow-sm"
+                                  draggable={false}
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-3 px-4 py-4">
+                                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-50">
+                                  <svg
+                                    className="h-5 w-5 text-red-500"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                  >
+                                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="9" y1="13" x2="15" y2="13" />
+                                    <line x1="9" y1="17" x2="15" y2="17" />
+                                  </svg>
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-medium text-slate-700">
+                                    {newEvidencia?.name}
+                                  </p>
+                                  <p className="text-xs text-slate-400">
+                                    PDF ·{" "}
+                                    {newEvidencia?.size
+                                      ? `${(newEvidencia.size / 1024).toFixed(0)} KB`
+                                      : ""}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Uploader / converting spinner */}
+                        {isConvertingPdf ? (
+                          <div className="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-blue-200 bg-blue-50 py-8">
+                            <svg className="h-8 w-8 animate-spin text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            <p className="text-sm font-medium text-blue-600">Convirtiendo PDF a imagen…</p>
+                            <p className="text-xs text-blue-400">Esto puede tardar unos segundos</p>
+                          </div>
+                        ) : (
+                          <EvidenciaUploader
+                            labelClass={labelClass}
+                            formData={{ evidencia: newEvidencia }}
+                            hasEvidencia={!!newEvidencia}
+                            canCropImage={newEvidencia?.type?.startsWith(
+                              "image/",
+                            )}
+                            onFileChange={handleEvidenciaFileChange}
+                            onOpenPreview={() => {}}
+                            onStartCrop={handleStartEvidenciaCrop}
+                          />
+                        )}
+
+                        {/* Acciones */}
+                        <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
                           <button
                             type="button"
                             onClick={handleCloseEvidenciaModal}
-                            className="w-full rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100 sm:w-auto"
+                            className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 sm:w-auto cursor-pointer"
                           >
                             Cancelar
                           </button>
                           <button
                             type="button"
                             onClick={handleSaveNewEvidencia}
-                            disabled={!newEvidencia || isEvidenciaSaving}
-                            className="w-full rounded-xl bg-blue-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                            disabled={!newEvidencia || isEvidenciaSaving || isConvertingPdf}
+                            className="w-full rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto cursor-pointer"
                           >
-                            {isEvidenciaSaving ? "Guardando..." : "Listo"}
+                            {isEvidenciaSaving
+                              ? "Listo..."
+                              : "Cambiar evidencia"}
                           </button>
                         </div>
                       </div>
@@ -1788,6 +2086,60 @@ export default function EditarGastoModal({ gasto, isOpen, onClose, onSaved }) {
                   onSetCropShape={handleSetEvidenciaCropShape}
                   onReset={handleResetEvidenciaCrop}
                 />
+              </div>
+
+              {/* Barra de acciones — solo desktop */}
+              <div className="hidden sm:flex shrink-0 items-center justify-between border-t border-slate-100 bg-white px-5 py-2.5">
+                {/* Metadata izquierda */}
+                <div className="flex items-center gap-2">
+                  {error && (
+                    <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-600">{error}</p>
+                  )}
+                  {!error && (
+                    <span className="text-[10px] text-slate-400">
+                      Rendición <span className="font-semibold text-slate-500">#{String(gasto?.idrend || gasto?.id || "—")}</span>
+                    </span>
+                  )}
+                </div>
+                {/* Botones derecha */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-500 transition hover:bg-slate-50 active:scale-95 cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Cerrar
+                  </button>
+                  {!isEditing ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 active:scale-95 cursor-pointer"
+                    >
+                      <IconEdit className="h-3.5 w-3.5" />
+                      Editar
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(false)}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-500 transition hover:bg-slate-100 active:scale-95 cursor-pointer"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Cancelar
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={isSaving || !isEditing}
+                    onClick={handleSubmit}
+                    className="inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg bg-blue-700 px-4 text-xs font-bold text-white shadow-sm shadow-blue-700/20 transition hover:bg-blue-800 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <Save className="h-3.5 w-3.5 shrink-0" />
+                    {isSaving ? "Guardando..." : "Guardar cambios"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

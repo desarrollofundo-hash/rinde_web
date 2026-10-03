@@ -15,7 +15,8 @@ import { IconLogout } from "../Icons/logout";
 import { IconCompany } from "../Icons/companyIcon";
 import { Button as MovingBorderButton } from "./ui/moving-border";
 import { BackgroundRippleEffect } from "./ui/background-ripple-effect";
-import { Wallet, BarChart2, ScanSearch, CheckCircle2, Search, Bell, ChevronDown, Building2 } from "lucide-react";
+import { Wallet, BarChart2, CheckCircle2, Search, Bell, ChevronDown, Building2 } from "lucide-react";
+import AuditoriaIcon from "../Icons/auditoria";
 
 export default function Dashboard() {
     const location = useLocation();
@@ -80,7 +81,7 @@ export default function Dashboard() {
     const [loadingEmpresas, setLoadingEmpresas] = useState(false);
     const [companyError, setCompanyError] = useState("");
     const isDesktopSidebarCollapsed = !isDesktopSidebarExpanded;
-    const TAB_ICONS = { Gastos: Wallet, Informe: BarChart2, Auditoria: ScanSearch, Revision: CheckCircle2 };
+    const TAB_ICONS = { Gastos: Wallet, Informe: BarChart2, Auditoria: AuditoriaIcon, Revision: CheckCircle2 };
     const TAB_LABELS = { Gastos: "Gastos", Informe: "Informes", Auditoria: "Auditoría", Revision: "Revisión" };
     const userDisplayName = usuario?.usenam || "No encontrado";
     const companyDisplayName = empresa ? (empresa.empresa || empresa.nombre || empresa.name) : "No seleccionada";
@@ -112,7 +113,13 @@ export default function Dashboard() {
 
     useEffect(() => {
         const handleOutsideClick = (e) => {
-            if (isCompanySelectorOpen && companySelectorRef.current && !companySelectorRef.current.contains(e.target)) {
+            if (
+                isCompanySelectorOpen &&
+                companySelectorRef.current &&
+                !companySelectorRef.current.contains(e.target) &&
+                mobileUserMenuRef.current &&
+                !mobileUserMenuRef.current.contains(e.target)
+            ) {
                 setIsCompanySelectorOpen(false);
             }
             if (isUserMenuOpen && userMenuRef.current && !userMenuRef.current.contains(e.target)) {
